@@ -31,7 +31,8 @@ Activer les API Google nécessaires : Gmail API, Google Drive API, Google Calend
 
 Variables Vercel à définir côté serveur :
 
-- `DATABASE_URL` : URL PostgreSQL fournie par Neon.
+- `DATABASE_URL` : URL PostgreSQL Neon avec pooler, rôle applicatif `zodi_app` limité au CRUD.
+- `DIRECT_URL` : URL PostgreSQL Neon directe, rôle propriétaire réservé aux migrations Prisma. Les builds exécutent `prisma migrate deploy` avant la compilation.
 - `AUTH_SECRET` : secret de session Auth.js.
 - `AUTH_GOOGLE_ID` et `AUTH_GOOGLE_SECRET` : identifiants du client OAuth Google.
 - `GOOGLE_TOKEN_ENCRYPTION_KEY` : clé AES de 32 octets encodée en base64.
@@ -67,6 +68,12 @@ Désactiver un service dans Zodi AI empêche son utilisation par l'application, 
 - `ZODI_AI_OPENROUTER_TIMEOUT_MS`, `ZODI_AI_OPENAI_TIMEOUT_MS`
 
 Ne jamais placer une clé dans GitHub, dans le navigateur, dans une variable `NEXT_PUBLIC_*` ou dans une conversation.
+
+## Déploiement Vercel
+
+- Les fonctions Vercel sont configurées en région `fra1` pour rester proches de la base Neon `aws-eu-central-1`.
+- Les variables sensibles sont stockées dans les environnements Vercel Production et Preview, jamais dans Git.
+- Chaque build exécute les migrations Prisma avant de générer le client et de compiler Next.js.
 
 ## Développement
 
