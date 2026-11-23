@@ -302,8 +302,11 @@ function getPublicError(error: unknown) {
   if (message.includes("PROVIDER_HTTP_401")) {
     return "Le fournisseur IA a refusé sa clé API. Vérifie la clé configurée dans Vercel.";
   }
-  if (message.includes("PROVIDER_HTTP_402") || message.includes("PROVIDER_HTTP_429")) {
-    return "Les fournisseurs IA ont atteint une limite de crédit, de quota ou de débit. Vérifie leur facturation.";
+  if (message.includes("PROVIDER_HTTP_402")) {
+    return "OpenRouter a refusé la demande (HTTP 402 : paiement ou crédits du compte). Les modèles de secours utilisent le même compte OpenRouter et ne peuvent donc pas contourner ce blocage. Vérifie le solde, la facturation et les limites de dépenses OpenRouter, ou configure un deuxième fournisseur indépendant dans Vercel.";
+  }
+  if (message.includes("PROVIDER_HTTP_429")) {
+    return "La limite de requêtes du fournisseur IA est atteinte (HTTP 429). Zodi a essayé ses modèles de secours, mais le quota reste bloqué. Réessaie plus tard ou configure un deuxième fournisseur indépendant.";
   }
   if (message.includes("PROVIDER_HTTP_403")) {
     return "L'accès aux modèles IA est refusé par les fournisseurs configurés.";
