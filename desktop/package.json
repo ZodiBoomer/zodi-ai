@@ -1,0 +1,54 @@
+{
+  "name": "zodi-ai-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Application de bureau Windows de Zodi AI",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "desktop:dist": "electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "electron": "45.4.1",
+    "electron-builder": "26.18.1"
+  },
+  "build": {
+    "appId": "fr.zodi.ai",
+    "productName": "Zodi AI",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "offline.html",
+      "package.json"
+    ],
+    "asar": true,
+    "compression": "maximum",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Zodi AI",
+      "installerLanguages": [
+        "fr_FR"
+      ],
+      "language": "1036",
+      "artifactName": "Zodi-AI-Setup-${version}.${ext}"
+    }
+  }
+}
