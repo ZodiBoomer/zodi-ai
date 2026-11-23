@@ -11,7 +11,7 @@ type ProviderResponse = {
   output_text?: string;
   output?: Array<{ content?: Array<{ text?: string; output_text?: string }> }>;
   choices?: Array<{ message?: { content?: string | Array<{ type?: string; text?: string }> } }>;
-  error?: { message?: string; type?: string; code?: string };
+  error?: { message?: string; type?: string; code?: string | number; metadata?: { reason?: string; limit_source?: string; remedy_hint?: string } };
 };
 
 type ProviderConfig = {
@@ -175,7 +175,14 @@ async function postJson(
 
   const data = (await response.json().catch(() => ({}))) as ProviderResponse;
   if (!response.ok) {
-    throw new Error("PROVIDER_HTTP_" + response.status + ":" + (data.error?.code || data.error?.type || "unknown"));
+    const providerError = data.error;
+    const errorDetails = [
+      "PROVIDER_HTTP_" + response.status,
+      providerError?.code ?? providerError?.type ?? "unknown",
+      providerError?.metadata?.limit_source,
+      providerError?.metadata?.reason
+    ].filter(Boolean).map(String);
+    throw new Error(errorDetails.join(":"));
   }
   return data;
 }
@@ -206,6 +213,11 @@ function extractChatText(data: ProviderResponse) {
   return "";
 }
 
+function isOpenRouterInFlightBudgetError(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  return message.includes("openrouter_in_flight_budget") || message.includes("in_flight_budget_exhausted");
+}
+
 function shouldTryChatCompletions(error: unknown) {
   const message = error instanceof Error ? error.message : "";
   return message.includes("EMPTY_PROVIDER_RESPONSE") ||
@@ -229,13 +241,30 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
     // This catches successful HTTP responses that contain no user-visible text.
     for (const model of models) {
       try {
-        const response = await postJson(config, "chat/completions", {
-          model,
-          messages,
-          max_completion_tokens: 4096,
-          provider: { allow_fallbacks: true },
-          __timeoutMs: OPENROUTER_TIMEOUT_MS
-        });
+        let response: ProviderResponse;
+        try {
+          response = await postJson(config, "chat/completions", {
+            model,
+            messages,
+            max_completion_tokens: 2048,
+            provider: { allow_fallbacks: true },
+            __timeoutMs: OPENROUTER_TIMEOUT_MS
+          });
+        } catch (error) {
+          if (!isOpenRouterInFlightBudgetError(error)) throw error;
+          console.warn("Zodi AI OpenRouter in-flight budget reached; retrying with a smaller output budget.", {
+            provider: config.name,
+            model,
+            limitSource: "openrouter_in_flight_budget"
+          });
+          response = await postJson(config, "chat/completions", {
+            model,
+            messages,
+            max_completion_tokens: 768,
+            provider: { allow_fallbacks: true },
+            __timeoutMs: OPENROUTER_TIMEOUT_MS
+          });
+        }
         const reply = extractChatText(response);
         if (reply) return { reply, model: response.model || model };
         lastError = new Error("EMPTY_PROVIDER_RESPONSE");
@@ -255,7 +284,7 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
         const message = error instanceof Error ? error.message : "";
         if (
           message.includes("PROVIDER_HTTP_401") ||
-          message.includes("PROVIDER_HTTP_402") ||
+          (message.includes("PROVIDER_HTTP_402") && !isOpenRouterInFlightBudgetError(error)) ||
           message.includes("PROVIDER_HTTP_403")
         ) {
           break;
@@ -302,8 +331,11 @@ function getPublicError(error: unknown) {
   if (message.includes("PROVIDER_HTTP_401")) {
     return "Le fournisseur IA a refusé sa clé API. Vérifie la clé configurée dans Vercel.";
   }
+  if (isOpenRouterInFlightBudgetError(error)) {
+    return "OpenRouter a bloqué la requête car son coût estimé dépasse le budget disponible pour les requêtes en cours. Zodi a réduit automatiquement la limite de génération et réessayé. Si le blocage persiste, attends la fin des requêtes en cours ou ajoute des crédits.";
+  }
   if (message.includes("PROVIDER_HTTP_402")) {
-    return "OpenRouter a refusé la demande (HTTP 402 : paiement ou crédits du compte). Les modèles de secours utilisent le même compte OpenRouter et ne peuvent donc pas contourner ce blocage. Vérifie le solde, la facturation et les limites de dépenses OpenRouter, ou configure un deuxième fournisseur indépendant dans Vercel.";
+    return "OpenRouter a refusé la demande (HTTP 402 : solde de crédits insuffisant ou limite de dépenses de la clé atteinte). Les modèles de secours utilisent le même compte OpenRouter et ne peuvent pas contourner ce blocage. Vérifie le solde et les limites de la clé sur la page Crédits OpenRouter.";
   }
   if (message.includes("PROVIDER_HTTP_429")) {
     return "La limite de requêtes du fournisseur IA est atteinte (HTTP 429). Zodi a essayé ses modèles de secours, mais le quota reste bloqué. Réessaie plus tard ou configure un deuxième fournisseur indépendant.";
