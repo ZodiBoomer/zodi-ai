@@ -4,51 +4,99 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
+type CloudProvider = "openai" | "openrouter";
 
 type ProviderResponse = {
+  model?: string;
   output_text?: string;
   output?: Array<{ content?: Array<{ text?: string; output_text?: string }> }>;
   choices?: Array<{ message?: { content?: string | Array<{ type?: string; text?: string }> } }>;
   error?: { message?: string; type?: string; code?: string };
 };
 
+type ProviderConfig = {
+  name: CloudProvider;
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+};
+
 const OPENAI_DEFAULT_MODEL = "gpt-5.5";
 const OPENROUTER_DEFAULT_MODEL = "openai/gpt-5";
+const DEFAULT_OPENROUTER_FALLBACKS = ["openai/gpt-5-mini", "google/gemini-2.5-flash"];
 const MAX_HISTORY_MESSAGES = 10;
 const MAX_MESSAGE_LENGTH = 4000;
-const REQUEST_TIMEOUT_MS = Math.min(55_000, Math.max(15_000, Number(process.env.OPENAI_TIMEOUT_MS) || 55_000));
+const REQUEST_TIMEOUT_MS = Math.min(
+  25_000,
+  Math.max(8_000, Number(process.env.ZODI_AI_PROVIDER_TIMEOUT_MS) || 22_000)
+);
 
-function isOpenRouterConfigured() {
-  const key = String(process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || "").trim();
-  const base = String(process.env.OPENAI_BASE_URL || process.env.OPENAI_API_BASE_URL || "").trim();
-  return /^sk-or-/i.test(key) || /openrouter\.ai/i.test(base);
+function isOpenRouterKey(value: string) {
+  return /^sk-or-/i.test(value.trim());
 }
 
-function getProvider(): "openai" | "openrouter" | "unsupported" {
-  const configured = String(process.env.ZODI_AI_PROVIDER || "").trim().toLowerCase();
-  if (["local", "ollama", "offline", "none"].includes(configured)) return "unsupported";
-  if (configured === "openrouter") return "openrouter";
-  if (configured === "openai") return "openai";
-  return isOpenRouterConfigured() ? "openrouter" : "openai";
+function isOpenRouterUrl(value: string) {
+  return /openrouter\.ai/i.test(value);
 }
 
-function getApiKey(provider: "openai" | "openrouter") {
-  return provider === "openrouter"
-    ? process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY
-    : process.env.OPENAI_API_KEY;
+function getProviderConfigs(): ProviderConfig[] {
+  const openRouterKey = String(
+    process.env.OPENROUTER_API_KEY ||
+    (isOpenRouterKey(String(process.env.OPENAI_API_KEY || "")) ? process.env.OPENAI_API_KEY : "") ||
+    (isOpenRouterUrl(String(process.env.OPENAI_BASE_URL || process.env.OPENAI_API_BASE_URL || ""))
+      ? process.env.OPENAI_API_KEY
+      : "")
+  ).trim();
+
+  const openAiKey = String(
+    process.env.OPENAI_DIRECT_API_KEY ||
+    (!isOpenRouterKey(String(process.env.OPENAI_API_KEY || "")) &&
+      !isOpenRouterUrl(String(process.env.OPENAI_BASE_URL || process.env.OPENAI_API_BASE_URL || ""))
+      ? process.env.OPENAI_API_KEY
+      : "")
+  ).trim();
+
+  const openRouterModel =
+    String(process.env.OPENROUTER_MODEL || process.env.OPENAI_MODEL || "").trim() ||
+    OPENROUTER_DEFAULT_MODEL;
+  const openAiModel = String(process.env.OPENAI_MODEL || "").trim() || OPENAI_DEFAULT_MODEL;
+
+  const configs: ProviderConfig[] = [];
+  if (openRouterKey) {
+    const legacyBase = String(process.env.OPENAI_BASE_URL || process.env.OPENAI_API_BASE_URL || "").trim();
+    configs.push({
+      name: "openrouter",
+      apiKey: openRouterKey,
+      baseUrl: String(process.env.OPENROUTER_BASE_URL || (isOpenRouterUrl(legacyBase) ? legacyBase : "") || "https://openrouter.ai/api/v1").trim().replace(/\/+$/, ""),
+      model: openRouterModel
+    });
+  }
+
+  if (openAiKey) {
+    const legacyBase = String(process.env.OPENAI_BASE_URL || process.env.OPENAI_API_BASE_URL || "").trim();
+    configs.push({
+      name: "openai",
+      apiKey: openAiKey,
+      baseUrl: String(process.env.OPENAI_DIRECT_BASE_URL || (!isOpenRouterUrl(legacyBase) ? legacyBase : "") || "https://api.openai.com/v1").trim().replace(/\/+$/, ""),
+      model: openAiModel
+    });
+  }
+
+  const preferred = String(process.env.ZODI_AI_PROVIDER || "").trim().toLowerCase();
+  if (preferred === "openai" || preferred === "openrouter") {
+    configs.sort((a, b) => Number(b.name === preferred) - Number(a.name === preferred));
+  }
+
+  return configs;
 }
 
-function getBaseUrl(provider: "openai" | "openrouter") {
-  const configured = String(process.env.OPENAI_BASE_URL || process.env.OPENAI_API_BASE_URL || "").trim();
-  if (configured) return configured.replace(/\/+$/, "");
-  return provider === "openrouter"
-    ? "https://openrouter.ai/api/v1"
-    : "https://api.openai.com/v1";
-}
-
-function getModel(provider: "openai" | "openrouter") {
-  return String(process.env.OPENAI_MODEL || "").trim() ||
-    (provider === "openrouter" ? OPENROUTER_DEFAULT_MODEL : OPENAI_DEFAULT_MODEL);
+function getOpenRouterFallbackModels(primary: string) {
+  const configured = String(process.env.OPENROUTER_FALLBACK_MODELS || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const candidates = configured.length ? configured : DEFAULT_OPENROUTER_FALLBACKS;
+  return [...new Set(candidates)].filter((model) => model !== primary).slice(0, 3);
 }
 
 function getSystemPrompt() {
@@ -92,26 +140,21 @@ function buildResponsesInput(history: ChatMessage[]) {
 }
 
 async function postJson(
-  provider: "openai" | "openrouter",
+  config: ProviderConfig,
   route: string,
   payload: Record<string, unknown>
 ): Promise<ProviderResponse> {
-  const apiKey = getApiKey(provider);
-  if (!apiKey) throw new Error("MISSING_KEY:" + provider);
-
-  const baseUrl = getBaseUrl(provider);
-  const url = baseUrl + "/" + route.replace(/^\/+/, "");
   const headers: Record<string, string> = {
-    Authorization: "Bearer " + apiKey,
+    Authorization: "Bearer " + config.apiKey,
     "Content-Type": "application/json"
   };
 
-  if (provider === "openrouter") {
+  if (config.name === "openrouter") {
     headers["HTTP-Referer"] = process.env.OPENROUTER_SITE_URL || "https://zodi-ai-core.vercel.app";
     headers["X-Title"] = process.env.OPENROUTER_APP_NAME || "Zodi AI";
   }
 
-  const response = await fetch(url, {
+  const response = await fetch(config.baseUrl + "/" + route.replace(/^\/+/, ""), {
     method: "POST",
     headers,
     body: JSON.stringify(payload),
@@ -149,76 +192,88 @@ function extractChatText(data: ProviderResponse) {
   return "";
 }
 
-async function generateWithModel(
-  provider: "openai" | "openrouter",
-  model: string,
-  history: ChatMessage[]
-) {
+function shouldTryChatCompletions(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  return message.includes("PROVIDER_HTTP_400") ||
+    message.includes("PROVIDER_HTTP_404") ||
+    message.includes("PROVIDER_HTTP_405");
+}
+
+async function generateWithProvider(config: ProviderConfig, history: ChatMessage[]) {
   const system = getSystemPrompt();
 
-  // Comme le bot Discord : OpenAI Responses d'abord, puis Chat Completions.
-  // OpenRouter utilise directement Chat Completions.
-  if (provider === "openai") {
-    try {
-      const response = await postJson(provider, "responses", {
-        model,
-        instructions: system,
-        input: buildResponsesInput(history),
-        max_output_tokens: 260
-      });
-      const reply = extractResponsesText(response);
-      if (reply) return reply;
-    } catch (error) {
-      console.error("Zodi AI Responses API failed; trying Chat Completions:", {
-        provider,
-        model,
-        error: error instanceof Error ? error.message : "UnknownError"
-      });
-    }
+  if (config.name === "openrouter") {
+    const fallbacks = getOpenRouterFallbackModels(config.model);
+    const payload: Record<string, unknown> = {
+      model: config.model,
+      messages: [
+        { role: "system", content: system },
+        ...history.map((item) => ({ role: item.role, content: item.content }))
+      ],
+      max_tokens: 260,
+      provider: { allow_fallbacks: true }
+    };
+
+    if (fallbacks.length) payload.models = fallbacks;
+
+    const response = await postJson(config, "chat/completions", payload);
+    const reply = extractChatText(response);
+    if (!reply) throw new Error("EMPTY_PROVIDER_RESPONSE");
+    return { reply, model: response.model || config.model };
   }
 
-  const messages = [
-    { role: "system", content: system },
-    ...history.map((item) => ({ role: item.role, content: item.content }))
-  ];
-  const payload: Record<string, unknown> = {
-    model,
-    messages,
+  try {
+    const response = await postJson(config, "responses", {
+      model: config.model,
+      instructions: system,
+      input: buildResponsesInput(history),
+      max_output_tokens: 260
+    });
+    const reply = extractResponsesText(response);
+    if (reply) return { reply, model: response.model || config.model };
+    throw new Error("EMPTY_PROVIDER_RESPONSE");
+  } catch (error) {
+    if (!shouldTryChatCompletions(error)) throw error;
+    console.warn("Zodi AI Responses API incompatible; trying Chat Completions.", {
+      provider: config.name,
+      model: config.model
+    });
+  }
+
+  const response = await postJson(config, "chat/completions", {
+    model: config.model,
+    messages: [
+      { role: "system", content: system },
+      ...history.map((item) => ({ role: item.role, content: item.content }))
+    ],
     max_completion_tokens: 260
-  };
-
-  if (provider === "openrouter") {
-    payload.max_tokens = payload.max_completion_tokens;
-    delete payload.max_completion_tokens;
-  }
-
-  const response = await postJson(provider, "chat/completions", payload);
+  });
   const reply = extractChatText(response);
   if (!reply) throw new Error("EMPTY_PROVIDER_RESPONSE");
-  return reply;
+  return { reply, model: response.model || config.model };
 }
 
 function getPublicError(error: unknown) {
   const message = error instanceof Error ? error.message : "";
   if (message.startsWith("MISSING_KEY:")) {
-    return "La clé API du fournisseur IA choisi n'est pas configurée dans Vercel.";
+    return "Aucune clé API cloud valide n'est configurée dans Vercel.";
   }
   if (message.includes("PROVIDER_HTTP_401")) {
-    return "Le fournisseur IA a refusé la clé API. Vérifie la clé configurée dans Vercel.";
+    return "Le fournisseur IA a refusé sa clé API. Vérifie la clé configurée dans Vercel.";
   }
   if (message.includes("PROVIDER_HTTP_402") || message.includes("PROVIDER_HTTP_429")) {
-    return "Le quota, le crédit ou la limite de dépenses du fournisseur IA est atteint. Vérifie sa facturation.";
+    return "Les fournisseurs IA ont atteint une limite de crédit, de quota ou de débit. Vérifie leur facturation.";
   }
   if (message.includes("PROVIDER_HTTP_403")) {
-    return "Le fournisseur IA refuse l'accès à ce modèle ou à ce projet. Vérifie les autorisations.";
+    return "L'accès aux modèles IA est refusé par les fournisseurs configurés.";
   }
   if (message.includes("PROVIDER_HTTP_404")) {
-    return "Le modèle ou l'endpoint demandé n'est pas disponible avec cette configuration.";
+    return "Aucun des modèles de secours configurés n'est disponible actuellement.";
   }
   if (message.includes("TimeoutError") || message.includes("AbortError")) {
-    return "Le fournisseur IA met trop de temps à répondre. Réessaie dans un instant.";
+    return "Les fournisseurs IA mettent trop de temps à répondre. Réessaie dans un instant.";
   }
-  return "Aucun fournisseur IA cloud n'a pu répondre. Consulte les journaux Vercel pour le diagnostic.";
+  return "Aucun fournisseur IA cloud configuré n'a réussi à répondre. Le détail technique est enregistré dans les journaux Vercel.";
 }
 
 export async function POST(request: Request) {
@@ -237,41 +292,40 @@ export async function POST(request: Request) {
     );
   }
 
-  const provider = getProvider();
-  if (provider === "unsupported") {
+  const providers = getProviderConfigs();
+  if (!providers.length) {
     return NextResponse.json(
-      { error: "La configuration locale est désactivée. Choisis OpenAI ou OpenRouter dans ZODI_AI_PROVIDER." },
+      { error: "Aucune clé API cloud n'est configurée. Ajoute OPENROUTER_API_KEY ou OPENAI_DIRECT_API_KEY dans Vercel." },
       { status: 503 }
     );
   }
 
-  if (!getApiKey(provider)) {
-    return NextResponse.json(
-      { error: "La clé API du fournisseur IA choisi n'est pas configurée dans Vercel." },
-      { status: 503 }
-    );
-  }
-
-  const history = [...normalizeHistory(body.history), { role: "user" as const, content: message }].slice(-MAX_HISTORY_MESSAGES);
-  const configuredModel = getModel(provider);
-  const candidateModels = provider === "openrouter"
-    ? [...new Set([configuredModel, "openrouter/free"])]
-    : [configuredModel];
+  const history = [...normalizeHistory(body.history), { role: "user" as const, content: message }]
+    .slice(-MAX_HISTORY_MESSAGES);
 
   let lastError: unknown;
-  for (const model of candidateModels) {
+  for (const provider of providers) {
     try {
-      const reply = await generateWithModel(provider, model, history);
-      return NextResponse.json({ ok: true, reply, provider, model });
+      const result = await generateWithProvider(provider, history);
+      return NextResponse.json({
+        ok: true,
+        reply: result.reply,
+        provider: provider.name,
+        model: result.model,
+        failoverAvailable: providers.length > 1 || provider.name === "openrouter"
+      });
     } catch (error) {
       lastError = error;
       console.error("Zodi AI cloud provider attempt failed:", {
-        provider,
-        model,
+        provider: provider.name,
+        model: provider.model,
         error: error instanceof Error ? error.message : "UnknownError"
       });
     }
   }
 
-  return NextResponse.json({ error: getPublicError(lastError) }, { status: 502 });
+  return NextResponse.json({
+    error: getPublicError(lastError),
+    providersTried: providers.map((provider) => provider.name)
+  }, { status: 502 });
 }
