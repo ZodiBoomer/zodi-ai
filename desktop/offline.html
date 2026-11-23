@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';">
+  <title>Zodi AI — Connexion indisponible</title>
+  <style>
+    :root { color-scheme: dark; font-family: Segoe UI, sans-serif; background: #0b1020; color: #f4f6ff; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; }
+    main { max-width: 520px; padding: 36px; text-align: center; }
+    .symbol { font-size: 42px; color: #9b8cff; }
+    h1 { margin: 12px 0; }
+    p { color: #b8bfd3; line-height: 1.6; }
+    button { margin-top: 16px; border: 0; border-radius: 10px; padding: 12px 22px; background: #7867f5; color: white; font-size: 15px; cursor: pointer; }
+    button:hover { background: #6654e8; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="symbol">✦</div>
+    <h1>Zodi AI</h1>
+    <p>Impossible de joindre le serveur pour le moment. Vérifie ta connexion Internet puis réessaie.</p>
+    <button id="retry" type="button">Réessayer</button>
+  </main>
+  <script src="offline.js"></script>
+</body>
+</html>
