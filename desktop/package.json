@@ -5,6 +5,7 @@
   "description": "Application de bureau Zodi AI pour Windows et Linux",
   "homepage": "https://zodi-ai-core.vercel.app",
   "author": "Zodi AI",
+  "desktopName": "zodi-ai",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
@@ -71,7 +72,6 @@
         }
       ],
       "category": "Utility",
-      "desktopName": "zodi-ai",
       "synopsis": "Assistant IA personnel Zodi AI",
       "description": "Application de bureau Zodi AI connectée au service en ligne.",
       "maintainer": "Zodi AI",
