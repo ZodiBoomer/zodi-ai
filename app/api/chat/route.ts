@@ -26,9 +26,10 @@ const OPENROUTER_DEFAULT_MODEL = "openai/gpt-5";
 const DEFAULT_OPENROUTER_FALLBACKS = ["openai/gpt-5-mini", "google/gemini-2.5-flash"];
 const MAX_HISTORY_MESSAGES = 10;
 const MAX_MESSAGE_LENGTH = 4000;
+// Three OpenRouter model attempts must fit inside Vercel's 60-second function limit.
 const OPENROUTER_TIMEOUT_MS = Math.min(
-  36_000,
-  Math.max(10_000, Number(process.env.ZODI_AI_OPENROUTER_TIMEOUT_MS) || 36_000)
+  15_000,
+  Math.max(8_000, Number(process.env.ZODI_AI_OPENROUTER_TIMEOUT_MS) || 15_000)
 );
 const OPENAI_TIMEOUT_MS = Math.min(
   10_000,
@@ -158,11 +159,17 @@ async function postJson(
     headers["X-Title"] = process.env.OPENROUTER_APP_NAME || "Zodi AI";
   }
 
+  const timeoutMs = typeof payload.__timeoutMs === "number"
+    ? Math.min(OPENROUTER_TIMEOUT_MS, payload.__timeoutMs)
+    : config.name === "openrouter" ? OPENROUTER_TIMEOUT_MS : OPENAI_TIMEOUT_MS;
+  const requestPayload = { ...payload };
+  delete requestPayload.__timeoutMs;
+
   const response = await fetch(config.baseUrl + "/" + route.replace(/^\/+/, ""), {
     method: "POST",
     headers,
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(config.name === "openrouter" ? OPENROUTER_TIMEOUT_MS : OPENAI_TIMEOUT_MS),
+    body: JSON.stringify(requestPayload),
+    signal: AbortSignal.timeout(timeoutMs),
     cache: "no-store"
   });
 
@@ -188,7 +195,10 @@ function extractChatText(data: ProviderResponse) {
   if (typeof content === "string") return content.trim();
   if (Array.isArray(content)) {
     return content
-      .filter((part) => part.type === "text" && typeof part.text === "string")
+      .filter((part) =>
+        (part.type === "text" || part.type === "output_text") &&
+        typeof part.text === "string"
+      )
       .map((part) => part.text)
       .join("")
       .trim();
@@ -206,25 +216,54 @@ function shouldTryChatCompletions(error: unknown) {
 
 async function generateWithProvider(config: ProviderConfig, history: ChatMessage[]) {
   const system = getSystemPrompt();
+  const messages = [
+    { role: "system" as const, content: system },
+    ...history.map((item) => ({ role: item.role, content: item.content }))
+  ];
 
   if (config.name === "openrouter") {
-    const fallbacks = getOpenRouterFallbackModels(config.model);
-    const payload: Record<string, unknown> = {
-      model: config.model,
-      messages: [
-        { role: "system", content: system },
-        ...history.map((item) => ({ role: item.role, content: item.content }))
-      ],
-      max_tokens: 260,
-      provider: { allow_fallbacks: true }
-    };
+    const models = [config.model, ...getOpenRouterFallbackModels(config.model)];
+    let lastError: unknown;
 
-    if (fallbacks.length) payload.models = fallbacks;
+    // Try models one by one. OpenRouter also switches hosting providers for each model.
+    // This catches successful HTTP responses that contain no user-visible text.
+    for (const model of models) {
+      try {
+        const response = await postJson(config, "chat/completions", {
+          model,
+          messages,
+          max_completion_tokens: 4096,
+          provider: { allow_fallbacks: true },
+          __timeoutMs: OPENROUTER_TIMEOUT_MS
+        });
+        const reply = extractChatText(response);
+        if (reply) return { reply, model: response.model || model };
+        lastError = new Error("EMPTY_PROVIDER_RESPONSE");
+        console.warn("Zodi AI received an empty completion; trying the next cloud model.", {
+          provider: config.name,
+          model,
+          finishReason: (response as ProviderResponse & { choices?: Array<{ finish_reason?: string }> })
+            .choices?.[0]?.finish_reason || "unknown"
+        });
+      } catch (error) {
+        lastError = error;
+        console.error("Zodi AI model attempt failed; trying the next cloud model.", {
+          provider: config.name,
+          model,
+          error: error instanceof Error ? error.message : "UnknownError"
+        });
+        const message = error instanceof Error ? error.message : "";
+        if (
+          message.includes("PROVIDER_HTTP_401") ||
+          message.includes("PROVIDER_HTTP_402") ||
+          message.includes("PROVIDER_HTTP_403")
+        ) {
+          break;
+        }
+      }
+    }
 
-    const response = await postJson(config, "chat/completions", payload);
-    const reply = extractChatText(response);
-    if (!reply) throw new Error("EMPTY_PROVIDER_RESPONSE");
-    return { reply, model: response.model || config.model };
+    throw lastError || new Error("ALL_OPENROUTER_MODELS_FAILED");
   }
 
   try {
@@ -232,14 +271,14 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
       model: config.model,
       instructions: system,
       input: buildResponsesInput(history),
-      max_output_tokens: 260
+      max_output_tokens: 4096
     });
     const reply = extractResponsesText(response);
     if (reply) return { reply, model: response.model || config.model };
     throw new Error("EMPTY_PROVIDER_RESPONSE");
   } catch (error) {
     if (!shouldTryChatCompletions(error)) throw error;
-    console.warn("Zodi AI Responses API incompatible; trying Chat Completions.", {
+    console.warn("Zodi AI Responses API incompatible or empty; trying Chat Completions.", {
       provider: config.name,
       model: config.model
     });
@@ -247,11 +286,8 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
 
   const response = await postJson(config, "chat/completions", {
     model: config.model,
-    messages: [
-      { role: "system", content: system },
-      ...history.map((item) => ({ role: item.role, content: item.content }))
-    ],
-    max_completion_tokens: 260
+    messages,
+    max_completion_tokens: 4096
   });
   const reply = extractChatText(response);
   if (!reply) throw new Error("EMPTY_PROVIDER_RESPONSE");
@@ -275,8 +311,11 @@ function getPublicError(error: unknown) {
   if (message.includes("PROVIDER_HTTP_404")) {
     return "Aucun des modèles de secours configurés n'est disponible actuellement.";
   }
+  if (message.includes("EMPTY_PROVIDER_RESPONSE")) {
+    return "Les modèles cloud n'ont renvoyé aucun texte malgré les tentatives de secours. Réessaie dans quelques secondes ; l'incident est enregistré pour diagnostic.";
+  }
   if (message.includes("TimeoutError") || message.includes("AbortError")) {
-    return "Les fournisseurs IA mettent trop de temps à répondre. Réessaie dans un instant.";
+    return "Les modèles cloud mettent trop de temps à répondre malgré les tentatives de secours. Réessaie dans un instant.";
   }
   return "Aucun fournisseur IA cloud configuré n'a réussi à répondre. Le détail technique est enregistré dans les journaux Vercel.";
 }
