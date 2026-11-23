@@ -31,6 +31,13 @@ Créer un identifiant OAuth de type application Web. Ajouter les URI de redirect
 
 Activer les API Google nécessaires : Gmail API, Google Drive API, Google Calendar API et People API.
 
+### Publication OAuth et durée des autorisations
+
+- En mode **Testing** avec un type d'utilisateur External, seuls les comptes ajoutés à la liste Test users peuvent autoriser l'application.
+- Google fait expirer les refresh tokens après 7 jours pour une application External en Testing qui demande des scopes autres que l'identité de base. Ce mode convient aux essais, pas à une connexion durable.
+- Pour une utilisation personnelle durable, prévoir le passage de l'application en **In production** après les tests. Tant que l'application n'est pas vérifiée, Google peut afficher un avertissement et appliquer une limite d'utilisateurs ; les scopes Gmail sensibles/restreints peuvent nécessiter la vérification Google avant une diffusion publique.
+- Le code gère le cas où Google révoque ou expire un refresh token et demande alors de reconnecter le service.
+
 Variables Vercel à définir côté serveur :
 
 - `DATABASE_URL` : URL PostgreSQL Neon avec pooler, rôle applicatif `zodi_app` limité au CRUD.
