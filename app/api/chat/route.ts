@@ -22,8 +22,12 @@ type ProviderConfig = {
 };
 
 const OPENAI_DEFAULT_MODEL = "gpt-5.5";
-const OPENROUTER_DEFAULT_MODEL = "openai/gpt-5";
-const DEFAULT_OPENROUTER_FALLBACKS = ["openai/gpt-5-mini", "google/gemini-2.5-flash"];
+const OPENROUTER_DEFAULT_MODEL = "openrouter/free";
+const DEFAULT_OPENROUTER_FALLBACKS = [
+  "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "baidu/ernie-5.5-flash-preview:free",
+  "nvidia/nemotron-3.5-super-vl:free"
+];
 const MAX_HISTORY_MESSAGES = 10;
 const MAX_MESSAGE_LENGTH = 4000;
 // Three OpenRouter model attempts must fit inside Vercel's 60-second function limit.
@@ -284,7 +288,7 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
         const message = error instanceof Error ? error.message : "";
         if (
           message.includes("PROVIDER_HTTP_401") ||
-          (message.includes("PROVIDER_HTTP_402") && !isOpenRouterInFlightBudgetError(error)) ||
+          (message.includes("PROVIDER_HTTP_402") && !isOpenRouterInFlightBudgetError(error) && model !== "openrouter/free" && !model.endsWith(":free")) ||
           message.includes("PROVIDER_HTTP_403")
         ) {
           break;
@@ -335,7 +339,7 @@ function getPublicError(error: unknown) {
     return "OpenRouter a bloqué la requête car son coût estimé dépasse le budget disponible pour les requêtes en cours. Zodi a réduit automatiquement la limite de génération et réessayé. Si le blocage persiste, attends la fin des requêtes en cours ou ajoute des crédits.";
   }
   if (message.includes("PROVIDER_HTTP_402")) {
-    return "OpenRouter a refusé la demande (HTTP 402 : solde de crédits insuffisant ou limite de dépenses de la clé atteinte). Les modèles de secours utilisent le même compte OpenRouter et ne peuvent pas contourner ce blocage. Vérifie le solde et les limites de la clé sur la page Crédits OpenRouter.";
+    return "OpenRouter a refusé la demande (HTTP 402). Zodi utilise maintenant le routeur gratuit et plusieurs modèles gratuits ; il essaie les autres modèles gratuits avant d’abandonner. Si tous sont refusés, vérifie que la clé API OpenRouter est active et que les modèles gratuits sont autorisés sur ton compte.";
   }
   if (message.includes("PROVIDER_HTTP_429")) {
     return "La limite de requêtes du fournisseur IA est atteinte (HTTP 429). Zodi a essayé ses modèles de secours, mais le quota reste bloqué. Réessaie plus tard ou configure un deuxième fournisseur indépendant.";
