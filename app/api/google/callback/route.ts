@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { encryptGoogleToken } from "@/lib/google-token-crypto";
+import { decryptGoogleToken, encryptGoogleToken } from "@/lib/google-token-crypto";
 import { GOOGLE_SERVICES, isGoogleService } from "@/lib/google-services";
 
 export const runtime = "nodejs";
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
       client_secret: clientSecret,
       redirect_uri: redirectUri,
       grant_type: "authorization_code",
-      code_verifier: savedState.codeVerifier
+      code_verifier: decryptGoogleToken(savedState.codeVerifier)
     }),
     cache: "no-store"
   });
