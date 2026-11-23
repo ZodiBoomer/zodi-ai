@@ -1,6 +1,6 @@
-# Zodi AI pour Windows
+# Zodi AI — Applications de bureau
 
-Cette application Electron ouvre l'interface officielle hébergée sur
+Les applications Electron ouvrent l'interface officielle hébergée sur
 https://zodi-ai-core.vercel.app dans une fenêtre de bureau dédiée.
 
 ## Générer l'installateur Windows
@@ -13,7 +13,26 @@ npm install
 npm run desktop:dist
 ```
 
-L'installateur NSIS x64 est créé dans `desktop/release/Zodi-AI-Setup-0.1.0.exe`.
+L'installateur NSIS Windows x64 est créé dans `desktop/release/`.
+
+## Générer les paquets Linux
+
+Prérequis : Node.js 22 ou supérieur et npm.
+
+```bash
+cd desktop
+npm install
+npm run desktop:dist:linux
+```
+
+La compilation Linux x64 produit deux formats dans `desktop/release/` :
+
+- `Zodi-AI-0.1.0-x64.AppImage` — format portable, adapté à de nombreuses distributions Linux.
+- `Zodi-AI-0.1.0-x64.deb` — paquet pour Debian, Ubuntu, Linux Mint et distributions compatibles.
+
+L'AppImage peut nécessiter la prise en charge FUSE 2 sur certaines distributions. Le paquet
+`.deb` s'installe avec le gestionnaire de paquets de la distribution, par exemple
+`sudo apt install ./Zodi-AI-0.1.0-x64.deb`.
 
 ## Fonctionnement
 
@@ -27,3 +46,8 @@ L'installateur NSIS x64 est créé dans `desktop/release/Zodi-AI-Setup-0.1.0.exe
 
 L'intégration Node.js est désactivée dans la page distante, l'isolation de contexte
 et le sandbox sont activés. La navigation est limitée à l'origine de Zodi AI.
+
+## Cibles de compilation
+
+- Windows : NSIS x64 (`npm run desktop:dist`).
+- Linux : AppImage x64 et Debian package x64 (`npm run desktop:dist:linux`).
