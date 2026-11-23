@@ -60,6 +60,11 @@ Désactiver un service dans Zodi AI empêche son utilisation par l'application, 
 - `POST /api/chat` nécessite une session authentifiée.
 - `GET /api/google/connections` renvoie les connexions du compte courant sans jeton.
 - `DELETE /api/google/connections` désactive un service pour un compte Google.
+- `GET /api/google/gmail` lit les derniers messages (métadonnées et extrait), avec recherche Gmail et pagination.
+- `GET /api/google/drive` liste les fichiers accessibles à l'application, avec filtre Drive et pagination.
+- `GET /api/google/calendar` lit les événements sur une période limitée à 90 jours.
+- `GET /api/google/contacts` lit les noms, adresses email, téléphones et organisations, avec pagination.
+- Toutes les routes Google exigent une session utilisateur, contrôlent le service connecté et n'exposent jamais les jetons OAuth.
 
 ## Variables IA
 
