@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { GOOGLE_SERVICES, isGoogleService } from "@/lib/google-services";
+import { encryptGoogleToken } from "@/lib/google-token-crypto";
 
 export const runtime = "nodejs";
 
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
       stateHash: createHash("sha256").update(state).digest("hex"),
       userId: session.user.id,
       service,
-      codeVerifier,
+      codeVerifier: encryptGoogleToken(codeVerifier),
       expiresAt: new Date(Date.now() + 10 * 60 * 1000)
     }
   });
