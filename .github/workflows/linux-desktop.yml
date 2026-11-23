@@ -39,6 +39,9 @@ jobs:
       - name: Install virtual display
         run: sudo apt-get update && sudo apt-get install -y xvfb
 
+      - name: Configure Electron Linux sandbox helper
+        run: sudo chown root:root desktop/node_modules/electron/dist/chrome-sandbox && sudo chmod 4755 desktop/node_modules/electron/dist/chrome-sandbox
+
       - name: Smoke-test Electron and Zodi AI service
         working-directory: desktop
         env:
