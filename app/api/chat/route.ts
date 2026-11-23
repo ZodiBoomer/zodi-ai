@@ -194,7 +194,8 @@ function extractChatText(data: ProviderResponse) {
 
 function shouldTryChatCompletions(error: unknown) {
   const message = error instanceof Error ? error.message : "";
-  return message.includes("PROVIDER_HTTP_400") ||
+  return message.includes("EMPTY_PROVIDER_RESPONSE") ||
+    message.includes("PROVIDER_HTTP_400") ||
     message.includes("PROVIDER_HTTP_404") ||
     message.includes("PROVIDER_HTTP_405");
 }
