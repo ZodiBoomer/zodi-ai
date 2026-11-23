@@ -1,15 +1,23 @@
-import { createGateway, generateText } from "ai";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-const DEFAULT_MODEL = "openai/gpt-4o-mini";
-const gateway = process.env.VERCEL_ACCESS_TOKEN
-  ? createGateway({
-      apiKey: process.env.VERCEL_ACCESS_TOKEN,
-      teamIdOrSlug: "zodi4"
-    })
-  : undefined;
+const DEFAULT_MODEL = "gpt-4o-mini";
+const SYSTEM_PROMPT =
+  "Tu es Zodi AI, un assistant personnel utile, clair et prudent. Réponds en français sauf demande contraire.";
+
+type OpenAIChatResponse = {
+  choices?: Array<{
+    message?: {
+      content?: string | Array<{ type?: string; text?: string }>;
+    };
+  }>;
+  error?: {
+    message?: string;
+    type?: string;
+    code?: string;
+  };
+};
 
 export async function POST(request: Request) {
   let body: { message?: unknown };
@@ -27,35 +35,89 @@ export async function POST(request: Request) {
     );
   }
 
-  const modelId = process.env.AI_GATEWAY_MODEL || DEFAULT_MODEL;
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "La clé API OpenAI n’est pas configurée sur le serveur." },
+      { status: 503 }
+    );
+  }
+
+  const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
 
   try {
-    const result = await generateText({
-      model: gateway ? gateway(modelId) : modelId,
-      system: "Tu es Zodi AI, un assistant personnel utile, clair et prudent. Réponds en français sauf demande contraire.",
-      prompt: message,
-      maxOutputTokens: 500,
-      abortSignal: AbortSignal.timeout(25000)
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: message }
+        ],
+        max_completion_tokens: 500
+      }),
+      signal: AbortSignal.timeout(25000),
+      cache: "no-store"
     });
 
-    if (!result.text.trim()) {
+    const data = (await response.json().catch(() => ({}))) as OpenAIChatResponse;
+
+    if (!response.ok) {
+      console.error("OpenAI API request failed:", {
+        status: response.status,
+        type: data.error?.type,
+        code: data.error?.code
+      });
+      const status = response.status === 429 ? 429 : response.status >= 500 ? 502 : 502;
       return NextResponse.json(
-        { error: "Le modèle n’a pas renvoyé de réponse exploitable." },
+        {
+          error:
+            response.status === 401
+              ? "OpenAI a refusé la clé API. Vérifie la clé configurée dans Vercel."
+              : response.status === 429
+                ? "La limite ou le quota OpenAI est atteint. Vérifie la facturation et les limites du projet OpenAI."
+                : "OpenAI n’a pas pu traiter la demande. Consulte les journaux du serveur pour le diagnostic."
+        },
+        { status }
+      );
+    }
+
+    const content = data.choices?.[0]?.message?.content;
+    const reply =
+      typeof content === "string"
+        ? content.trim()
+        : Array.isArray(content)
+          ? content
+              .filter((part) => part.type === "text" && typeof part.text === "string")
+              .map((part) => part.text)
+              .join("")
+              .trim()
+          : "";
+
+    if (!reply) {
+      return NextResponse.json(
+        { error: "OpenAI n’a pas renvoyé de réponse exploitable." },
         { status: 502 }
       );
     }
 
-    return NextResponse.json({
-      ok: true,
-      reply: result.text.trim(),
-      model: modelId
-    });
+    return NextResponse.json({ ok: true, reply, provider: "openai", model });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Erreur inconnue du fournisseur IA.";
-    console.error("Zodi AI Gateway request failed:", message);
+    const isTimeout = error instanceof Error && error.name === "TimeoutError";
+    console.error("OpenAI API connection failed:", {
+      name: error instanceof Error ? error.name : "UnknownError",
+      message: error instanceof Error ? error.message : "Unknown error"
+    });
     return NextResponse.json(
-      { error: "La connexion à Vercel AI Gateway a échoué. Vérifie le jeton Vercel, les autorisations AI Gateway et les crédits de l’équipe." },
+      {
+        error: isTimeout
+          ? "OpenAI met trop de temps à répondre. Réessaie dans un instant."
+          : "Impossible de joindre l’API OpenAI depuis le serveur."
+      },
       { status: 502 }
     );
   }
