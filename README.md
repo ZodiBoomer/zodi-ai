@@ -19,7 +19,8 @@ Noyau conversationnel de Zodi AI, construit avec Next.js et des fournisseurs IA 
 - `OPENROUTER_MODEL` : modèle OpenRouter principal (défaut : `openai/gpt-5`).
 - `OPENROUTER_FALLBACK_MODELS` : liste facultative de modèles de secours séparés par des virgules.
 - `OPENAI_MODEL` : modèle OpenAI direct (défaut : `gpt-5.5`).
-- `ZODI_AI_PROVIDER_TIMEOUT_MS` : délai maximal par requête fournisseur (défaut : 22000 ms, plafond : 25000 ms).
+- `ZODI_AI_OPENROUTER_TIMEOUT_MS` : délai maximal OpenRouter (défaut : 36000 ms, plafond : 36000 ms).
+- `ZODI_AI_OPENAI_TIMEOUT_MS` : délai maximal par appel OpenAI direct (défaut : 10000 ms, plafond : 10000 ms).
 
 Ne jamais placer une clé dans GitHub, dans le navigateur, dans une variable `NEXT_PUBLIC_*` ou dans une conversation.
 
