@@ -24,6 +24,8 @@ Créer un identifiant OAuth de type application Web. Ajouter les URI de redirect
 
 - Production Auth.js : `https://zodi-ai-core.vercel.app/api/auth/callback/google`
 - Production services : `https://zodi-ai-core.vercel.app/api/google/callback`
+- Preview Auth.js : `https://zodi-ai-core-git-feat-google-auth-connections-zodi4.vercel.app/api/auth/callback/google`
+- Preview services : `https://zodi-ai-core-git-feat-google-auth-connections-zodi4.vercel.app/api/google/callback`
 - Local Auth.js : `http://localhost:3000/api/auth/callback/google`
 - Local services : `http://localhost:3000/api/google/callback`
 
