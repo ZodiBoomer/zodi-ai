@@ -20,8 +20,9 @@ permissions:
 
 jobs:
   build-linux:
-    name: Build Linux packages (x64)
+    name: Build and smoke-test Linux app (x64)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,6 +35,15 @@ jobs:
       - name: Install desktop dependencies
         working-directory: desktop
         run: npm install --no-audit --no-fund
+
+      - name: Install virtual display
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Smoke-test Electron and Zodi AI service
+        working-directory: desktop
+        env:
+          ZODI_SMOKE_TEST: "1"
+        run: xvfb-run -a npm run desktop:smoke:linux
 
       - name: Build AppImage and Debian package
         working-directory: desktop
