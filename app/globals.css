@@ -21,3 +21,33 @@ button { border: 0; border-radius: 12px; padding: 0 20px; color: white; backgrou
 button:disabled { opacity: .5; cursor: wait; }
 .hint { margin-top: 14px; color: #8997b4; font-size: 12px; line-height: 1.5; }
 .error { color: #ff9b9b; }
+
+.auth-shell { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.auth-card { width: min(440px, 100%); padding: 32px; border: 1px solid #26324b; background: #11192a; border-radius: 22px; text-align: center; }
+.auth-card .logo { margin: 0 auto 20px; }
+.auth-card h1, .connections-panel h1 { margin: 0 0 12px; }
+.auth-card p { color: #aab6ce; line-height: 1.6; }
+.primary-button, .secondary-button { min-height: 42px; padding: 0 16px; border-radius: 11px; border: 0; cursor: pointer; font-weight: 700; }
+.primary-button { background: #6856e8; color: white; }
+.secondary-button { background: #25314a; color: #eaf0ff; }
+.fine-print, .muted { color: #8997b4; font-size: 12px; line-height: 1.6; }
+.auth-card .fine-print { margin-top: 22px; }
+.app-header, .page-header { justify-content: space-between; flex-wrap: wrap; }
+.brand, .account-nav { display: flex; align-items: center; gap: 14px; }
+.account-nav { flex-wrap: wrap; justify-content: flex-end; }
+.account-nav a, .back-link, .primary-link { color: #b9b0ff; text-decoration: none; font-weight: 700; }
+.account-email { color: #9ca9c5; font-size: 13px; }
+.connections-panel > .sub { margin-bottom: 22px; }
+.service-list { display: grid; gap: 12px; margin-top: 24px; }
+.service-card { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 18px; border: 1px solid #2b3852; border-radius: 15px; background: #0d1525; }
+.service-card h2 { margin: 0 0 6px; font-size: 17px; }
+.service-card p { margin: 0 0 12px; color: #9ca9c5; font-size: 13px; }
+.connected-account { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 12px; color: #d4def1; font-size: 13px; }
+.connected-dot { width: 8px; height: 8px; border-radius: 50%; background: #42d392; }
+.primary-link { white-space: nowrap; padding: 10px 14px; border-radius: 10px; background: #2d2757; }
+@media (max-width: 620px) {
+  .shell { padding: 24px 0; }
+  .app-header { align-items: flex-start; }
+  .account-nav { width: 100%; justify-content: flex-start; }
+  .service-card { align-items: flex-start; flex-direction: column; }
+}
