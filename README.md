@@ -1,22 +1,20 @@
 # Zodi AI Core
 
-Prototype du noyau conversationnel de Zodi AI, construit avec Next.js pour Vercel AI Gateway.
+Prototype du noyau conversationnel de Zodi AI, construit avec Next.js et Vercel AI Gateway.
 
 ## Fonctions
 - Interface de chat minimale en français.
 - Route de santé `GET /api/health`.
 - Route de conversation `POST /api/chat`.
-- Vercel AI Gateway via l'API compatible OpenAI.
-- Authentification OIDC automatique sur Vercel, avec `AI_GATEWAY_API_KEY` comme solution de repli pour le développement local.
+- Vercel AI Gateway via le SDK officiel Vercel AI SDK.
+- Authentification par Vercel Access Token (optionnel) ou OIDC automatique sur les déploiements Vercel.
 
-## Configuration
-- `AI_GATEWAY_MODEL` : identifiant exact du modèle Gateway (défaut : `openai/gpt-4o-mini`).
-- `AI_GATEWAY_API_KEY` : clé API AI Gateway facultative pour les environnements sans OIDC.
-- Sur Vercel, `VERCEL_OIDC_TOKEN` est utilisé automatiquement lorsque l'OIDC du projet est activé.
+## Configuration Vercel
+- `AI_GATEWAY_MODEL` : identifiant du modèle Gateway (défaut : `openai/gpt-4o-mini`).
+- `VERCEL_ACCESS_TOKEN` : jeton d'accès personnel Vercel facultatif, à stocker comme variable chiffrée côté serveur. Il est transmis au SDK Gateway avec le scope d'équipe `zodi4`.
+- Si `VERCEL_ACCESS_TOKEN` n'est pas défini, le SDK utilise l'authentification OIDC automatique de Vercel (si activée pour le projet).
 
-Endpoint Gateway : `https://ai-gateway.vercel.sh/v1`.
-
-Ne jamais commiter de clé API, de fichier `.env` ou de secret. Ne jamais exposer ces valeurs avec un préfixe `NEXT_PUBLIC_`.
+Ajouter le jeton dans Vercel → Project → Settings → Environment Variables, clé `VERCEL_ACCESS_TOKEN`, type Secret/Encrypted, pour Preview, Production et Development. Ne jamais le mettre dans GitHub, dans le code, dans une variable `NEXT_PUBLIC_*`, ni dans une conversation.
 
 ## Développement
 ```bash
@@ -25,8 +23,8 @@ npm run dev
 npm run build
 ```
 
-Pour le développement local, ajoute `AI_GATEWAY_API_KEY` à `.env.local` sans le commiter.
+Pour le développement local, utiliser un jeton dans un fichier `.env.local` non commité, ou utiliser `vercel env pull` pour obtenir les variables locales liées au projet.
 
 ## Endpoints
-- `GET /api/health` indique l'état du serveur, le mode d'authentification et le modèle, sans exposer le jeton.
+- `GET /api/health` indique le mode d'authentification prévu et le modèle, sans révéler de secret.
 - `POST /api/chat` reçoit `{ "message": "Bonjour" }` et renvoie `{ "ok": true, "reply": "..." }`.
