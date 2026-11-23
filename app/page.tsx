@@ -18,7 +18,7 @@ export default function Home() {
       .then(async (r) => {
         const data = await r.json();
         setReady(Boolean(data.ok && data.aiConfigured));
-        setStatus(data.aiConfigured ? "Serveur prêt · clé API détectée" : "Serveur prêt · clé API à configurer");
+        setStatus(data.authMode === "vercel-oidc" ? "Serveur prêt · authentification Vercel OIDC" : data.authMode === "gateway-api-key" ? "Serveur prêt · clé AI Gateway détectée" : "Serveur prêt · authentification à configurer");
       })
       .catch(() => setStatus("Serveur inaccessible"));
   }, []);
