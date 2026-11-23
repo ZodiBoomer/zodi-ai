@@ -2,41 +2,77 @@
 
 Noyau conversationnel de Zodi AI, construit avec Next.js et des fournisseurs IA cloud.
 
-## Fiabilité et routage
+## Connexion et comptes
 
-- OpenRouter est utilisé avec son basculement automatique entre fournisseurs d'hébergement.
-- En cas d'indisponibilité complète du modèle principal, OpenRouter peut essayer les modèles de secours définis dans `OPENROUTER_FALLBACK_MODELS`.
-- Par défaut, les modèles de secours sont `openai/gpt-5-mini` puis `google/gemini-2.5-flash`.
-- Si une seconde clé OpenAI directe est configurée, l'application essaie automatiquement cet autre fournisseur si OpenRouter échoue.
+- Authentification Google via Auth.js ; comptes et sessions stockés dans PostgreSQL.
+- Le chat et son API nécessitent une session authentifiée.
+- La connexion initiale demande uniquement `openid email profile`.
+- Gmail, Drive, Agenda et Contacts sont autorisés séparément depuis `/connections`.
+- Les jetons de rafraîchissement Google sont chiffrés en AES-256-GCM avant stockage.
+- Aucun jeton Google ni secret OAuth n'est renvoyé au navigateur.
+
+## Base de données PostgreSQL
+
+1. Créer une base Neon depuis le Vercel Marketplace et la connecter au projet `zodi-ai-core`.
+2. Vérifier que `DATABASE_URL` est disponible dans les environnements nécessaires.
+3. Appliquer le schéma avec `npm run db:deploy`.
+4. Déployer de nouveau le projet.
+
+## Google Cloud Console
+
+Créer un identifiant OAuth de type application Web. Ajouter les URI de redirection suivantes :
+
+- Production Auth.js : `https://zodi-ai-core.vercel.app/api/auth/callback/google`
+- Production services : `https://zodi-ai-core.vercel.app/api/google/callback`
+- Local Auth.js : `http://localhost:3000/api/auth/callback/google`
+- Local services : `http://localhost:3000/api/google/callback`
+
+Activer les API Google nécessaires : Gmail API, Google Drive API, Google Calendar API et People API.
+
+Variables Vercel à définir côté serveur :
+
+- `DATABASE_URL` : URL PostgreSQL fournie par Neon.
+- `AUTH_SECRET` : secret de session Auth.js.
+- `AUTH_GOOGLE_ID` et `AUTH_GOOGLE_SECRET` : identifiants du client OAuth Google.
+- `GOOGLE_TOKEN_ENCRYPTION_KEY` : clé AES de 32 octets encodée en base64.
+- `GOOGLE_SERVICES_REDIRECT_URI` : `https://zodi-ai-core.vercel.app/api/google/callback`.
+
+Générer deux secrets indépendants avec `openssl rand -base64 32` (une fois pour `AUTH_SECRET`, une fois pour `GOOGLE_TOKEN_ENCRYPTION_KEY`). Ne jamais envoyer ces valeurs dans un chat ni les placer dans Git.
+
+## Autorisations Google progressives
+
+- Connexion : `openid email profile`.
+- Gmail : lecture seule (`gmail.readonly`).
+- Drive : fichiers explicitement ouverts ou créés par l'application (`drive.file`).
+- Agenda : lecture seule (`calendar.events.readonly`).
+- Contacts : lecture seule (`contacts.readonly`).
+
+Google peut exiger la vérification de l'application OAuth avant de rendre certains scopes sensibles ou restreints disponibles à tous les utilisateurs. Pendant les tests, ajouter les comptes concernés aux utilisateurs de test Google Cloud.
+
+Désactiver un service dans Zodi AI empêche son utilisation par l'application, mais ne révoque pas à lui seul le consentement Google. La révocation complète s'effectue dans les paramètres de sécurité du compte Google.
+
+## Fournisseurs IA et endpoints
+
+- OpenRouter est utilisé avec ses mécanismes de secours ; OpenAI direct peut être configuré en fournisseur secondaire.
 - Aucune IA locale, aucun Ollama et aucune réponse locale de substitution.
+- `GET /api/health` expose uniquement l'état de configuration IA, sans secret.
+- `POST /api/chat` nécessite une session authentifiée.
+- `GET /api/google/connections` renvoie les connexions du compte courant sans jeton.
+- `DELETE /api/google/connections` désactive un service pour un compte Google.
 
-## Variables d'environnement Vercel
+## Variables IA
 
-- `OPENROUTER_API_KEY` : clé OpenRouter recommandée.
-- `OPENAI_DIRECT_API_KEY` : clé API OpenAI directe indépendante, utilisée comme fournisseur secondaire.
-- `OPENAI_API_KEY` : compatibilité avec l'ancienne configuration. Si la valeur est une clé OpenRouter, elle est traitée comme telle ; sinon elle peut servir à OpenAI direct.
-- `ZODI_AI_PROVIDER` : fournisseur prioritaire facultatif (`openrouter` ou `openai`). Les autres fournisseurs configurés restent disponibles en secours.
-- `OPENROUTER_MODEL` : modèle OpenRouter principal (défaut : `openai/gpt-5`).
-- `OPENROUTER_FALLBACK_MODELS` : liste facultative de modèles de secours séparés par des virgules.
-- `OPENAI_MODEL` : modèle OpenAI direct (défaut : `gpt-5.5`).
-- `ZODI_AI_OPENROUTER_TIMEOUT_MS` : délai maximal OpenRouter (défaut : 36000 ms, plafond : 36000 ms).
-- `ZODI_AI_OPENAI_TIMEOUT_MS` : délai maximal par appel OpenAI direct (défaut : 10000 ms, plafond : 10000 ms).
+- `OPENROUTER_API_KEY`, `OPENAI_DIRECT_API_KEY`, `OPENAI_API_KEY`
+- `ZODI_AI_PROVIDER`, `OPENROUTER_MODEL`, `OPENROUTER_FALLBACK_MODELS`, `OPENAI_MODEL`
+- `ZODI_AI_OPENROUTER_TIMEOUT_MS`, `ZODI_AI_OPENAI_TIMEOUT_MS`
 
 Ne jamais placer une clé dans GitHub, dans le navigateur, dans une variable `NEXT_PUBLIC_*` ou dans une conversation.
-
-## Endpoints
-
-- `GET /api/health` expose uniquement l'état de configuration et les chemins de secours, sans révéler de secret. Ce n'est pas un test d'inférence en direct.
-- `POST /api/chat` reçoit `{ "message": "Bonjour", "history": [] }` et renvoie une réponse IA cloud.
-- Le chat transmet les 10 derniers messages au maximum.
-- Les erreurs de fournisseur sont journalisées côté serveur sans écrire de clé API dans les logs.
 
 ## Développement
 
 ```bash
 npm install
 npm run dev
-npm run build
-```
+``
 
-Pour le développement local, placer les clés dans `.env.local`, qui ne doit jamais être commitée.
+Pour le développement local, placer les secrets dans `.env.local`, qui ne doit jamais être commitée.
