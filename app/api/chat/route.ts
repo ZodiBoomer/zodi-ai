@@ -2,11 +2,18 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
+const GATEWAY_URL = "https://ai-gateway.vercel.sh/v1";
+const DEFAULT_MODEL = "openai/gpt-4o-mini";
+
 export async function POST(request: Request) {
-  const apiKey = process.env.AI_API_KEY;
-  if (!apiKey) {
+  // Vercel injects an OIDC token into deployments. A Gateway API key is
+  // supported as a fallback for local development or external environments.
+  const credential =
+    process.env.VERCEL_OIDC_TOKEN || process.env.AI_GATEWAY_API_KEY;
+
+  if (!credential) {
     return NextResponse.json(
-      { error: "Clé API absente. Ajoute AI_API_KEY dans les variables d’environnement Vercel." },
+      { error: "Authentification AI Gateway absente. Vérifie OIDC ou AI_GATEWAY_API_KEY dans Vercel." },
       { status: 503 }
     );
   }
@@ -23,41 +30,53 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Le message doit contenir entre 1 et 4000 caractères." }, { status: 400 });
   }
 
-  const baseUrl = (process.env.AI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
-  const model = process.env.AI_MODEL || "gpt-4o-mini";
+  const model = process.env.AI_GATEWAY_MODEL || DEFAULT_MODEL;
 
   try {
-    const upstream = await fetch(`${baseUrl}/chat/completions`, {
+    const upstream = await fetch(`${GATEWAY_URL}/chat/completions`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
+        "Authorization": `Bearer ${credential}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
         model,
         messages: [
-          { role: "system", content: "Tu es Zodi AI, un assistant personnel utile, clair et prudent. Réponds en français sauf demande contraire." },
+          {
+            role: "system",
+            content: "Tu es Zodi AI, un assistant personnel utile, clair et prudent. Réponds en français sauf demande contraire."
+          },
           { role: "user", content: message }
         ],
-        temperature: 0.7
+        temperature: 0.7,
+        max_tokens: 500
       }),
       signal: AbortSignal.timeout(25000)
     });
 
     const data = await upstream.json().catch(() => ({}));
     if (!upstream.ok) {
-      return NextResponse.json(
-        { error: data?.error?.message || `Le fournisseur IA a répondu avec le statut ${upstream.status}.` },
-        { status: 502 }
-      );
+      const providerMessage =
+        typeof data?.error?.message === "string"
+          ? data.error.message
+          : `AI Gateway a répondu avec le statut ${upstream.status}.`;
+      return NextResponse.json({ error: providerMessage }, { status: 502 });
     }
 
     const reply = data?.choices?.[0]?.message?.content;
     if (typeof reply !== "string" || !reply.trim()) {
       return NextResponse.json({ error: "Le modèle n’a pas renvoyé de réponse exploitable." }, { status: 502 });
     }
-    return NextResponse.json({ ok: true, reply: reply.trim(), model });
+
+    return NextResponse.json({
+      ok: true,
+      reply: reply.trim(),
+      model: data.model || model
+    });
   } catch {
-    return NextResponse.json({ error: "Impossible de joindre le fournisseur IA. Vérifie l’URL et la disponibilité du service." }, { status: 502 });
+    return NextResponse.json(
+      { error: "Impossible de joindre Vercel AI Gateway. Réessaie dans un instant." },
+      { status: 502 }
+    );
   }
 }
