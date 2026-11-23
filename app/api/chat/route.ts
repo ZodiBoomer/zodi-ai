@@ -26,9 +26,13 @@ const OPENROUTER_DEFAULT_MODEL = "openai/gpt-5";
 const DEFAULT_OPENROUTER_FALLBACKS = ["openai/gpt-5-mini", "google/gemini-2.5-flash"];
 const MAX_HISTORY_MESSAGES = 10;
 const MAX_MESSAGE_LENGTH = 4000;
-const REQUEST_TIMEOUT_MS = Math.min(
-  25_000,
-  Math.max(8_000, Number(process.env.ZODI_AI_PROVIDER_TIMEOUT_MS) || 22_000)
+const OPENROUTER_TIMEOUT_MS = Math.min(
+  36_000,
+  Math.max(10_000, Number(process.env.ZODI_AI_OPENROUTER_TIMEOUT_MS) || 36_000)
+);
+const OPENAI_TIMEOUT_MS = Math.min(
+  10_000,
+  Math.max(5_000, Number(process.env.ZODI_AI_OPENAI_TIMEOUT_MS) || 10_000)
 );
 
 function isOpenRouterKey(value: string) {
@@ -158,7 +162,7 @@ async function postJson(
     method: "POST",
     headers,
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    signal: AbortSignal.timeout(config.name === "openrouter" ? OPENROUTER_TIMEOUT_MS : OPENAI_TIMEOUT_MS),
     cache: "no-store"
   });
 
