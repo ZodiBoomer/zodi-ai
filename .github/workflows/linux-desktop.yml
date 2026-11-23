@@ -8,6 +8,12 @@ on:
     paths:
       - "desktop/**"
       - ".github/workflows/linux-desktop.yml"
+  pull_request:
+    branches:
+      - feat/windows-desktop-installer
+    paths:
+      - "desktop/**"
+      - ".github/workflows/linux-desktop.yml"
 
 permissions:
   contents: read
