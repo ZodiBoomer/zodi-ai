@@ -1,0 +1,44 @@
+name: Build Zodi AI for Linux
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/linux-desktop-installer
+    paths:
+      - "desktop/**"
+      - ".github/workflows/linux-desktop.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-linux:
+    name: Build Linux packages (x64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm install --no-audit --no-fund
+
+      - name: Build AppImage and Debian package
+        working-directory: desktop
+        run: npm run desktop:dist:linux
+
+      - name: Upload Linux packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zodi-AI-Linux-x64
+          path: |
+            desktop/release/*.AppImage
+            desktop/release/*.deb
+          if-no-files-found: error
+          retention-days: 30
