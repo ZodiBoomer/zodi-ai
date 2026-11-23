@@ -6,7 +6,7 @@ type Message = { role: "user" | "assistant"; content: string };
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: "Salut ! Je suis le noyau de Zodi AI. Envoie-moi un message pour tester la connexion au modèle." }
+    { role: "assistant", content: "Salut ! Je suis le noyau de Zodi AI. Envoie-moi un message pour tester la connexion à OpenAI." }
   ]);
   const [input, setInput] = useState("");
   const [status, setStatus] = useState("Vérification du serveur…");
@@ -16,11 +16,22 @@ export default function Home() {
   useEffect(() => {
     fetch("/api/health")
       .then(async (r) => {
+        if (!r.ok) throw new Error("Health check failed");
         const data = await r.json();
-        setReady(Boolean(data.ok && data.aiConfigured));
-        setStatus(data.authMode === "vercel-oidc" ? "Serveur prêt · authentification Vercel OIDC" : data.authMode === "gateway-api-key" ? "Serveur prêt · clé AI Gateway détectée" : "Serveur prêt · authentification à configurer");
+        const connected = Boolean(data.ok && data.aiConfigured && data.provider === "openai");
+        setReady(connected);
+        setStatus(
+          connected
+            ? `OpenAI prêt · modèle ${data.model}`
+            : data.provider === "openai"
+              ? "Serveur accessible · clé OpenAI à configurer"
+              : "Serveur accessible · configuration IA incorrecte"
+        );
       })
-      .catch(() => setStatus("Serveur inaccessible"));
+      .catch(() => {
+        setReady(false);
+        setStatus("Serveur inaccessible");
+      });
   }, []);
 
   async function send(event: FormEvent<HTMLFormElement>) {
@@ -40,11 +51,13 @@ export default function Home() {
       if (!response.ok) throw new Error(data.error || "Erreur inconnue");
       setMessages((current) => [...current, { role: "assistant", content: data.reply }]);
       setReady(true);
+      setStatus(`OpenAI connecté · modèle ${data.model}`);
     } catch (error) {
       setMessages((current) => [...current, {
         role: "assistant",
-        content: error instanceof Error ? error.message : "Impossible de contacter le modèle."
+        content: error instanceof Error ? error.message : "Impossible de contacter OpenAI."
       }]);
+      setReady(false);
     } finally {
       setBusy(false);
     }
@@ -67,7 +80,7 @@ export default function Home() {
           <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="Écris un message à Zodi AI…" aria-label="Message" />
           <button disabled={busy || !input.trim()}>{busy ? "…" : "Envoyer"}</button>
         </form>
-        <p className="hint">Prototype privé. La clé API reste côté serveur et n’est jamais envoyée au navigateur.</p>
+        <p className="hint">Prototype privé. La clé API OpenAI reste côté serveur et n’est jamais envoyée au navigateur.</p>
       </section>
     </main>
   );
