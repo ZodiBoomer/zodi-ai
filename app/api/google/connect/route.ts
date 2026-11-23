@@ -29,6 +29,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/connections?error=google-not-configured", request.url));
   }
 
+  await prisma.googleOAuthState.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+
   const state = randomBytes(32).toString("base64url");
   const codeVerifier = randomBytes(48).toString("base64url");
   const challenge = createHash("sha256").update(codeVerifier).digest("base64url");
@@ -52,7 +54,7 @@ export async function GET(request: Request) {
     response_type: "code",
     scope: scopes.join(" "),
     access_type: "offline",
-    prompt: "consent",
+    prompt: "consent select_account",
     include_granted_scopes: "true",
     state,
     code_challenge: challenge,
