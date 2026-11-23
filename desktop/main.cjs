@@ -3,8 +3,10 @@ const path = require("node:path");
 
 const APP_URL = "https://zodi-ai-core.vercel.app";
 const APP_ORIGIN = new URL(APP_URL).origin;
+const SMOKE_TEST = process.env.ZODI_SMOKE_TEST === "1";
 
 let mainWindow;
+let smokeTestTimeout;
 
 function openExternalSafely(rawUrl) {
   try {
@@ -55,13 +57,37 @@ function createWindow() {
     }
   });
 
-  mainWindow.webContents.on("did-fail-load", (_event, errorCode, _description, _url, isMainFrame) => {
-    if (isMainFrame && errorCode !== -3 && mainWindow && !mainWindow.isDestroyed()) {
-      void mainWindow.loadFile(path.join(__dirname, "offline.html"));
+  mainWindow.webContents.on("did-finish-load", () => {
+    if (SMOKE_TEST) {
+      const loadedUrl = mainWindow.webContents.getURL();
+      if (new URL(loadedUrl).origin === APP_ORIGIN) {
+        console.log("ZODI_LINUX_SMOKE_TEST_OK: remote application loaded");
+        clearTimeout(smokeTestTimeout);
+        app.quit();
+      }
     }
   });
 
-  void mainWindow.loadURL(APP_URL);
+  mainWindow.webContents.on("did-fail-load", (_event, errorCode, description, _url, isMainFrame) => {
+    if (!isMainFrame || errorCode === -3 || !mainWindow || mainWindow.isDestroyed()) return;
+
+    if (SMOKE_TEST) {
+      console.error(`ZODI_LINUX_SMOKE_TEST_FAILED: ${errorCode} ${description}`);
+      clearTimeout(smokeTestTimeout);
+      app.exit(1);
+      return;
+    }
+
+    void mainWindow.loadFile(path.join(__dirname, "offline.html"));
+  });
+
+  void mainWindow.loadURL(APP_URL).catch((error) => {
+    if (SMOKE_TEST) {
+      console.error("ZODI_LINUX_SMOKE_TEST_FAILED:", error.message);
+      clearTimeout(smokeTestTimeout);
+      app.exit(1);
+    }
+  });
 }
 
 ipcMain.handle("zodi:retry-connection", () => {
@@ -72,6 +98,14 @@ ipcMain.handle("zodi:retry-connection", () => {
 
 app.whenReady().then(() => {
   app.setAppUserModelId("fr.zodi.ai");
+
+  if (SMOKE_TEST) {
+    smokeTestTimeout = setTimeout(() => {
+      console.error("ZODI_LINUX_SMOKE_TEST_FAILED: timed out waiting for the service");
+      app.exit(1);
+    }, 60000);
+  }
+
   createWindow();
 
   app.on("activate", () => {
