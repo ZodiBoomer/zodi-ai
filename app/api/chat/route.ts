@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -396,6 +397,10 @@ function getPublicError(error: unknown) {
 }
 
 export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Connecte-toi pour utiliser le chat." }, { status: 401 });
+  }
   let body: { message?: unknown; history?: unknown };
   try {
     body = await request.json();
