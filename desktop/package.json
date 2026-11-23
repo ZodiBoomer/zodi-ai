@@ -32,11 +32,6 @@
     "directories": {
       "output": "dist"
     },
-    "files": [
-      "main.cjs",
-      "package.json",
-      "node_modules/electron-updater/**/*"
-    ],
     "publish": [
       {
         "provider": "github",
@@ -49,7 +44,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "artifactName": "Zodi-AI-${version}-Windows-${arch}.${ext}"
@@ -66,11 +63,12 @@
       "category": "Utility",
       "synopsis": "Assistant IA personnel",
       "description": "Application de bureau Zodi AI connectée au service cloud.",
-      "target": ["AppImage", "deb", "rpm"],
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ],
       "artifactName": "Zodi-AI-${version}-Linux-${arch}.${ext}"
-    },
-    "deb": {
-      "depends": ["libgtk-3-0", "libnss3"]
     }
   }
 }
