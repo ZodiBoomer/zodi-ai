@@ -2,11 +2,12 @@
   "name": "zodi-ai-desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Application de bureau Windows de Zodi AI",
+  "description": "Application de bureau Zodi AI pour Windows et Linux",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
-    "desktop:dist": "electron-builder --win nsis --x64"
+    "desktop:dist": "electron-builder --win nsis --x64",
+    "desktop:dist:linux": "electron-builder --linux AppImage deb --x64"
   },
   "devDependencies": {
     "electron": "45.4.1",
@@ -50,6 +51,27 @@
       ],
       "language": "1036",
       "artifactName": "Zodi-AI-Setup-${version}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Utility",
+      "synopsis": "Assistant IA personnel Zodi AI",
+      "description": "Application de bureau Zodi AI connectée au service en ligne.",
+      "maintainer": "Zodi AI",
+      "artifactName": "Zodi-AI-${version}-${arch}.${ext}"
     }
   }
 }
