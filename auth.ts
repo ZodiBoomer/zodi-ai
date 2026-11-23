@@ -18,9 +18,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: { signIn: "/login" },
   trustHost: true,
   callbacks: {
+    async signIn({ account, profile }) {
+      if (account?.provider === "google") return profile?.email_verified === true;
+      return true;
+    },
     async session({ session, user }) {
       if (session.user) session.user.id = user.id;
       return session;
+    }
+  },
+  events: {
+    async signIn({ account }) {
+      if (account?.provider === "google") {
+        await prisma.account.updateMany({
+          where: { provider: "google", providerAccountId: account.providerAccountId },
+          data: { access_token: null, refresh_token: null, id_token: null }
+        });
+      }
     }
   }
 });
