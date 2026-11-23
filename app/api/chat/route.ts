@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -15,7 +16,7 @@ const OPENAI_DEFAULT_MODEL = "gpt-5.5";
 const OPENROUTER_DEFAULT_MODEL = "openai/gpt-5";
 const MAX_HISTORY_MESSAGES = 10;
 const MAX_MESSAGE_LENGTH = 4000;
-const REQUEST_TIMEOUT_MS = Math.max(15_000, Number(process.env.OPENAI_TIMEOUT_MS) || 120_000);
+const REQUEST_TIMEOUT_MS = Math.min(55_000, Math.max(15_000, Number(process.env.OPENAI_TIMEOUT_MS) || 55_000));
 
 function isOpenRouterConfigured() {
   const key = String(process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || "").trim();
