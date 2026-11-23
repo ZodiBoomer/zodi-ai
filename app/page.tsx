@@ -92,7 +92,7 @@ export default function Home() {
           <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="Écris un message à Zodi…" aria-label="Message" />
           <button disabled={busy || !input.trim()}>{busy ? "…" : "Envoyer"}</button>
         </form>
-        <p className="hint">IA hébergée dans le cloud uniquement. Aucune IA locale ni Ollama n'est utilisé. La clé API reste côté serveur.</p>
+        <p className="hint">IA hébergée dans le cloud uniquement. Aucune IA locale ni Ollama n’est utilisé. La clé API reste côté serveur.</p>
       </section>
     </main>
   );
