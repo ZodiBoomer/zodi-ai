@@ -20,7 +20,7 @@ const REQUEST_TIMEOUT_MS = Math.max(15_000, Number(process.env.OPENAI_TIMEOUT_MS
 function isOpenRouterConfigured() {
   const key = String(process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || "").trim();
   const base = String(process.env.OPENAI_BASE_URL || process.env.OPENAI_API_BASE_URL || "").trim();
-  return /^sk-or-/i.test(key) || /openrouter\\.ai/i.test(base);
+  return /^sk-or-/i.test(key) || /openrouter\.ai/i.test(base);
 }
 
 function getProvider(): "openai" | "openrouter" | "unsupported" {
@@ -39,7 +39,7 @@ function getApiKey(provider: "openai" | "openrouter") {
 
 function getBaseUrl(provider: "openai" | "openrouter") {
   const configured = String(process.env.OPENAI_BASE_URL || process.env.OPENAI_API_BASE_URL || "").trim();
-  if (configured) return configured.replace(/\\/+$/, "");
+  if (configured) return configured.replace(/\/+$/, "");
   return provider === "openrouter"
     ? "https://openrouter.ai/api/v1"
     : "https://api.openai.com/v1";
@@ -65,9 +65,9 @@ function getSystemPrompt() {
     "Reste sur le sujet en cours. Si une précision manque, pose une seule question courte.",
     "Ne pose jamais plusieurs questions d'un coup.",
     "N'invente pas un fait technique ou une information précise si tu n'es pas sûr.",
-    `Date actuelle : ${date} (fuseau Europe/Paris).`,
+    "Date actuelle : " + date + " (fuseau Europe/Paris).",
     "Fais des réponses plutôt courtes à moyennes, sauf si l'utilisateur demande plus de détail."
-  ].join("\\n");
+  ].join("\n");
 }
 
 function normalizeHistory(value: unknown): ChatMessage[] {
@@ -86,8 +86,8 @@ function normalizeHistory(value: unknown): ChatMessage[] {
 
 function buildResponsesInput(history: ChatMessage[]) {
   return history.map((item) =>
-    `${item.role === "user" ? "Utilisateur" : "Zodi"} : ${item.content}`
-  ).join("\\n\\n");
+    (item.role === "user" ? "Utilisateur" : "Zodi") + " : " + item.content
+  ).join("\n\n");
 }
 
 async function postJson(
@@ -96,12 +96,12 @@ async function postJson(
   payload: Record<string, unknown>
 ): Promise<ProviderResponse> {
   const apiKey = getApiKey(provider);
-  if (!apiKey) throw new Error(`MISSING_KEY:${provider}`);
+  if (!apiKey) throw new Error("MISSING_KEY:" + provider);
 
   const baseUrl = getBaseUrl(provider);
-  const url = `${baseUrl}/${route.replace(/^\\/+/, "")}`;
+  const url = baseUrl + "/" + route.replace(/^\/+/, "");
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${apiKey}`,
+    Authorization: "Bearer " + apiKey,
     "Content-Type": "application/json"
   };
 
@@ -120,9 +120,7 @@ async function postJson(
 
   const data = (await response.json().catch(() => ({}))) as ProviderResponse;
   if (!response.ok) {
-    const error = new Error(`PROVIDER_HTTP_${response.status}:${data.error?.code || data.error?.type || "unknown"}`);
-    (error as Error & { status?: number }).status = response.status;
-    throw error;
+    throw new Error("PROVIDER_HTTP_" + response.status + ":" + (data.error?.code || data.error?.type || "unknown"));
   }
   return data;
 }
@@ -133,7 +131,7 @@ function extractResponsesText(data: ProviderResponse) {
     .flatMap((item) => item.content || [])
     .map((part) => part.text || part.output_text || "")
     .filter(Boolean)
-    .join("\\n")
+    .join("\n")
     .trim();
 }
 
