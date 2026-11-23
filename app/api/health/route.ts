@@ -10,7 +10,7 @@ function getProvider(): "openai" | "openrouter" | "unsupported" {
 
   const key = String(process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || "").trim();
   const base = String(process.env.OPENAI_BASE_URL || process.env.OPENAI_API_BASE_URL || "").trim();
-  return /^sk-or-/i.test(key) || /openrouter\\.ai/i.test(base) ? "openrouter" : "openai";
+  return /^sk-or-/i.test(key) || /openrouter\.ai/i.test(base) ? "openrouter" : "openai";
 }
 
 export async function GET() {
