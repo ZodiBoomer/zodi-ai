@@ -39,7 +39,7 @@ export async function GET() {
   const isConfigured = orderedProviders.length > 0;
   const provider = orderedProviders[0] || "none";
   const model = provider === "openrouter"
-    ? String(process.env.OPENROUTER_MODEL || process.env.OPENAI_MODEL || "").trim() || "openai/gpt-5"
+    ? String(process.env.OPENROUTER_MODEL || process.env.OPENAI_MODEL || "").trim() || "openrouter/free"
     : String(process.env.OPENAI_MODEL || "").trim() || "gpt-5.5";
   const fallbacks = String(process.env.OPENROUTER_FALLBACK_MODELS || "")
     .split(",")
@@ -47,7 +47,11 @@ export async function GET() {
     .filter(Boolean);
   const modelFallbacks = fallbacks.length
     ? fallbacks
-    : ["openai/gpt-5-mini", "google/gemini-2.5-flash"];
+    : [
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "baidu/ernie-5.5-flash-preview:free",
+      "nvidia/nemotron-3.5-super-vl:free"
+    ];
 
   return NextResponse.json({
     ok: true,
