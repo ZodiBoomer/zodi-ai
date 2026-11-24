@@ -101,3 +101,49 @@ button:disabled { opacity: .5; cursor: wait; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+
+.app-shell { display: flex; min-height: 100dvh; background: #090d18; }
+.sidebar { width: 290px; flex: 0 0 290px; display: flex; flex-direction: column; padding: 22px 14px; border-right: 1px solid #26324b; background: #0d1423; min-height: 100dvh; }
+.sidebar-top { display: grid; gap: 20px; }
+.sidebar .brand { padding: 0 8px; }
+.sidebar .logo { width: 42px; height: 42px; }
+.sidebar h1 { font-size: 22px; }
+.new-chat-button { width: 100%; background: #29234f; border: 1px solid #5446a0; text-align: left; }
+.conversation-list { display: grid; gap: 6px; overflow: auto; flex: 1; margin: 22px 0; align-content: start; }
+.conversation-item { display: flex; align-items: center; gap: 4px; border-radius: 10px; background: transparent; }
+.conversation-item.active { background: #202b40; }
+.conversation-select { flex: 1; min-width: 0; min-height: 42px; text-align: left; padding: 0 10px; background: transparent; font-weight: 500; overflow: hidden; }
+.conversation-select span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.archive-button { min-width: 34px; width: 34px; height: 34px; min-height: 34px; padding: 0; background: transparent; color: #9ca9c5; }
+.sidebar-bottom { display: grid; gap: 12px; border-top: 1px solid #26324b; padding: 16px 8px 0; }
+.sidebar-bottom a { color: #b9b0ff; text-decoration: none; font-size: 14px; }
+.memory-button { background: #18243a; text-align: left; }
+.chat-area { min-width: 0; flex: 1; display: flex; flex-direction: column; min-height: 100dvh; }
+.chat-topbar { min-height: 74px; display: flex; align-items: center; gap: 14px; padding: 12px 24px; border-bottom: 1px solid #26324b; }
+.chat-topbar .sub { font-size: 12px; margin-top: 4px; }
+.chat-topbar .dot { margin-left: auto; }
+.menu-button { display: none; background: #202b40; padding: 0 12px; }
+.chat-panel { width: min(920px, 100%); margin: 0 auto; padding: 22px; display: flex; flex: 1; flex-direction: column; min-height: 0; }
+.chat-panel .chat { flex: 1; max-height: none; min-height: 220px; }
+.welcome-message { margin: auto; text-align: center; color: #9ca9c5; }
+.welcome-message h2 { color: #edf2ff; }
+.composer { align-items: flex-end; }
+.composer textarea { min-height: 56px; }
+.memory-overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 20px; background: #050914d9; }
+.memory-card { width: min(620px, 100%); max-height: min(82dvh, 760px); overflow: auto; padding: 22px; border: 1px solid #34415c; border-radius: 18px; background: #11192a; box-shadow: 0 24px 80px #0008; }
+.memory-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.memory-heading h2 { margin: 0; }
+.memory-form { align-items: stretch; }
+.memory-form textarea { min-height: 76px; }
+.memory-list { display: grid; gap: 8px; margin-top: 18px; }
+.memory-item { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border-radius: 12px; background: #0b1220; }
+.memory-item p { flex: 1; margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .sidebar { position: fixed; z-index: 15; inset: 0 auto 0 0; width: min(310px, 86vw); transform: translateX(-105%); transition: transform .2s ease; box-shadow: 18px 0 60px #0007; }
+  .sidebar.sidebar-open { transform: translateX(0); }
+  .menu-button { display: block; }
+  .chat-topbar { padding-inline: 14px; }
+  .chat-panel { padding: 14px; }
+  .memory-card { padding: 16px; }
+}
