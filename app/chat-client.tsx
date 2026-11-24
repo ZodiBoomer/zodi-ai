@@ -14,7 +14,8 @@ type Health = {
 };
 
 export default function ChatClient({ email }: { email: string }) {
-  const [conversations, setConversations] = useState<Conversation[]>([]);\n  const [searchQuery, setSearchQuery] = useState("");
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [activeId, setActiveId] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -175,13 +176,15 @@ export default function ChatClient({ email }: { email: string }) {
           <div className="brand"><div className="logo">✦</div><div><h1>Zodi AI</h1><p className="sub">Tes conversations</p></div></div>
           <button className="new-chat-button" onClick={createConversation} disabled={busy}>+ Nouvelle discussion</button>
         </div>
+        <div className="conversation-search"><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Rechercher une discussion…" aria-label="Rechercher une discussion" /></div>
         <div className="conversation-list">
-          {conversations.map((item) => (
+          {conversations.filter((item) => item.title.toLocaleLowerCase("fr").includes(searchQuery.trim().toLocaleLowerCase("fr"))).map((item) => (
             <div className={"conversation-item " + (activeId === item.id ? "active" : "")} key={item.id}>
               <button className="conversation-select" onClick={() => openConversation(item.id)} disabled={busy}>
                 <span>{item.title}</span>
               </button>
-              <button className="archive-button" title="Renommer la conversation" aria-label="Renommer la conversation" onClick={() => renameConversation(item.id, item.title)} disabled={busy}>✎</button>\n              <button className="archive-button" title="Archiver la conversation" aria-label="Archiver la conversation" onClick={() => archiveConversation(item.id)} disabled={busy}>×</button>
+              <button className="archive-button" title="Renommer la conversation" aria-label="Renommer la conversation" onClick={() => renameConversation(item.id, item.title)} disabled={busy}>✎</button>
+              <button className="archive-button" title="Archiver la conversation" aria-label="Archiver la conversation" onClick={() => archiveConversation(item.id)} disabled={busy}>×</button>
             </div>
           ))}
           {!conversations.length && <p className="muted">Aucune discussion enregistrée.</p>}

@@ -5,6 +5,7 @@ import { signInWithGoogle } from "./actions";
 export default async function LoginPage() {
   const session = await auth();
   if (session?.user) redirect("/");
+  const googleConfigured = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
 
   return (
     <main className="auth-shell">
@@ -12,9 +13,13 @@ export default async function LoginPage() {
         <div className="logo">✦</div>
         <h1>Bienvenue sur Zodi AI</h1>
         <p>Connecte-toi avec ton compte Google pour accéder à ton assistant.</p>
-        <form action={signInWithGoogle}>
-          <button className="primary-button" type="submit">Continuer avec Google</button>
-        </form>
+        {googleConfigured ? (
+          <form action={signInWithGoogle}>
+            <button className="primary-button" type="submit">Continuer avec Google</button>
+          </form>
+        ) : (
+          <p className="fine-print" role="status">La connexion Google n’est pas encore configurée sur ce déploiement. Les identifiants OAuth doivent être ajoutés côté serveur dans Vercel avant de pouvoir se connecter.</p>
+        )}
         <p className="fine-print">Zodi AI utilise uniquement les informations de profil nécessaires à la connexion. Les accès à Gmail, Drive, Agenda et Contacts seront demandés séparément, uniquement si tu les actives.</p>
       </section>
     </main>
