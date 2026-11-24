@@ -18,8 +18,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+  const userId = await getAuthenticatedUserId(request);
+  if (!userId) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
   let body: { content?: unknown; category?: unknown };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Requête invalide." }, { status: 400 }); }
   const content = typeof body.content === "string" ? body.content.trim().slice(0, 1000) : "";
@@ -33,8 +33,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+  const userId = await getAuthenticatedUserId(request);
+  if (!userId) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
   const id = new URL(request.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Identifiant manquant." }, { status: 400 });
   const result = await prisma.userMemory.deleteMany({ where: { id, userId: userId } });
