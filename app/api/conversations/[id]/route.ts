@@ -23,8 +23,8 @@ export async function GET(request: Request, context: Context) {
 }
 
 export async function PATCH(request: Request, context: Context) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+  const userId = await getAuthenticatedUserId(request);
+  if (!userId) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
   const { id } = await context.params;
   let body: { title?: unknown };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Requête invalide." }, { status: 400 }); }
@@ -39,8 +39,8 @@ export async function PATCH(request: Request, context: Context) {
 }
 
 export async function DELETE(request: Request, context: Context) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+  const userId = await getAuthenticatedUserId(request);
+  if (!userId) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
   const { id } = await context.params;
   const result = await prisma.conversation.updateMany({
     where: { id, userId: userId, archivedAt: null },
