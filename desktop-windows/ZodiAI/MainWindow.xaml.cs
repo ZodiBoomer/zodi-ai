@@ -4,12 +4,12 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.UI;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.System;
+using Windows.UI;
 
 namespace ZodiAI;
 
@@ -43,7 +43,7 @@ public sealed partial class MainWindow : Window
     private async System.Threading.Tasks.Task SendMessageAsync()
     {
         var text = MessageInput.Text.Trim();
-        if (string.IsNullOrWhiteSpace(text) || SendButton.IsEnabled == false)
+        if (string.IsNullOrWhiteSpace(text) || !SendButton.IsEnabled)
             return;
 
         MessageInput.Text = string.Empty;
