@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { getAuthenticatedUserId } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -386,8 +386,8 @@ function getPublicError(error: unknown) {
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const userId = await getAuthenticatedUserId(request);
+  if (!userId) {
     return NextResponse.json({ error: "Connecte-toi pour utiliser le chat." }, { status: 401 });
   }
   let body: { message?: unknown; conversationId?: unknown };
@@ -411,7 +411,7 @@ export async function POST(request: Request) {
   }
 
   const conversation = await prisma.conversation.findFirst({
-    where: { id: conversationId, userId: session.user.id, archivedAt: null },
+    where: { id: conversationId, userId: userId, archivedAt: null },
     select: { id: true, title: true }
   });
   if (!conversation) {
@@ -434,12 +434,12 @@ export async function POST(request: Request) {
     const memory = rememberMatch[1].trim().slice(0, 1000);
     if (memory) {
       const existingMemory = await prisma.userMemory.findFirst({
-        where: { userId: session.user.id, content: memory },
+        where: { userId: userId, content: memory },
         select: { id: true }
       });
       if (!existingMemory) {
         await prisma.userMemory.create({
-          data: { userId: session.user.id, content: memory, category: "general" }
+          data: { userId: userId, content: memory, category: "general" }
         });
       }
     }
@@ -459,7 +459,7 @@ export async function POST(request: Request) {
   });
 
   const savedMemories = await prisma.userMemory.findMany({
-    where: { userId: session.user.id },
+    where: { userId: userId },
     orderBy: { updatedAt: "desc" },
     take: 30,
     select: { content: true }
