@@ -433,9 +433,15 @@ export async function POST(request: Request) {
   if (rememberMatch?.[1]) {
     const memory = rememberMatch[1].trim().slice(0, 1000);
     if (memory) {
-      await prisma.userMemory.create({
-        data: { userId: session.user.id, content: memory, category: "general" }
+      const existingMemory = await prisma.userMemory.findFirst({
+        where: { userId: session.user.id, content: memory },
+        select: { id: true }
       });
+      if (!existingMemory) {
+        await prisma.userMemory.create({
+          data: { userId: session.user.id, content: memory, category: "general" }
+        });
+      }
     }
   }
 
