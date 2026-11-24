@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -27,10 +27,11 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [updateStatus, setUpdateStatus] = useState("Vérifier les mises à jour");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
-  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const checkingUpdateRef = useRef(false);
 
   const checkForUpdates = useCallback(async (reloadWhenAvailable = false) => {
-    if (checkingUpdate) return;
+    if (checkingUpdateRef.current) return;
+    checkingUpdateRef.current = true;
     setCheckingUpdate(true);
     setUpdateStatus("Vérification…");
     try {
@@ -42,7 +43,6 @@ export default function Home() {
       const data = (await response.json()) as { buildId?: string };
       const latestBuild = data.buildId ?? "unknown";
       const available = latestBuild !== "unknown" && BUILD_ID !== "local" && latestBuild !== BUILD_ID;
-      setUpdateAvailable(available);
       if (available) {
         setUpdateStatus("Mise à jour disponible · Recharger");
         if (reloadWhenAvailable) window.location.reload();
@@ -52,9 +52,10 @@ export default function Home() {
     } catch {
       setUpdateStatus("Vérification impossible · Réessayer");
     } finally {
+      checkingUpdateRef.current = false;
       setCheckingUpdate(false);
     }
-  }, [checkingUpdate]);
+  }, []);
 
   useEffect(() => {
     fetch("/api/health", { cache: "no-store" })
