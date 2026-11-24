@@ -86,15 +86,40 @@ jobs:
         with:
           name: Zodi-AI-Linux-x64
           path: release/linux
-      - name: Publish versioned desktop release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: zodi-ai-desktop-${{ github.run_number }}
-          name: Zodi AI Desktop build ${{ github.run_number }}
-          target_commitish: ${{ github.sha }}
-          generate_release_notes: true
-          overwrite_files: true
-          files: |
-            release/windows/Zodi-AI-Setup-0.2.0-x64.exe
-            release/linux/Zodi-AI-Linux-x64.tar.gz
-            release/linux/zodi-ai_0.3.0_amd64.deb
+      - name: Publish Windows and Linux installers to public releases repository
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+          RUN_NUMBER: ${{ github.run_number }}
+          COMMIT_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::warning::Desktop installers built, but not published. Configure PUBLIC_RELEASE_TOKEN with access only to ZodiBoomer/zodi-ai-releases-publique."
+            exit 0
+          fi
+          mkdir -p release/checksums
+          sha256sum release/windows/Zodi-AI-Setup-0.2.0-x64.exe release/linux/Zodi-AI-Linux-x64.tar.gz release/linux/zodi-ai_0.3.0_amd64.deb > release/SHA256SUMS.txt
+          version="0.3.$RUN_NUMBER"
+          cat > release/latest-desktop.json <<EOF
+          {
+            "schemaVersion": 1,
+            "app": "Zodi AI",
+            "version": "$version",
+            "commit": "$COMMIT_SHA",
+            "platforms": {
+              "windows-x64": {"asset": "Zodi-AI-Setup-0.2.0-x64.exe"},
+              "linux-x64-tar-gz": {"asset": "Zodi-AI-Linux-x64.tar.gz"},
+              "linux-x64-deb": {"asset": "zodi-ai_0.3.0_amd64.deb"}
+            },
+            "checksums": "SHA256SUMS.txt"
+          }
+          EOF
+          tag="desktop-v$version"
+          gh release create "$tag" \
+            release/windows/Zodi-AI-Setup-0.2.0-x64.exe \
+            release/linux/Zodi-AI-Linux-x64.tar.gz \
+            release/linux/zodi-ai_0.3.0_amd64.deb \
+            release/SHA256SUMS.txt release/latest-desktop.json \
+            --repo ZodiBoomer/zodi-ai-releases-publique \
+            --title "Zodi AI Desktop $version" \
+            --notes "Windows and Linux binaries built from commit $COMMIT_SHA."
