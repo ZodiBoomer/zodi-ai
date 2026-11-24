@@ -1,139 +1,21 @@
-using System;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Net.Http.Json;
-using System.Text.Json;
-using Microsoft.UI;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Windows.System;
-using Windows.UI;
-
+using System; using System.Collections.ObjectModel; using System.IO; using System.Linq; using System.Net.Http; using System.Net.Http.Json; using System.Text.Json; using Microsoft.UI; using Microsoft.UI.Xaml; using Microsoft.UI.Xaml.Controls; using Microsoft.UI.Xaml.Input; using Microsoft.UI.Xaml.Media; using Windows.System; using Windows.UI;
 namespace ZodiAI;
-
-public sealed partial class MainWindow : Window
-{
-    private static readonly HttpClient Http = new()
-    {
-        Timeout = TimeSpan.FromSeconds(50)
-    };
-
-    private const string ChatEndpoint = "https://zodi-ai-core.vercel.app/api/chat";
-    private readonly List<ChatMessage> _history = new();
-
-    public MainWindow()
-    {
-        InitializeComponent();
-        Title = "Zodi IA";
-    }
-
-    private async void SendButton_Click(object sender, RoutedEventArgs e) => await SendMessageAsync();
-
-    private async void MessageInput_KeyDown(object sender, KeyRoutedEventArgs e)
-    {
-        if (e.Key == VirtualKey.Enter && !Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))
-        {
-            e.Handled = true;
-            await SendMessageAsync();
-        }
-    }
-
-    private async System.Threading.Tasks.Task SendMessageAsync()
-    {
-        var text = MessageInput.Text.Trim();
-        if (string.IsNullOrWhiteSpace(text) || !SendButton.IsEnabled)
-            return;
-
-        MessageInput.Text = string.Empty;
-        AddMessage(text, true);
-        _history.Add(new ChatMessage("user", text));
-        SendButton.IsEnabled = false;
-        StatusText.Text = "Zodi réfléchit…";
-
-        try
-        {
-            var payload = new
-            {
-                message = text,
-                history = _history.Count > 1 ? _history.GetRange(0, _history.Count - 1) : new List<ChatMessage>()
-            };
-
-            using var response = await Http.PostAsJsonAsync(ChatEndpoint, payload);
-            var body = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-                throw new HttpRequestException($"Le serveur a répondu HTTP {(int)response.StatusCode}. {body}");
-
-            using var document = JsonDocument.Parse(body);
-            var answer = ReadAnswer(document.RootElement);
-            if (string.IsNullOrWhiteSpace(answer))
-                answer = "Le serveur a répondu, mais je n'ai pas trouvé de texte dans sa réponse.";
-
-            AddMessage(answer, false);
-            _history.Add(new ChatMessage("assistant", answer));
-            StatusText.Text = "Réponse reçue · Zodi IA";
-        }
-        catch (Exception ex)
-        {
-            AddMessage("Je n'ai pas réussi à joindre le service Zodi IA. Vérifie ta connexion Internet puis réessaie.\n\nDétail : " + ex.Message, false);
-            StatusText.Text = "Connexion au service indisponible";
-        }
-        finally
-        {
-            SendButton.IsEnabled = true;
-            MessageInput.Focus(FocusState.Programmatic);
-        }
-    }
-
-    private static string ReadAnswer(JsonElement root)
-    {
-        foreach (var key in new[] { "response", "reply", "message", "content", "text" })
-        {
-            if (root.ValueKind == JsonValueKind.Object &&
-                root.TryGetProperty(key, out var value) &&
-                value.ValueKind == JsonValueKind.String)
-                return value.GetString() ?? string.Empty;
-        }
-
-        if (root.ValueKind == JsonValueKind.Object &&
-            root.TryGetProperty("choices", out var choices) &&
-            choices.ValueKind == JsonValueKind.Array &&
-            choices.GetArrayLength() > 0)
-        {
-            var first = choices[0];
-            if (first.TryGetProperty("message", out var message) &&
-                message.TryGetProperty("content", out var content))
-                return content.GetString() ?? string.Empty;
-        }
-
-        return string.Empty;
-    }
-
-    private void AddMessage(string text, bool isUser)
-    {
-        var bubble = new Border
-        {
-            Background = new SolidColorBrush(isUser ? Color.FromArgb(255, 42, 74, 125) : Color.FromArgb(255, 27, 34, 48)),
-            CornerRadius = new CornerRadius(16),
-            Padding = new Thickness(16, 12, 16, 12),
-            MaxWidth = 720,
-            HorizontalAlignment = isUser ? HorizontalAlignment.Right : HorizontalAlignment.Left
-        };
-
-        bubble.Child = new TextBlock
-        {
-            Text = text,
-            TextWrapping = TextWrapping.Wrap,
-            FontSize = 15,
-            Foreground = new SolidColorBrush(Color.FromArgb(255, 244, 246, 252)),
-            IsTextSelectionEnabled = true
-        };
-
-        MessagesPanel.Children.Add(bubble);
-        _ = MessagesScroll.ChangeView(null, MessagesScroll.ScrollableHeight, null, true);
-    }
-
-    private sealed record ChatMessage(string role, string content);
+public sealed partial class MainWindow : Window {
+ private static readonly HttpClient Http=new(){Timeout=TimeSpan.FromSeconds(70)}; private const string Endpoint="https://zodi-ai-core.vercel.app/api/chat";
+ private readonly ObservableCollection<Conversation> items=new(); private readonly string store=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"ZodiAI","conversations.json"); private Conversation? active; private bool switching;
+ public MainWindow(){InitializeComponent();Title="Zodi AI";try{if(File.Exists(store)){var saved=JsonSerializer.Deserialize<Conversation[]>(File.ReadAllText(store));if(saved!=null)foreach(var c in saved)items.Add(c);}}catch{} ConversationList.ItemsSource=items;if(items.Count==0)Create();Select(items[0]);}
+ private void Save(){try{Directory.CreateDirectory(Path.GetDirectoryName(store)!);File.WriteAllText(store,JsonSerializer.Serialize(items));}catch(Exception e){StatusText.Text="Sauvegarde impossible : "+e.Message;}}
+ private void Create(){var c=new Conversation();c.Messages.Add(new Message("assistant","Salut ! Je suis Zodi. Que veux-tu faire aujourd'hui ?"));items.Insert(0,c);Save();Select(c);}
+ private void Select(Conversation c){switching=true;active=c;ConversationList.SelectedItem=c;ConversationTitle.Text=c.Title;MessagesPanel.Children.Clear();foreach(var m in c.Messages)Bubble(m.Content,m.Role=="user");switching=false;}
+ private void ConversationList_SelectionChanged(object s,SelectionChangedEventArgs e){if(!switching&&ConversationList.SelectedItem is Conversation c)Select(c);}
+ private void NewConversation_Click(object s,RoutedEventArgs e)=>Create();
+ private async void CheckForUpdates_Click(object s,RoutedEventArgs e){try{StatusText.Text="Recherche de mises à jour…";var result=await AppUpdater.CheckAndInstallAsync();if(result=="INSTALLER_STARTED"){Application.Current.Exit();return;}StatusText.Text=result;}catch(Exception ex){StatusText.Text="Mise à jour impossible : "+ex.Message;}}
+ private async void RenameConversation_Click(object s,RoutedEventArgs e){if(active==null)return;var box=new TextBox{Text=active.Title};var d=new ContentDialog{Title="Renommer la conversation",Content=box,PrimaryButtonText="Enregistrer",CloseButtonText="Annuler",XamlRoot=Content.XamlRoot};if(await d.ShowAsync()==ContentDialogResult.Primary&&!string.IsNullOrWhiteSpace(box.Text)){active.Title=box.Text.Trim();ConversationTitle.Text=active.Title;ConversationList.ItemsSource=null;ConversationList.ItemsSource=items;ConversationList.SelectedItem=active;Save();}}
+ private async void DeleteConversation_Click(object s,RoutedEventArgs e){if(active==null)return;var d=new ContentDialog{Title="Supprimer cette conversation ?",Content=$"« {active.Title} » sera supprimée de cet ordinateur.",PrimaryButtonText="Supprimer",CloseButtonText="Annuler",XamlRoot=Content.XamlRoot};if(await d.ShowAsync()!=ContentDialogResult.Primary)return;items.Remove(active);if(items.Count==0){Create();return;}Save();Select(items[0]);}
+ private async void SendButton_Click(object s,RoutedEventArgs e)=>await Send();
+ private async void MessageInput_KeyDown(object s,KeyRoutedEventArgs e){if(e.Key==VirtualKey.Enter&&!Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down)){e.Handled=true;await Send();}}
+ private async System.Threading.Tasks.Task Send(){if(active==null)return;var c=active;var text=MessageInput.Text.Trim();if(text.Length==0||!SendButton.IsEnabled)return;var history=c.Messages.ToArray();MessageInput.Text="";c.Messages.Add(new Message("user",text));if(c.Title=="Nouvelle conversation")c.Title=text.Length>42?text[..39]+"…":text;RefreshList(c);Bubble(text,true);Save();SendButton.IsEnabled=false;StatusText.Text="Zodi réfléchit…";try{using var r=await Http.PostAsJsonAsync(Endpoint,new{message=text,history});var body=await r.Content.ReadAsStringAsync();if(!r.IsSuccessStatusCode)throw new Exception($"HTTP {(int)r.StatusCode}: {body}");using var j=JsonDocument.Parse(body);var answer=j.RootElement.TryGetProperty("reply",out var v)?v.GetString():"";if(string.IsNullOrWhiteSpace(answer))throw new Exception("Réponse vide du serveur.");c.Messages.Add(new Message("assistant",answer));if(active==c)Bubble(answer,false);StatusText.Text="Réponse reçue · Zodi AI";Save();}catch(Exception ex){var err="Impossible de joindre Zodi AI. Vérifie Internet puis réessaie.\n"+ex.Message;c.Messages.Add(new Message("assistant",err));if(active==c)Bubble(err,false);StatusText.Text="Connexion indisponible";Save();}finally{SendButton.IsEnabled=true;MessageInput.Focus(FocusState.Programmatic);}}
+ private void RefreshList(Conversation c){ConversationList.ItemsSource=null;ConversationList.ItemsSource=items;ConversationList.SelectedItem=c;ConversationTitle.Text=c.Title;}
+ private void Bubble(string text,bool user){var b=new Border{Background=new SolidColorBrush(user?Color.FromArgb(255,42,74,125):Color.FromArgb(255,27,34,48)),CornerRadius=new CornerRadius(16),Padding=new Thickness(16,12,16,12),MaxWidth=720,HorizontalAlignment=user?HorizontalAlignment.Right:HorizontalAlignment.Left};b.Child=new TextBlock{Text=text,TextWrapping=TextWrapping.Wrap,FontSize=15,Foreground=new SolidColorBrush(Color.FromArgb(255,244,246,252)),IsTextSelectionEnabled=true};MessagesPanel.Children.Add(b);_ = MessagesScroll.ChangeView(null,MessagesScroll.ScrollableHeight,null,true);}
+ public sealed class Conversation{public string Id{get;set;}=Guid.NewGuid().ToString();public string Title{get;set;}="Nouvelle conversation";public System.Collections.Generic.List<Message> Messages{get;set;}=new();public override string ToString()=>Title;} public sealed record Message(string Role,string Content);
 }
