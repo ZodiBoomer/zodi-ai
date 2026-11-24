@@ -167,20 +167,6 @@ function getSystemPrompt(memories: string[] = []) {
   ].join("\n");
 }
 
-function normalizeHistory(value: unknown): ChatMessage[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter((item): item is ChatMessage =>
-      Boolean(item) &&
-      typeof item === "object" &&
-      ((item as ChatMessage).role === "user" || (item as ChatMessage).role === "assistant") &&
-      typeof (item as ChatMessage).content === "string"
-    )
-    .map((item) => ({ role: item.role, content: item.content.trim().slice(0, MAX_MESSAGE_LENGTH) }))
-    .filter((item) => item.content.length > 0)
-    .slice(-MAX_HISTORY_MESSAGES);
-}
-
 function buildResponsesInput(history: ChatMessage[]) {
   return history.map((item) =>
     (item.role === "user" ? "Utilisateur" : "Zodi") + " : " + item.content

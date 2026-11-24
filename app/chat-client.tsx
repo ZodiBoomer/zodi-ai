@@ -202,7 +202,7 @@ export default function ChatClient({ email }: { email: string }) {
         </header>
         <section className="chat-panel">
           <div className="chat" aria-live="polite">
-            {!messages.length && <div className="welcome-message"><h2>Bonjour !</h2><p>Que souhaites-tu faire aujourd'hui ?</p></div>}
+            {!messages.length && <div className="welcome-message"><h2>Bonjour !</h2><p>Que souhaites-tu faire aujourd&apos;hui ?</p></div>}
             {messages.map((message, index) => (
               <div className={"message " + message.role} key={message.id || index}>{message.content}</div>
             ))}
