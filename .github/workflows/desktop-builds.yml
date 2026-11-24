@@ -20,11 +20,11 @@ concurrency:
   cancel-in-progress: true
 jobs:
   windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     env:
       ZODI_VERSION: 0.3.${{ github.run_number }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
@@ -46,7 +46,7 @@ jobs:
     env:
       ZODI_VERSION: 0.3.${{ github.run_number }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
@@ -82,6 +82,14 @@ jobs:
       RUN_NUMBER: ${{ github.run_number }}
       COMMIT_SHA: ${{ github.sha }}
     steps:
+      - name: Require release publishing token
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+        run: |
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error::PUBLIC_RELEASE_TOKEN is required to publish desktop installers to ZodiBoomer/zodi-ai-releases-publique."
+            exit 1
+          fi
       - name: Download Windows installer
         uses: actions/download-artifact@v4
         with:
@@ -97,10 +105,6 @@ jobs:
           GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
         shell: bash
         run: |
-          if [[ -z "$GH_TOKEN" ]]; then
-            echo "::warning::Desktop installers built, but not published. Configure PUBLIC_RELEASE_TOKEN with access only to ZodiBoomer/zodi-ai-releases-publique."
-            exit 0
-          fi
           windows_asset="Zodi-AI-Setup-x64.exe"
           deb_asset="$(basename "$(find release/linux -maxdepth 1 -name '*.deb' -print -quit)")"
           test -n "$deb_asset"
