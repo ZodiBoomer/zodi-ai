@@ -5,10 +5,12 @@ on:
     branches: [main, feat/native-windows-winui3]
     paths:
       - "desktop-windows/**"
+      - "global.json"
       - ".github/workflows/windows-native.yml"
   pull_request:
     paths:
       - "desktop-windows/**"
+      - "global.json"
       - ".github/workflows/windows-native.yml"
   workflow_dispatch:
 
@@ -17,7 +19,7 @@ permissions:
 
 jobs:
   build-native-windows:
-    # Windows 2022 includes the VS 2022 Appx/MSIX packaging targets required by WinUI's PRI build.
+    # WinUI's PRI build needs the VS 2022 packaging targets; global.json pins SDK 8.
     runs-on: windows-2022
     timeout-minutes: 45
     steps:
@@ -32,7 +34,9 @@ jobs:
       - name: Verify build toolchain
         shell: pwsh
         run: |
-          dotnet --version
+          $sdk = dotnet --version
+          Write-Host "Selected .NET SDK: $sdk"
+          if ($sdk -ne "8.0.428") { throw "Expected .NET SDK 8.0.428 from global.json, got $sdk" }
           Get-Command msbuild -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
 
       - name: Restore and publish native WinUI app
