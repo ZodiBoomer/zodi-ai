@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   build-native-windows:
-    # WinUI's PRI build needs the VS 2022 packaging targets; global.json pins SDK 8.
+    # Use VS 2022 MSBuild so WinUI resolves the installed Appx/PRI packaging tasks.
     runs-on: windows-2022
     timeout-minutes: 45
     steps:
@@ -37,13 +37,25 @@ jobs:
           $sdk = dotnet --version
           Write-Host "Selected .NET SDK: $sdk"
           if ($sdk -ne "8.0.428") { throw "Expected .NET SDK 8.0.428 from global.json, got $sdk" }
-          Get-Command msbuild -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+          if (!(Test-Path $vswhere)) { throw "vswhere.exe not found: $vswhere" }
+          $vsPath = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath
+          if (!$vsPath) { throw "Visual Studio MSBuild installation not found." }
+          $msbuild = Join-Path $vsPath "MSBuild\Current\Bin\MSBuild.exe"
+          if (!(Test-Path $msbuild)) { throw "Visual Studio MSBuild.exe not found: $msbuild" }
+          $priTask = Get-ChildItem -Path $vsPath -Filter "Microsoft.Build.Packaging.Pri.Tasks.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (!$priTask) { throw "Visual Studio PRI packaging task assembly is missing." }
+          Write-Host "MSBuild: $msbuild"
+          Write-Host "PRI task: $($priTask.FullName)"
 
       - name: Restore and publish native WinUI app
         shell: pwsh
         run: |
-          dotnet restore desktop-windows/ZodiAI/ZodiAI.csproj -r win-x64
-          dotnet publish desktop-windows/ZodiAI/ZodiAI.csproj -c Release -r win-x64 --self-contained true -p:WindowsAppSDKSelfContained=true -o publish
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsPath = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath
+          $msbuild = Join-Path $vsPath "MSBuild\Current\Bin\MSBuild.exe"
+          & $msbuild desktop-windows/ZodiAI/ZodiAI.csproj /restore /t:Publish /p:Configuration=Release /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:WindowsAppSDKSelfContained=true /p:PublishDir="$PWD\publish\"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
