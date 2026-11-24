@@ -1,0 +1,53 @@
+name: Native Windows app (WinUI 3)
+
+on:
+  push:
+    branches: [main, feat/native-windows-winui3]
+    paths:
+      - "desktop-windows/**"
+      - ".github/workflows/windows-native.yml"
+  pull_request:
+    paths:
+      - "desktop-windows/**"
+      - ".github/workflows/windows-native.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-native-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore and publish native WinUI app
+        shell: pwsh
+        run: |
+          dotnet restore desktop-windows/ZodiAI/ZodiAI.csproj -r win-x64
+          dotnet publish desktop-windows/ZodiAI/ZodiAI.csproj -c Release -r win-x64 --self-contained true -p:WindowsAppSDKSelfContained=true -o publish
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build Windows installer EXE
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release | Out-Null
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" desktop-windows/installer/Zodi-AI.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload native installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zodi-AI-Native-Windows-x64
+          path: release/Zodi-AI-Setup-0.2.0-x64.exe
+          if-no-files-found: error
+          retention-days: 30
