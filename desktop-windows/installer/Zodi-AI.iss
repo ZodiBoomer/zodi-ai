@@ -1,5 +1,7 @@
 #define MyAppName "Zodi IA"
-#define MyAppVersion "0.2.0"
+#ifndef MyAppVersion
+  #define MyAppVersion "0.3.0"
+#endif
 #define MyAppPublisher "ZodiBoomer"
 #define MyAppExeName "ZodiAI.exe"
 
@@ -11,7 +13,7 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\Zodi IA
 DefaultGroupName=Zodi IA
 OutputDir=..\..\release
-OutputBaseFilename=Zodi-AI-Setup-0.2.0-x64
+OutputBaseFilename=Zodi-AI-Setup-x64
 ArchitecturesInstallIn64BitMode=x64
 ArchitecturesAllowed=x64
 Compression=lzma2
