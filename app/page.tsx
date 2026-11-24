@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -15,6 +15,8 @@ type Health = {
   localAI?: boolean;
 };
 
+const BUILD_ID = process.env.NEXT_PUBLIC_ZODI_BUILD_ID ?? "local";
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
     { role: "assistant", content: "Salut ! Je suis Zodi. Tu peux discuter avec moi ici." }
@@ -23,6 +25,37 @@ export default function Home() {
   const [status, setStatus] = useState("Vérification de la configuration cloud…");
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState("Vérifier les mises à jour");
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const checkingUpdateRef = useRef(false);
+
+  const checkForUpdates = useCallback(async (reloadWhenAvailable = false) => {
+    if (checkingUpdateRef.current) return;
+    checkingUpdateRef.current = true;
+    setCheckingUpdate(true);
+    setUpdateStatus("Vérification…");
+    try {
+      const response = await fetch("/api/version", {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" }
+      });
+      if (!response.ok) throw new Error("Service de version indisponible");
+      const data = (await response.json()) as { buildId?: string };
+      const latestBuild = data.buildId ?? "unknown";
+      const available = latestBuild !== "unknown" && BUILD_ID !== "local" && latestBuild !== BUILD_ID;
+      if (available) {
+        setUpdateStatus("Mise à jour disponible · Recharger");
+        if (reloadWhenAvailable) window.location.reload();
+      } else {
+        setUpdateStatus("Zodi AI est à jour");
+      }
+    } catch {
+      setUpdateStatus("Vérification impossible · Réessayer");
+    } finally {
+      checkingUpdateRef.current = false;
+      setCheckingUpdate(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetch("/api/health", { cache: "no-store" })
@@ -52,7 +85,10 @@ export default function Home() {
         setReady(false);
         setStatus("Impossible de vérifier la configuration du serveur");
       });
-  }, []);
+    void checkForUpdates(false);
+    const interval = window.setInterval(() => void checkForUpdates(false), 5 * 60 * 1000);
+    return () => window.clearInterval(interval);
+  }, [checkForUpdates]);
 
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -107,7 +143,12 @@ export default function Home() {
           <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="Écris un message à Zodi…" aria-label="Message" />
           <button disabled={busy || !input.trim()}>{busy ? "…" : "Envoyer"}</button>
         </form>
-        <p className="hint">IA hébergée dans le cloud uniquement. Routage automatique vers des modèles de secours et, si configuré, un second fournisseur. Aucune IA locale ni Ollama. Les clés API restent côté serveur.</p>
+        <div className="hint" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <span>IA hébergée dans le cloud uniquement. Routage automatique vers des modèles de secours et, si configuré, un second fournisseur. Aucune IA locale ni Ollama. Les clés API restent côté serveur.</span>
+          <button type="button" onClick={() => void checkForUpdates(true)} disabled={checkingUpdate} aria-live="polite">
+            {checkingUpdate ? "Vérification…" : updateStatus}
+          </button>
+        </div>
       </section>
     </main>
   );
