@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { hashPassword, isValidEmail, isValidPassword, normalizeEmail } from "@/lib/password";
 
-export async function createUserAccount(input: { email: unknown; password: unknown; name?: unknown }) {
+export async function createUserAccount(input: { email?: unknown; password?: unknown; name?: unknown }) {
   const email = normalizeEmail(input.email);
   const password = typeof input.password === "string" ? input.password : "";
   const name = typeof input.name === "string" ? input.name.trim().slice(0, 80) : "";
