@@ -368,19 +368,19 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
 function cleanAssistantReply(value: string) {
   return value
     // Convert common Markdown decoration into readable plain text.
-    .replace(/^\\s{0,3}#{1,6}\\s+/gm, "")
-    .replace(/^\\s*[-*_]{3,}\\s*$/gm, "")
-    .replace(/^\\s*>\\s?/gm, "")
-    .replace(/\\*\\*(.*?)\\*\\*/gs, "$1")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*_]{3,}\s*$/gm, "")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/\*\*(.*?)\*\*/gs, "$1")
     .replace(/__(.*?)__/gs, "$1")
-    .replace(/(?<!\\*)\\*(?!\\s)(.+?)(?<!\\s)\\*(?!\\*)/gs, "$1")
-    .replace(/(?<!_)_(?!\\s)(.+?)(?<!\\s)_(?!_)/gs, "$1")
-    .replace(/`{1,3}/g, "")
-    .replace(/^\\s*\\*\\s+/gm, "- ")
+    .replace(/(?<!\*)\*(?!\s)(.+?)(?<!\s)\*(?!\*)/gs, "$1")
+    .replace(/(?<!_)_(?!\s)(.+?)(?<!\s)_(?!_)/gs, "$1")
+    .replace(/\`{1,3}/g, "")
+    .replace(/^\s*\*\s+/gm, "- ")
     // Remove lines made only of stray formatting punctuation.
-    .replace(/^\\s*[*/#_~()[\\]{}|\\\\-]{2,}\\s*$/gm, "")
-    .replace(/[ \\t]+\\n/g, "\\n")
-    .replace(/\\n{3,}/g, "\\n\\n")
+    .replace(/^\s*(?:\*\/|[()#*]){2,}\s*$/gm, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
