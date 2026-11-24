@@ -9,7 +9,7 @@ Noyau conversationnel de Zodi AI, construit avec Next.js et des fournisseurs IA 
 - Les sessions Web utilisent des jetons Auth.js signés.
 - Les applications natives utilisent des jetons Bearer aléatoires, hachés en base et révocables.
 - PostgreSQL conserve les comptes, conversations, messages et mémoires.
-- Aucun fournisseur d'identité externe ni service Google n'est requis.
+- Aucun fournisseur d'identité externe n'est requis.
 
 ## Base de données PostgreSQL
 
