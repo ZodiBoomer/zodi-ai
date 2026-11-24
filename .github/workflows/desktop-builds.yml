@@ -1,0 +1,60 @@
+name: Zodi AI Desktop Builds
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "desktop-windows/**"
+      - "desktop-linux/**"
+      - ".github/workflows/desktop-builds.yml"
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: 8.0.x }
+      - name: Publish Windows x64
+        run: dotnet publish desktop-windows/ZodiAI/ZodiAI.csproj -c Release -r win-x64 --self-contained true -p:WindowsAppSDKSelfContained=true -o publish
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+      - name: Build installer
+        shell: pwsh
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" desktop-windows/installer/Zodi-AI.iss'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Zodi-AI-Windows-Setup-x64
+          path: release/Zodi-AI-Setup-0.2.0-x64.exe
+          if-no-files-found: error
+          retention-days: 30
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: 8.0.x }
+      - name: Publish Linux x64
+        run: dotnet publish desktop-linux/ZodiAI.Linux.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o publish/linux
+      - name: Package tar.gz
+        run: |
+          mkdir -p release/zodi-ai-linux-x64
+          cp publish/linux/zodi-ai release/zodi-ai-linux-x64/
+          tar -C release -czf release/Zodi-AI-Linux-x64.tar.gz zodi-ai-linux-x64
+      - name: Package Debian
+        run: |
+          mkdir -p package/DEBIAN package/usr/bin package/usr/share/applications
+          cp publish/linux/zodi-ai package/usr/bin/zodi-ai
+          chmod 755 package/usr/bin/zodi-ai
+          printf 'Package: zodi-ai\nVersion: 0.3.0\nSection: utils\nPriority: optional\nArchitecture: amd64\nMaintainer: ZodiBoomer\nDescription: Zodi AI desktop assistant\n' > package/DEBIAN/control
+          printf '[Desktop Entry]\nName=Zodi AI\nComment=Assistant personnel Zodi AI\nExec=zodi-ai\nTerminal=false\nType=Application\nCategories=Utility;\n' > package/usr/share/applications/zodi-ai.desktop
+          dpkg-deb --build package release/zodi-ai_0.3.0_amd64.deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Zodi-AI-Linux-x64
+          path: |
+            release/Zodi-AI-Linux-x64.tar.gz
+            release/zodi-ai_0.3.0_amd64.deb
+          if-no-files-found: error
+          retention-days: 30
