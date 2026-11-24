@@ -17,7 +17,8 @@ permissions:
 
 jobs:
   build-native-windows:
-    runs-on: windows-latest
+    # Windows 2022 includes the VS 2022 Appx/MSIX packaging targets required by WinUI's PRI build.
+    runs-on: windows-2022
     timeout-minutes: 45
     steps:
       - name: Checkout
@@ -27,6 +28,12 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
+
+      - name: Verify build toolchain
+        shell: pwsh
+        run: |
+          dotnet --version
+          Get-Command msbuild -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
 
       - name: Restore and publish native WinUI app
         shell: pwsh
