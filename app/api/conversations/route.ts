@@ -18,8 +18,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+  const userId = await getAuthenticatedUserId(request);
+  if (!userId) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
   const conversation = await prisma.conversation.create({
     data: { userId: userId, title: "Nouvelle conversation" },
     select: { id: true, title: true, createdAt: true, updatedAt: true }
