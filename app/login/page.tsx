@@ -1,26 +1,24 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { auth } from "@/auth";
-import { signInWithGoogle } from "./actions";
+import { signInWithPassword } from "./actions";
 
 export default async function LoginPage() {
   const session = await auth();
   if (session?.user) redirect("/");
-  const googleConfigured = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
-
   return (
     <main className="auth-shell">
       <section className="auth-card">
         <div className="logo">✦</div>
         <h1>Bienvenue sur Zodi AI</h1>
-        <p>Connecte-toi avec ton compte Google pour accéder à ton assistant.</p>
-        {googleConfigured ? (
-          <form action={signInWithGoogle}>
-            <button className="primary-button" type="submit">Continuer avec Google</button>
-          </form>
-        ) : (
-          <p className="fine-print" role="status">La connexion Google n’est pas encore configurée sur ce déploiement. Les identifiants OAuth doivent être ajoutés côté serveur dans Vercel avant de pouvoir se connecter.</p>
-        )}
-        <p className="fine-print">Zodi AI utilise uniquement les informations de profil nécessaires à la connexion. Les accès à Gmail, Drive, Agenda et Contacts seront demandés séparément, uniquement si tu les actives.</p>
+        <p>Connecte-toi avec ton compte Zodi.</p>
+        <form className="auth-form" action={signInWithPassword}>
+          <label>Adresse e-mail<input type="email" name="email" autoComplete="email" required /></label>
+          <label>Mot de passe<input type="password" name="password" autoComplete="current-password" required /></label>
+          <button className="primary-button" type="submit">Se connecter</button>
+        </form>
+        <p className="fine-print">Pas encore de compte ? <Link href="/register">Créer un compte Zodi</Link></p>
+        <p className="fine-print">Tes conversations et ta mémoire sont associées à ton compte Zodi, pas à un compte Google.</p>
       </section>
     </main>
   );
