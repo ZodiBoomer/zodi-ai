@@ -1,0 +1,75 @@
+name: Native Windows app (WinUI 3)
+
+on:
+  push:
+    branches: [main, feat/native-windows-winui3]
+    paths:
+      - "desktop-windows/**"
+      - "global.json"
+      - ".github/workflows/windows-native.yml"
+  pull_request:
+    paths:
+      - "desktop-windows/**"
+      - "global.json"
+      - ".github/workflows/windows-native.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-native-windows:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Verify build toolchain
+        shell: pwsh
+        run: |
+          $sdk = dotnet --version
+          Write-Host "Selected .NET SDK: $sdk"
+          if ($sdk -ne "8.0.428") { throw "Expected .NET SDK 8.0.428 from global.json, got $sdk" }
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+          if (!(Test-Path $vswhere)) { throw "vswhere.exe not found: $vswhere" }
+          $vsPath = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath
+          if (!$vsPath) { throw "Visual Studio MSBuild installation not found." }
+          $msbuild = Join-Path $vsPath "MSBuild\Current\Bin\MSBuild.exe"
+          if (!(Test-Path $msbuild)) { throw "Visual Studio MSBuild.exe not found: $msbuild" }
+          $priTask = Join-Path $vsPath "MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\Microsoft.Build.Packaging.Pri.Tasks.dll"
+          if (!(Test-Path $priTask)) { throw "Visual Studio PRI packaging task assembly is missing at $priTask" }
+          Write-Host "MSBuild: $msbuild"
+          Write-Host "PRI task: $priTask"
+
+      - name: Restore and publish native WinUI app
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsPath = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath
+          $msbuild = Join-Path $vsPath "MSBuild\Current\Bin\MSBuild.exe"
+          & $msbuild desktop-windows/ZodiAI/ZodiAI.csproj /restore /t:Publish /p:Configuration=Release /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:WindowsAppSDKSelfContained=true /p:PublishDir="$PWD\publish\"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build Windows installer EXE
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release | Out-Null
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" desktop-windows/installer/Zodi-AI.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload native installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zodi-AI-Native-Windows-x64
+          path: release/Zodi-AI-Setup-0.2.0-x64.exe
+          if-no-files-found: error
+          retention-days: 30
