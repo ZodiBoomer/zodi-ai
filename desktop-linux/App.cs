@@ -1,0 +1,3 @@
+using Avalonia; using Avalonia.Controls.ApplicationLifetimes; using Avalonia.Themes.Fluent;
+namespace ZodiAI.Linux;
+public sealed class App:Application { public override void Initialize(){Styles.Add(new FluentTheme());} public override void OnFrameworkInitializationCompleted(){if(ApplicationLifetime is IClassicDesktopStyleApplicationLifetime d)d.MainWindow=new MainWindow();base.OnFrameworkInitializationCompleted();} }

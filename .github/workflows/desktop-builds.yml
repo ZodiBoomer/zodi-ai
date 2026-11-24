@@ -1,6 +1,12 @@
 name: Zodi AI Desktop Builds
 on:
   workflow_dispatch:
+  push:
+    branches: [main, feat/desktop-multi-conversations]
+    paths:
+      - "desktop-windows/**"
+      - "desktop-linux/**"
+      - ".github/workflows/desktop-builds.yml"
   pull_request:
     branches: [main]
     paths:
@@ -9,34 +15,43 @@ on:
       - ".github/workflows/desktop-builds.yml"
 permissions:
   contents: read
+concurrency:
+  group: desktop-builds-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
+    env:
+      ZODI_VERSION: 0.3.${{ github.run_number }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: 8.0.x }
+        with:
+          dotnet-version: 8.0.x
       - name: Publish Windows x64
-        run: dotnet publish desktop-windows/ZodiAI/ZodiAI.csproj -c Release -r win-x64 --self-contained true -p:WindowsAppSDKSelfContained=true -o publish
+        run: dotnet publish desktop-windows/ZodiAI/ZodiAI.csproj -c Release -r win-x64 --self-contained true -p:WindowsAppSDKSelfContained=true -p:Version=${{ env.ZODI_VERSION }} -o publish
       - name: Install Inno Setup
         run: choco install innosetup --yes --no-progress
       - name: Build installer
         shell: pwsh
-        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" desktop-windows/installer/Zodi-AI.iss'
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=$env:ZODI_VERSION desktop-windows/installer/Zodi-AI.iss'
       - uses: actions/upload-artifact@v4
         with:
           name: Zodi-AI-Windows-Setup-x64
-          path: release/Zodi-AI-Setup-0.2.0-x64.exe
+          path: release/Zodi-AI-Setup-x64.exe
           if-no-files-found: error
           retention-days: 30
   linux:
     runs-on: ubuntu-22.04
+    env:
+      ZODI_VERSION: 0.3.${{ github.run_number }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: 8.0.x }
+        with:
+          dotnet-version: 8.0.x
       - name: Publish Linux x64
-        run: dotnet publish desktop-linux/ZodiAI.Linux.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o publish/linux
+        run: dotnet publish desktop-linux/ZodiAI.Linux.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -p:Version=$ZODI_VERSION -o publish/linux
       - name: Package tar.gz
         run: |
           mkdir -p release/zodi-ai-linux-x64
@@ -47,14 +62,74 @@ jobs:
           mkdir -p package/DEBIAN package/usr/bin package/usr/share/applications
           cp publish/linux/zodi-ai package/usr/bin/zodi-ai
           chmod 755 package/usr/bin/zodi-ai
-          printf 'Package: zodi-ai\nVersion: 0.3.0\nSection: utils\nPriority: optional\nArchitecture: amd64\nMaintainer: ZodiBoomer\nDescription: Zodi AI desktop assistant\n' > package/DEBIAN/control
+          printf 'Package: zodi-ai\nVersion: %s\nSection: utils\nPriority: optional\nArchitecture: amd64\nMaintainer: ZodiBoomer\nDescription: Zodi AI desktop assistant\n' "$ZODI_VERSION" > package/DEBIAN/control
           printf '[Desktop Entry]\nName=Zodi AI\nComment=Assistant personnel Zodi AI\nExec=zodi-ai\nTerminal=false\nType=Application\nCategories=Utility;\n' > package/usr/share/applications/zodi-ai.desktop
-          dpkg-deb --build package release/zodi-ai_0.3.0_amd64.deb
+          dpkg-deb --build package "release/zodi-ai_${ZODI_VERSION}_amd64.deb"
       - uses: actions/upload-artifact@v4
         with:
           name: Zodi-AI-Linux-x64
           path: |
             release/Zodi-AI-Linux-x64.tar.gz
-            release/zodi-ai_0.3.0_amd64.deb
+            release/zodi-ai_*.deb
           if-no-files-found: error
           retention-days: 30
+  publish-desktop-release:
+    name: Publish Windows and Linux installers
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    env:
+      RUN_NUMBER: ${{ github.run_number }}
+      COMMIT_SHA: ${{ github.sha }}
+    steps:
+      - name: Require release publishing token
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+        run: |
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error::PUBLIC_RELEASE_TOKEN is required to publish desktop installers to ZodiBoomer/zodi-ai-releases-publique."
+            exit 1
+          fi
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: Zodi-AI-Windows-Setup-x64
+          path: release/windows
+      - name: Download Linux packages
+        uses: actions/download-artifact@v4
+        with:
+          name: Zodi-AI-Linux-x64
+          path: release/linux
+      - name: Publish Windows and Linux installers to public releases repository
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+        shell: bash
+        run: |
+          windows_asset="Zodi-AI-Setup-x64.exe"
+          deb_asset="$(basename "$(find release/linux -maxdepth 1 -name '*.deb' -print -quit)")"
+          test -n "$deb_asset"
+          version="0.3.$RUN_NUMBER"
+          sha256sum "release/windows/$windows_asset" "release/linux/Zodi-AI-Linux-x64.tar.gz" "release/linux/$deb_asset" > release/SHA256SUMS.txt
+          cat > release/latest-desktop.json <<EOF
+          {
+            "schemaVersion": 1,
+            "app": "Zodi AI",
+            "version": "$version",
+            "commit": "$COMMIT_SHA",
+            "platforms": {
+              "windows-x64": {"asset": "$windows_asset"},
+              "linux-x64-tar-gz": {"asset": "Zodi-AI-Linux-x64.tar.gz"},
+              "linux-x64-deb": {"asset": "$deb_asset"}
+            },
+            "checksums": "SHA256SUMS.txt"
+          }
+          EOF
+          tag="desktop-v$version"
+          gh release create "$tag" \
+            "release/windows/$windows_asset" \
+            "release/linux/Zodi-AI-Linux-x64.tar.gz" \
+            "release/linux/$deb_asset" \
+            release/SHA256SUMS.txt release/latest-desktop.json \
+            --repo ZodiBoomer/zodi-ai-releases-publique \
+            --title "Zodi AI Desktop $version" \
+            --notes "Windows and Linux binaries built from commit $COMMIT_SHA."
