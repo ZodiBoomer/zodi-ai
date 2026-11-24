@@ -14,7 +14,7 @@ on:
       - "desktop-linux/**"
       - ".github/workflows/desktop-builds.yml"
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: desktop-builds-${{ github.ref }}
   cancel-in-progress: true
@@ -69,3 +69,32 @@ jobs:
             release/zodi-ai_0.3.0_amd64.deb
           if-no-files-found: error
           retention-days: 30
+
+  publish-desktop-release:
+    name: Publish Windows and Linux installers
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: Zodi-AI-Windows-Setup-x64
+          path: release/windows
+      - name: Download Linux packages
+        uses: actions/download-artifact@v4
+        with:
+          name: Zodi-AI-Linux-x64
+          path: release/linux
+      - name: Publish versioned desktop release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: zodi-ai-desktop-${{ github.run_number }}
+          name: Zodi AI Desktop build ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          overwrite_files: true
+          files: |
+            release/windows/Zodi-AI-Setup-0.2.0-x64.exe
+            release/linux/Zodi-AI-Linux-x64.tar.gz
+            release/linux/zodi-ai_0.3.0_amd64.deb
