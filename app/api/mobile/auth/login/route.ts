@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { verifyPassword, normalizeEmail } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
