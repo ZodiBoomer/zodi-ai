@@ -111,20 +111,25 @@ export default function ChatClient({ email }: { email: string }) {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Erreur inconnue");
-      if (activeIdRef.current === sendingConversationId) {\n        setMessages((current) => [...current, { role: "assistant", content: data.reply }]);\n      }
+      if (activeIdRef.current === sendingConversationId) {
+        setMessages((current) => [...current, { role: "assistant", content: data.reply }]);
+      }
       setReady(true);
       setStatus((data.provider === "openrouter" ? "OpenRouter" : "OpenAI") + " connecté · modèle " + data.model);
       await loadConversations();
       if (/^(Retiens|Souviens-toi|Mémorise)/i.test(text)) await refreshMemories();
     } catch (error) {
-      setMessages((current) => [...current, {
-        role: "assistant",
-        content: error instanceof Error ? error.message : "Impossible de contacter les fournisseurs IA."
-      }]);
+      if (activeIdRef.current === sendingConversationId) {
+        setMessages((current) => [...current, {
+          role: "assistant",
+          content: error instanceof Error ? error.message : "Impossible de contacter les fournisseurs IA."
+        }]);
+      }
       setReady(false);
       setStatus("La requête n'a pas abouti");
     } finally {
       setBusy(false);
+      setBusyConversationId("");
     }
   }
 
