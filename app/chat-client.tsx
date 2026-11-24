@@ -219,7 +219,6 @@ export default function ChatClient({ email }: { email: string }) {
         <div className="sidebar-bottom">
           <button className="memory-button" onClick={toggleMemory}>🧠 Mémoire de Zodi</button>
           <span className="account-email">{email}</span>
-          <Link href="/connections">Connexions Google</Link>
           <form action={signOutAction}><button className="secondary-button" type="submit">Déconnexion</button></form>
         </div>
       </aside>
@@ -243,7 +242,7 @@ export default function ChatClient({ email }: { email: string }) {
             <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="Écris un message à Zodi…" aria-label="Message" />
             <button disabled={busy || !input.trim() || !activeId}>{busy ? "…" : "Envoyer"}</button>
           </form>
-          <p className="hint">Tes conversations et ta mémoire sont sauvegardées sur ton compte. Seul ton compte Google peut y accéder.</p>
+          <p className="hint">Tes conversations et ta mémoire sont sauvegardées sur ton compte. Seul ton compte Zodi peut y accéder.</p>
         </section>
       </section>
 
