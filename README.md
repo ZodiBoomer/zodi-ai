@@ -2,41 +2,39 @@
 
 Noyau conversationnel de Zodi AI, construit avec Next.js et des fournisseurs IA cloud.
 
-## Fiabilité et routage
+## Comptes Zodi
 
-- OpenRouter est utilisé avec son basculement automatique entre fournisseurs d'hébergement.
-- En cas d'indisponibilité complète du modèle principal, OpenRouter peut essayer les modèles de secours définis dans `OPENROUTER_FALLBACK_MODELS`.
-- Par défaut, les modèles de secours sont `openai/gpt-5-mini` puis `google/gemini-2.5-flash`.
-- Si une seconde clé OpenAI directe est configurée, l'application essaie automatiquement cet autre fournisseur si OpenRouter échoue.
+- Inscription et connexion avec adresse e-mail et mot de passe.
+- Les mots de passe sont hachés avec bcrypt ; ils ne sont jamais stockés en clair.
+- Les sessions Web utilisent des jetons Auth.js signés.
+- Les applications natives utilisent des jetons Bearer aléatoires, hachés en base et révocables.
+- PostgreSQL conserve les comptes, conversations, messages et mémoires.
+- Aucun fournisseur d'identité externe n'est requis.
+
+## Base de données PostgreSQL
+
+1. Configurer `DATABASE_URL` et `DIRECT_URL` côté serveur.
+2. Déployer les migrations avec `npm run db:deploy`.
+3. Générer Prisma avec `npx prisma generate`.
+4. Déployer l'application.
+
+## API native
+
+- `POST /api/mobile/auth/register` : crée un compte et retourne un jeton natif.
+- `POST /api/mobile/auth/login` : authentifie un compte et retourne un jeton natif.
+- `POST /api/mobile/auth/logout` : révoque le jeton présenté.
+- Les routes de conversations, mémoire et chat acceptent une session Web ou `Authorization: Bearer <token>`.
+
+## Fournisseurs IA et endpoints
+
+- OpenRouter est utilisé avec ses mécanismes de secours ; OpenAI direct peut être configuré en fournisseur secondaire.
 - Aucune IA locale, aucun Ollama et aucune réponse locale de substitution.
+- `GET /api/health` expose uniquement l'état de configuration IA, sans secret.
+- `POST /api/chat` nécessite une session authentifiée et un `conversationId`.
 
-## Variables d'environnement Vercel
+## Sécurité
 
-- `OPENROUTER_API_KEY` : clé OpenRouter recommandée.
-- `OPENAI_DIRECT_API_KEY` : clé API OpenAI directe indépendante, utilisée comme fournisseur secondaire.
-- `OPENAI_API_KEY` : compatibilité avec l'ancienne configuration. Si la valeur est une clé OpenRouter, elle est traitée comme telle ; sinon elle peut servir à OpenAI direct.
-- `ZODI_AI_PROVIDER` : fournisseur prioritaire facultatif (`openrouter` ou `openai`). Les autres fournisseurs configurés restent disponibles en secours.
-- `OPENROUTER_MODEL` : modèle OpenRouter principal (défaut : `openai/gpt-5`).
-- `OPENROUTER_FALLBACK_MODELS` : liste facultative de modèles de secours séparés par des virgules.
-- `OPENAI_MODEL` : modèle OpenAI direct (défaut : `gpt-5.5`).
-- `ZODI_AI_OPENROUTER_TIMEOUT_MS` : délai maximal OpenRouter (défaut : 36000 ms, plafond : 36000 ms).
-- `ZODI_AI_OPENAI_TIMEOUT_MS` : délai maximal par appel OpenAI direct (défaut : 10000 ms, plafond : 10000 ms).
-
-Ne jamais placer une clé dans GitHub, dans le navigateur, dans une variable `NEXT_PUBLIC_*` ou dans une conversation.
-
-## Endpoints
-
-- `GET /api/health` expose uniquement l'état de configuration et les chemins de secours, sans révéler de secret. Ce n'est pas un test d'inférence en direct.
-- `POST /api/chat` reçoit `{ "message": "Bonjour", "history": [] }` et renvoie une réponse IA cloud.
-- Le chat transmet les 10 derniers messages au maximum.
-- Les erreurs de fournisseur sont journalisées côté serveur sans écrire de clé API dans les logs.
-
-## Développement
-
-```bash
-npm install
-npm run dev
-npm run build
-```
-
-Pour le développement local, placer les clés dans `.env.local`, qui ne doit jamais être commitée.
+- Ne jamais commiter de mot de passe, jeton, clé API ou fichier d'environnement.
+- Utiliser HTTPS en production.
+- Les jetons natifs expirent après 30 jours et peuvent être révoqués.
+- Les mots de passe doivent contenir entre 10 et 128 caractères.
