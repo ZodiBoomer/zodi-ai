@@ -32,7 +32,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Lint
@@ -41,3 +40,20 @@ jobs:
         run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+      - name: Trigger Android rebuild for shared backend changes
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          ANDROID_REPO_DISPATCH_TOKEN: ${{ secrets.ANDROID_REPO_DISPATCH_TOKEN }}
+        shell: bash
+        run: |
+          if [[ -z "$ANDROID_REPO_DISPATCH_TOKEN" ]]; then
+            echo "::warning::Android cross-repository rebuild skipped. Configure ANDROID_REPO_DISPATCH_TOKEN with access to ZodiBoomer/zodi-ai-android."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $ANDROID_REPO_DISPATCH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/ZodiBoomer/zodi-ai-android/dispatches \
+            -d '{"event_type":"zodi-core-updated","client_payload":{"source":"ZodiBoomer/zodi-ai","sha":"'${{ github.sha }}'"}}'
