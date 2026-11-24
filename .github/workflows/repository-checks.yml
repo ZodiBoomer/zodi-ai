@@ -21,3 +21,28 @@ jobs:
           test -s README.md
           test -f .gitignore
           git diff --check
+
+  validate-web:
+    name: Validate Web app and database schema
+    runs-on: ubuntu-latest
+    env:
+      AUTH_SECRET: ci-only-secret-not-used-in-production
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/zodi
+      DIRECT_URL: postgresql://ci:ci@localhost:5432/zodi
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Validate Prisma schema
+        run: npx prisma validate
+      - name: Generate Prisma Client
+        run: npx prisma generate
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
