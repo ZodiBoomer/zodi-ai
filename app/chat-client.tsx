@@ -22,12 +22,16 @@ export default function ChatClient({ email }: { email: string }) {
   const [status, setStatus] = useState("Chargement de tes conversations…");
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [busyConversationId, setBusyConversationId] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [memoryInput, setMemoryInput] = useState("");
   const [memoryBusy, setMemoryBusy] = useState(false);
   const chatEnd = useRef<HTMLDivElement>(null);
+  const activeIdRef = useRef("");
+
+  useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
 
   const loadConversations = useCallback(async () => {
     const response = await fetch("/api/conversations", { cache: "no-store" });
@@ -93,19 +97,21 @@ export default function ChatClient({ email }: { email: string }) {
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = input.trim();
-    if (!text || busy || !activeId) return;
+    const sendingConversationId = activeId;
+    if (!text || busy || !sendingConversationId) return;
     setMessages((current) => [...current, { role: "user", content: text }]);
     setInput("");
     setBusy(true);
+    setBusyConversationId(sendingConversationId);
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, conversationId: activeId })
+        body: JSON.stringify({ message: text, conversationId: sendingConversationId })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Erreur inconnue");
-      setMessages((current) => [...current, { role: "assistant", content: data.reply }]);
+      if (activeIdRef.current === sendingConversationId) {\n        setMessages((current) => [...current, { role: "assistant", content: data.reply }]);\n      }
       setReady(true);
       setStatus((data.provider === "openrouter" ? "OpenRouter" : "OpenAI") + " connecté · modèle " + data.model);
       await loadConversations();
@@ -190,17 +196,17 @@ export default function ChatClient({ email }: { email: string }) {
       <aside className={"sidebar " + (sidebarOpen ? "sidebar-open" : "")}>
         <div className="sidebar-top">
           <div className="brand"><div className="logo">✦</div><div><h1>Zodi AI</h1><p className="sub">Tes conversations</p></div></div>
-          <button className="new-chat-button" onClick={createConversation} disabled={busy}>+ Nouvelle discussion</button>
+          <button className="new-chat-button" onClick={createConversation} >+ Nouvelle discussion</button>
         </div>
         <div className="conversation-search"><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Rechercher une discussion…" aria-label="Rechercher une discussion" /></div>
         <div className="conversation-list">
           {conversations.filter((item) => item.title.toLocaleLowerCase("fr").includes(searchQuery.trim().toLocaleLowerCase("fr"))).map((item) => (
             <div className={"conversation-item " + (activeId === item.id ? "active" : "")} key={item.id}>
-              <button className="conversation-select" onClick={() => openConversation(item.id)} disabled={busy}>
+              <button className="conversation-select" onClick={() => openConversation(item.id)}>
                 <span>{item.title}</span>
               </button>
               <button className="archive-button" title="Renommer la conversation" aria-label="Renommer la conversation" onClick={() => renameConversation(item.id, item.title)} disabled={busy}>✎</button>
-              <button className="archive-button" title="Archiver la conversation" aria-label="Archiver la conversation" onClick={() => archiveConversation(item.id)} disabled={busy}>×</button>
+              <button className="archive-button" title="Archiver la conversation" aria-label="Archiver la conversation" onClick={() => archiveConversation(item.id)} disabled={busyConversationId === item.id}>×</button>
             </div>
           ))}
           {!conversations.length && <p className="muted">Aucune discussion enregistrée.</p>}
@@ -225,7 +231,7 @@ export default function ChatClient({ email }: { email: string }) {
             {messages.map((message, index) => (
               <div className={"message " + message.role} key={message.id || index}>{message.content}</div>
             ))}
-            {busy && <div className="message assistant">Zodi réfléchit…</div>}
+            {busy && busyConversationId === activeId && <div className="message assistant">Zodi réfléchit…</div>}
             <div ref={chatEnd} />
           </div>
           <form className="composer" onSubmit={send}>
