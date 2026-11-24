@@ -442,7 +442,7 @@ export async function POST(request: Request) {
     { role: "user" as const, content: message }
   ].slice(-MAX_HISTORY_MESSAGES);
 
-  const rememberMatch = message.match(/^(?:Retiens|Souviens-toi|Mémorise)(?:\\s+que)?\\s*[:,-]?\\s*(.+)$/i);
+  const rememberMatch = message.match(/^(?:Retiens|Souviens-toi|Mémorise)(?:\s+que)?\s*[:,-]?\s*(.+)$/i);
   if (rememberMatch?.[1]) {
     const memory = rememberMatch[1].trim().slice(0, 1000);
     if (memory) {
@@ -460,7 +460,7 @@ export async function POST(request: Request) {
     data: {
       updatedAt: new Date(),
       ...(conversation.title === "Nouvelle conversation"
-        ? { title: message.replace(/\\s+/g, " ").slice(0, 60) || "Nouvelle conversation" }
+        ? { title: message.replace(/\s+/g, " ").slice(0, 60) || "Nouvelle conversation" }
         : {})
     }
   });

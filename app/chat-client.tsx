@@ -26,7 +26,6 @@ export default function ChatClient({ email }: { email: string }) {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [memoryInput, setMemoryInput] = useState("");
   const [memoryBusy, setMemoryBusy] = useState(false);
-  const initialized = useRef(false);
   const chatEnd = useRef<HTMLDivElement>(null);
 
   const loadConversations = useCallback(async () => {
@@ -60,8 +59,6 @@ export default function ChatClient({ email }: { email: string }) {
   }, []);
 
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
     let cancelled = false;
     (async () => {
       try {
@@ -181,10 +178,10 @@ export default function ChatClient({ email }: { email: string }) {
         <div className="conversation-list">
           {conversations.map((item) => (
             <div className={"conversation-item " + (activeId === item.id ? "active" : "")} key={item.id}>
-              <button className="conversation-select" onClick={() => openConversation(item.id)}>
+              <button className="conversation-select" onClick={() => openConversation(item.id)} disabled={busy}>
                 <span>{item.title}</span>
               </button>
-              <button className="archive-button" title="Archiver la conversation" aria-label="Archiver la conversation" onClick={() => archiveConversation(item.id)}>×</button>
+              <button className="archive-button" title="Archiver la conversation" aria-label="Archiver la conversation" onClick={() => archiveConversation(item.id)} disabled={busy}>×</button>
             </div>
           ))}
           {!conversations.length && <p className="muted">Aucune discussion enregistrée.</p>}
