@@ -19,7 +19,6 @@ permissions:
 
 jobs:
   build-native-windows:
-    # Use VS 2022 MSBuild so WinUI resolves the installed Appx/PRI packaging tasks.
     runs-on: windows-2022
     timeout-minutes: 45
     steps:
@@ -43,10 +42,10 @@ jobs:
           if (!$vsPath) { throw "Visual Studio MSBuild installation not found." }
           $msbuild = Join-Path $vsPath "MSBuild\Current\Bin\MSBuild.exe"
           if (!(Test-Path $msbuild)) { throw "Visual Studio MSBuild.exe not found: $msbuild" }
-          $priTask = Get-ChildItem -Path $vsPath -Filter "Microsoft.Build.Packaging.Pri.Tasks.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (!$priTask) { throw "Visual Studio PRI packaging task assembly is missing." }
+          $priTask = Join-Path $vsPath "MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\Microsoft.Build.Packaging.Pri.Tasks.dll"
+          if (!(Test-Path $priTask)) { throw "Visual Studio PRI packaging task assembly is missing at $priTask" }
           Write-Host "MSBuild: $msbuild"
-          Write-Host "PRI task: $($priTask.FullName)"
+          Write-Host "PRI task: $priTask"
 
       - name: Restore and publish native WinUI app
         shell: pwsh
