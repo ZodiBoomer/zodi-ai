@@ -18,7 +18,7 @@ export default async function LoginPage() {
           <button className="primary-button" type="submit">Se connecter</button>
         </form>
         <p className="fine-print">Pas encore de compte ? <Link href="/register">Créer un compte Zodi</Link></p>
-        <p className="fine-print">Tes conversations et ta mémoire sont associées à ton compte Zodi, pas à un compte Google.</p>
+        <p className="fine-print">Tes conversations et ta mémoire sont associées à ton compte Zodi, sans dépendre d'un fournisseur tiers.</p>
       </section>
     </main>
   );
