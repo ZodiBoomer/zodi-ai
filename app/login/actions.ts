@@ -2,6 +2,10 @@
 
 import { signIn } from "@/auth";
 
-export async function signInWithGoogle() {
-  await signIn("google", { redirectTo: "/" });
+export async function signInWithPassword(formData: FormData) {
+  await signIn("credentials", {
+    email: String(formData.get("email") || ""),
+    password: String(formData.get("password") || ""),
+    redirectTo: "/"
+  });
 }
