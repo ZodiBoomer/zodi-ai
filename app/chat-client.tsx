@@ -158,7 +158,23 @@ export default function ChatClient({ email }: { email: string }) {
     if (response.ok) setMemories((current) => current.filter((item) => item.id !== id));
   }
 
-  async function renameConversation(id: string, currentTitle: string) {\n    const title = window.prompt("Nouveau titre de la conversation :", currentTitle)?.trim();\n    if (!title || title === currentTitle) return;\n    const response = await fetch("/api/conversations/" + encodeURIComponent(id), {\n      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title })\n    });\n    const data = await response.json();\n    if (response.ok) setConversations((current) => current.map((item) => item.id === id ? { ...item, title: data.title } : item));\n    else setStatus(data.error || "Impossible de renommer cette conversation.");\n  }\n\n  async function archiveConversation(id: string) {
+  async function renameConversation(id: string, currentTitle: string) {
+    const title = window.prompt("Nouveau titre de la conversation :", currentTitle)?.trim();
+    if (!title || title === currentTitle) return;
+    const response = await fetch("/api/conversations/" + encodeURIComponent(id), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title })
+    });
+    const data = await response.json();
+    if (response.ok) {
+      setConversations((current) => current.map((item) => item.id === id ? { ...item, title: data.title } : item));
+    } else {
+      setStatus(data.error || "Impossible de renommer cette conversation.");
+    }
+  }
+
+  async function archiveConversation(id: string) {
     const response = await fetch("/api/conversations/" + encodeURIComponent(id), { method: "DELETE" });
     if (!response.ok) return;
     const next = conversations.filter((item) => item.id !== id);
