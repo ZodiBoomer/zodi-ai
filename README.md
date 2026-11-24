@@ -97,3 +97,5 @@ npm run dev
 ``
 
 Pour le développement local, placer les secrets dans `.env.local`, qui ne doit jamais être commitée.
+
+\n## Application web installable\n\n- Le site fournit un manifeste PWA pour pouvoir être installé depuis un navigateur compatible sur ordinateur ou mobile.\n- L'installation PWA utilise le même compte Google, les mêmes conversations et la même mémoire que le site. Elle ne remplace pas une APK native ou un installateur Windows/Linux.\n\n## Configuration OAuth à finaliser\n\n- Le déploiement Preview compile correctement, mais les variables `AUTH_GOOGLE_ID` et `AUTH_GOOGLE_SECRET` ne sont pas encore présentes dans les variables du projet Vercel.\n- Tant que ces deux variables ne sont pas configurées avec le client OAuth Web Google, l'écran de connexion indique clairement que l'accès est indisponible.\n

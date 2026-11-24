@@ -14,7 +14,7 @@ type Health = {
 };
 
 export default function ChatClient({ email }: { email: string }) {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);\n  const [searchQuery, setSearchQuery] = useState("");
   const [activeId, setActiveId] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -157,7 +157,7 @@ export default function ChatClient({ email }: { email: string }) {
     if (response.ok) setMemories((current) => current.filter((item) => item.id !== id));
   }
 
-  async function archiveConversation(id: string) {
+  async function renameConversation(id: string, currentTitle: string) {\n    const title = window.prompt("Nouveau titre de la conversation :", currentTitle)?.trim();\n    if (!title || title === currentTitle) return;\n    const response = await fetch("/api/conversations/" + encodeURIComponent(id), {\n      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title })\n    });\n    const data = await response.json();\n    if (response.ok) setConversations((current) => current.map((item) => item.id === id ? { ...item, title: data.title } : item));\n    else setStatus(data.error || "Impossible de renommer cette conversation.");\n  }\n\n  async function archiveConversation(id: string) {
     const response = await fetch("/api/conversations/" + encodeURIComponent(id), { method: "DELETE" });
     if (!response.ok) return;
     const next = conversations.filter((item) => item.id !== id);
@@ -181,7 +181,7 @@ export default function ChatClient({ email }: { email: string }) {
               <button className="conversation-select" onClick={() => openConversation(item.id)} disabled={busy}>
                 <span>{item.title}</span>
               </button>
-              <button className="archive-button" title="Archiver la conversation" aria-label="Archiver la conversation" onClick={() => archiveConversation(item.id)} disabled={busy}>×</button>
+              <button className="archive-button" title="Renommer la conversation" aria-label="Renommer la conversation" onClick={() => renameConversation(item.id, item.title)} disabled={busy}>✎</button>\n              <button className="archive-button" title="Archiver la conversation" aria-label="Archiver la conversation" onClick={() => archiveConversation(item.id)} disabled={busy}>×</button>
             </div>
           ))}
           {!conversations.length && <p className="muted">Aucune discussion enregistrée.</p>}
