@@ -76,6 +76,7 @@ public sealed class MainWindow : Window
         var rename = new Button { Content = "Renommer" }; StyleButton(rename);
         rename.Click += async (_, _) => await Rename();
         var delete = new Button { Content = "Supprimer" }; StyleButton(delete);
+        delete.Click += async (_, _) => await Delete();
 
         var side = new StackPanel { Spacing = 13, Margin = new Thickness(18), Width = 250 };
         side.Children.Add(new TextBlock { Text = "✦  Zodi AI", FontSize = 23, FontWeight = FontWeight.Bold, Foreground = Text, Margin = new Thickness(4, 8) });
