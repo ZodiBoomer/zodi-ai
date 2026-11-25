@@ -2,7 +2,7 @@ using System; using System.Collections.ObjectModel; using System.IO; using Syste
 namespace ZodiAI;
 public sealed partial class MainWindow : Window {
  private static readonly HttpClient Http=new(){Timeout=TimeSpan.FromSeconds(70)}; private const string Endpoint="https://zodi-ai-core.vercel.app/api/chat";
- private readonly ObservableCollection<Conversation> items=new(); private readonly string store=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"ZodiAI","conversations.json"); private Conversation? active; private bool switching; private readonly List<ChatImage> pendingImages=new(); private readonly Dictionary<int,string> feedback=new();
+ private readonly ObservableCollection<Conversation> items=new(); private readonly string store=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"ZodiAI","conversations.json"); private Conversation? active; private bool switching; private readonly List<ChatImage> pendingImages=new();
  public MainWindow(){InitializeComponent();Title="Zodi AI";try{if(File.Exists(store)){var saved=JsonSerializer.Deserialize<Conversation[]>(File.ReadAllText(store));if(saved!=null)foreach(var c in saved)items.Add(c);}}catch{} ConversationList.ItemsSource=items;if(items.Count==0)Create();Select(items[0]);CheckForUpdatesOnStartup();}
  private async void CheckForUpdatesOnStartup(){await System.Threading.Tasks.Task.Delay(1500);try{var result=await AppUpdater.CheckAndInstallAsync();if(result=="INSTALLER_STARTED"){Application.Current.Exit();return;}SetStatus(result);}catch{SetStatus("Vérification automatique des mises à jour indisponible. Réessaie avec « Mettre à jour ».");}}
  private void SetStatus(string value){
@@ -51,8 +51,6 @@ public sealed partial class MainWindow : Window {
    var actions=new StackPanel{Orientation=Orientation.Horizontal,Spacing=2,HorizontalAlignment=HorizontalAlignment.Left};
    Button Action(string label,Action run){var button=new Button{Content=label,Background=new SolidColorBrush(Color.FromArgb(0,0,0,0)),BorderThickness=new Thickness(0),Foreground=new SolidColorBrush(Color.FromArgb(255,170,170,170)),Padding=new Thickness(4,1,4,1),MinWidth=28,MinHeight=28,FontSize=11};button.Click+=(_,_)=>run();return button;}
    actions.Children.Add(Action("▢",()=>CopyResponse(text)));
-   actions.Children.Add(Action(feedback.GetValueOrDefault(messageIndex)=="like"?"👍✓":"👍",()=>{feedback[messageIndex]=feedback.GetValueOrDefault(messageIndex)=="like"?"":"like";Select(active!);} ));
-   actions.Children.Add(Action(feedback.GetValueOrDefault(messageIndex)=="dislike"?"👎✓":"👎",()=>{feedback[messageIndex]=feedback.GetValueOrDefault(messageIndex)=="dislike"?"":"dislike";Select(active!);} ));
    actions.Children.Add(Action("↻",()=>_ = RegenerateResponse(messageIndex)));
    actions.Children.Add(Action("↗",()=>CopyResponse(text)));
    MessagesPanel.Children.Add(actions);
