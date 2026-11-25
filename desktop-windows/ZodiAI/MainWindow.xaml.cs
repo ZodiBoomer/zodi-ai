@@ -49,12 +49,12 @@ public sealed partial class MainWindow : Window {
   MessagesPanel.Children.Add(b);
   if(!user&&messageIndex>=0){
    var actions=new StackPanel{Orientation=Orientation.Horizontal,Spacing=2,HorizontalAlignment=HorizontalAlignment.Left};
-   Button Action(string label,Action run){var button=new Button{Content=label,Background=new SolidColorBrush(Color.FromArgb(0,0,0,0)),BorderThickness=new Thickness(0),Foreground=new SolidColorBrush(Color.FromArgb(255,170,170,170)),Padding=new Thickness(7,3,7,3)};button.Click+=(_,_)=>run();return button;}
-   actions.Children.Add(Action("▢ Copier",()=>CopyResponse(text)));
+   Button Action(string label,Action run){var button=new Button{Content=label,Background=new SolidColorBrush(Color.FromArgb(0,0,0,0)),BorderThickness=new Thickness(0),Foreground=new SolidColorBrush(Color.FromArgb(255,170,170,170)),Padding=new Thickness(4,1,4,1),MinWidth=28,MinHeight=28,FontSize=11};button.Click+=(_,_)=>run();return button;}
+   actions.Children.Add(Action("▢",()=>CopyResponse(text)));
    actions.Children.Add(Action(feedback.GetValueOrDefault(messageIndex)=="like"?"👍✓":"👍",()=>{feedback[messageIndex]=feedback.GetValueOrDefault(messageIndex)=="like"?"":"like";Select(active!);} ));
    actions.Children.Add(Action(feedback.GetValueOrDefault(messageIndex)=="dislike"?"👎✓":"👎",()=>{feedback[messageIndex]=feedback.GetValueOrDefault(messageIndex)=="dislike"?"":"dislike";Select(active!);} ));
-   actions.Children.Add(Action("↻ Régénérer",()=>_ = RegenerateResponse(messageIndex)));
-   actions.Children.Add(Action("↗ Copier pour partager",()=>CopyResponse(text)));
+   actions.Children.Add(Action("↻",()=>_ = RegenerateResponse(messageIndex)));
+   actions.Children.Add(Action("↗",()=>CopyResponse(text)));
    MessagesPanel.Children.Add(actions);
   }
   _ = MessagesScroll.ChangeView(null,MessagesScroll.ScrollableHeight,null,true);
