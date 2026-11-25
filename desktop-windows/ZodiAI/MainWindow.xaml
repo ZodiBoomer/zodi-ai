@@ -37,9 +37,10 @@
    <TextBlock x:Name="StatusText" Grid.Row="2" Text="Connexion au service Zodi AI · Internet requis" Foreground="#929292" FontSize="11" Margin="24,4,24,12" HorizontalAlignment="Center"/>
    <Border Grid.Row="3" Background="#212121" Padding="18,12">
     <Grid MaxWidth="850" HorizontalAlignment="Center" Background="#303030">
-     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
      <TextBox x:Name="MessageInput" PlaceholderText="Écris un message à Zodi" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54" MaxHeight="150" KeyDown="MessageInput_KeyDown" VerticalContentAlignment="Center" Background="Transparent" BorderThickness="0" Foreground="#ECECEC" Padding="14,10"/>
-     <Button x:Name="SendButton" Grid.Column="1" Content="↑" Margin="8" Width="38" Height="38" VerticalAlignment="Bottom" Click="SendButton_Click" Background="#ECECEC" Foreground="#171717" FontSize="22" FontWeight="Bold" CornerRadius="19"/>
+     <Button Content="＋ Photo" Grid.Column="1" Margin="6" VerticalAlignment="Bottom" Click="AttachImage_Click" Background="#3A3A3A" Foreground="#ECECEC"/>
+     <Button x:Name="SendButton" Grid.Column="2" Content="↑" Margin="8" Width="38" Height="38" VerticalAlignment="Bottom" Click="SendButton_Click" Background="#ECECEC" Foreground="#171717" FontSize="22" FontWeight="Bold" CornerRadius="19"/>
     </Grid>
    </Border>
   </Grid>

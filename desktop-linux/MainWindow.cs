@@ -11,6 +11,8 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Input;
+using Avalonia.Platform.Storage;
+using Avalonia.Media.Imaging;
 
 namespace ZodiAI.Linux;
 
@@ -35,6 +37,8 @@ public sealed class MainWindow : Window
     readonly TextBlock title = new() { Text = "Zodi AI", FontSize = 20, FontWeight = FontWeight.Bold, Foreground = Text };
     readonly TextBlock status = new() { Text = "Assistant personnel · Internet requis", Foreground = Muted, FontSize = 12 };
     readonly Button send = new() { Content = "Envoyer  ↗", MinWidth = 112, Height = 46 };
+    readonly Button attach = new() { Content = "＋ Photo", MinWidth = 86, Height = 46 };
+    readonly List<ChatImage> pendingImages = new();
     readonly Button update = new() { Content = "Mettre à jour" };
     Conversation? active;
     bool switching;
@@ -60,6 +64,7 @@ public sealed class MainWindow : Window
 
         history.SelectionChanged += (_, _) => { if (!switching && history.SelectedItem is Conversation c) Select(c); };
         send.Click += async (_, _) => await Send();
+        attach.Click += async (_, _) => await AttachImages();
         input.KeyDown += async (_, e) => { if (e.Key == Key.Enter && !e.KeyModifiers.HasFlag(KeyModifiers.Shift)) { e.Handled = true; await Send(); } };
 
         var create = new Button { Content = "＋  Nouvelle conversation", HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -94,9 +99,10 @@ public sealed class MainWindow : Window
         Grid.SetColumn(actions, 1); head.Children.Add(actions);
 
         var scroll = new ScrollViewer { Content = messages, Padding = new Thickness(26), Background = Page };
-        var composer = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(20, 14), Background = Page };
+        var composer = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), Margin = new Thickness(20, 14), Background = Page };
         input.Background = Brush("#303030"); input.Foreground = Text; input.BorderBrush = Brush("#555555"); input.BorderThickness = new Thickness(1); input.CornerRadius = new CornerRadius(24); input.Padding = new Thickness(16, 12);
-        composer.Children.Add(input); Grid.SetColumn(send, 1); send.Margin = new Thickness(12, 0, 0, 0); StyleButton(send, true); composer.Children.Add(send);
+        composer.Children.Add(input); Grid.SetColumn(attach, 1); attach.Margin = new Thickness(8, 0, 0, 0); StyleButton(attach); composer.Children.Add(attach);
+        Grid.SetColumn(send, 2); send.Margin = new Thickness(8, 0, 0, 0); StyleButton(send, true); composer.Children.Add(send);
 
         var right = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto"), Background = Page };
         right.Children.Add(head); Grid.SetRow(scroll, 1); right.Children.Add(scroll); Grid.SetRow(composer, 2); right.Children.Add(composer);
@@ -126,9 +132,9 @@ public sealed class MainWindow : Window
     {
         messages.Children.Clear(); if (active == null) return;
         title.Text = active.Title;
-        foreach (var message in active.Messages) Bubble(message.Content, message.Role == "user");
+        foreach (var message in active.Messages) Bubble(message.Content, message.Role == "user", message.Images);
     }
-    void Bubble(string value, bool user)
+    void Bubble(string value, bool user, List<ChatImage>? images = null)
     {
         var bubble = new Border
         {
@@ -140,7 +146,13 @@ public sealed class MainWindow : Window
             MaxWidth = 720,
             HorizontalAlignment = user ? HorizontalAlignment.Right : HorizontalAlignment.Left
         };
-        bubble.Child = new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap, Foreground = Text, FontSize = 14, LineHeight = 22 };
+        var content = new StackPanel { Spacing = 8 };
+        foreach (var image in images ?? new())
+        {
+            try { var bytes = Convert.FromBase64String(image.DataUrl.Split(',').Last()); using var stream = new MemoryStream(bytes); content.Children.Add(new Image { Source = new Bitmap(stream), MaxWidth = 360, MaxHeight = 240, Stretch = Avalonia.Media.Stretch.Uniform }); } catch { }
+        }
+        content.Children.Add(new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap, Foreground = Text, FontSize = 14, LineHeight = 22 });
+        bubble.Child = content;
         messages.Children.Add(bubble);
     }
     async Task<string?> Prompt(string caption, string value)
@@ -174,17 +186,27 @@ public sealed class MainWindow : Window
             active = items[0]; Refresh(); Render(); Save();
         }
     }
+    async Task AttachImages()
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = "Choisir des photos", AllowMultiple = true, FileTypeFilter = new[] { new FilePickerFileType("Images") { Patterns = new[] { "*.jpg", "*.jpeg", "*.png", "*.webp" } } } });
+        foreach (var file in files.Take(Math.Max(0, 4 - pendingImages.Count)))
+        {
+            try { await using var stream = await file.OpenReadAsync(); using var memory = new MemoryStream(); await stream.CopyToAsync(memory); var bytes = memory.ToArray(); if (bytes.Length > 700 * 1024) { status.Text = "Chaque photo doit faire moins de 700 Ko."; continue; } pendingImages.Add(new ChatImage("data:image/jpeg;base64," + Convert.ToBase64String(bytes), "image/jpeg")); }
+            catch { status.Text = "Impossible de lire une photo."; }
+        }
+        status.Text = pendingImages.Count > 0 ? $"{pendingImages.Count} photo(s) prête(s) · maximum 4" : status.Text;
+    }
     async Task Send()
     {
-        if (active == null || string.IsNullOrWhiteSpace(input.Text) || !send.IsEnabled) return;
-        var conversation = active; var value = input.Text.Trim(); input.Text = "";
-        var prior = conversation.Messages.ToArray(); conversation.Messages.Add(new Message("user", value));
+        if (active == null || (string.IsNullOrWhiteSpace(input.Text) && pendingImages.Count == 0) || !send.IsEnabled) return;
+        var conversation = active; var value = input.Text.Trim(); var images = pendingImages.ToList(); pendingImages.Clear(); input.Text = "";
+        var prior = conversation.Messages.ToArray(); conversation.Messages.Add(new Message("user", value, images));
         if (conversation.Title == "Nouvelle conversation") conversation.Title = value.Length > 42 ? value[..39] + "…" : value;
         title.Text = conversation.Title; Refresh(); Bubble(value, true); Save();
         send.IsEnabled = false; status.Text = "Zodi réfléchit…";
         try
         {
-            using var response = await Http.PostAsJsonAsync(Api, new { message = value, history = prior });
+            using var response = await Http.PostAsJsonAsync(Api, new { message = value, history = prior, images = images.Select(image => new { dataUrl = image.DataUrl, mimeType = image.MimeType }) });
             var body = await response.Content.ReadAsStringAsync();
             if (!response.IsSuccessStatusCode) throw new Exception($"HTTP {(int)response.StatusCode}: {body}");
             using var json = JsonDocument.Parse(body);
@@ -211,5 +233,6 @@ public sealed class MainWindow : Window
         public List<Message> Messages { get; set; } = new();
         public override string ToString() => Title;
     }
-    public sealed record Message(string Role, string Content);
+    public sealed record ChatImage(string DataUrl, string MimeType);
+    public sealed record Message(string Role, string Content, List<ChatImage>? Images = null);
 }
