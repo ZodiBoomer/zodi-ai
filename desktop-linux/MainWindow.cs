@@ -115,6 +115,14 @@ public sealed class MainWindow : Window
         Grid.SetColumn(right, 1); root.Children.Add(right); Content = root;
 
         if (items.Count == 0) Create(); else Select(items[0]);
+        _ = CheckForUpdatesOnStartup();
+    }
+
+    async Task CheckForUpdatesOnStartup()
+    {
+        await Task.Delay(1500);
+        try { status.Text = await AppUpdater.CheckAndInstallAsync(); }
+        catch { status.Text = "Vérification automatique des mises à jour indisponible. Réessaie avec « Mettre à jour »."; }
     }
 
     void Save()
