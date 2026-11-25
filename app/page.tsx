@@ -109,7 +109,7 @@ export default function Home() {
             {!sidebarOpen && <button className="icon-button" type="button" onClick={() => setSidebarOpen(true)} aria-label="Afficher le menu">☰</button>}
             <button className="model-selector" type="button">Zodi <span>AI</span>　⌄</button>
           </div>
-          <div className="topbar-right"><span className={`connection-label ${ready ? "online" : ""}`}><i />{ready ? "En ligne" : "Connexion…"}</span><button className="icon-button" type="button" onClick={() => void checkForUpdates(true)} disabled={checkingUpdate} title={updateStatus} aria-label={updateStatus}>↻</button></div>
+          <div className="topbar-right"><span className={`connection-label ${ready ? "online" : ""}`} title={status}><i />{ready ? "En ligne" : "Connexion…"}</span><button className="icon-button" type="button" onClick={() => void checkForUpdates(true)} disabled={checkingUpdate} title={updateStatus} aria-label={updateStatus}>↻</button></div>
         </header>
         <div className="conversation-viewport">
           <div className={`messages-container ${messages.length <= 1 ? "welcome-state" : ""}`}>
@@ -119,7 +119,7 @@ export default function Home() {
                 <button type="button" onClick={() => setInput("Aide-moi à organiser ma journée")}><strong>Organiser ma journée</strong><span>Planifier et prioriser mes tâches</span></button>
                 <button type="button" onClick={() => setInput("Explique-moi un sujet simplement")}><strong>Apprendre quelque chose</strong><span>Comprendre un sujet étape par étape</span></button>
                 <button type="button" onClick={() => setInput("Aide-moi à écrire un texte")}><strong>Écrire un texte</strong><span>Rédiger, corriger ou reformuler</span></button>
-                <button type="button" onClick={() => setInput("Aide-moi sur mon projet")}><strong>Faire avancer un projet</strong><span>Réfléchir et passer à l'action</span></button>
+                <button type="button" onClick={() => setInput("Aide-moi sur mon projet")}><strong>Faire avancer un projet</strong><span>Réfléchir et passer à l&apos;action</span></button>
               </div>
             </div> : <div className="message-stack">
               {messages.map((message, index) => <article className={`message-row ${message.role}`} key={index}>
