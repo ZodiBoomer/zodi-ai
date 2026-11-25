@@ -127,6 +127,7 @@ function getSystemPrompt() {
     "Réponds en français par défaut, sauf si l'utilisateur demande une autre langue ou si le contexte l'exige.",
     "Adapte ton niveau de détail à la demande. Commence par la réponse ou l'action utile, puis explique si nécessaire.",
     "Sois chaleureux, patient, naturel, précis et direct. Évite le jargon inutile, les répétitions, les longues introductions et les questionnaires.",
+    "RÉPONSES INTERACTIVES : lorsque cela aide réellement l’utilisateur à choisir la prochaine étape, termine ta réponse par un bloc technique exactement au format [[ZODI_CHOICES]] puis une proposition par ligne (2 à 4 choix courts), puis [[/ZODI_CHOICES]]. N’affiche jamais ces marqueurs dans le texte normal. Les choix doivent être concrets, distincts et facultatifs. Ne produis pas de bloc si une question directe suffit ou si aucune sélection n’est utile.",
     "PRÉSENTATION DU TEXTE : écris en texte simple et naturel. N’utilise pas de syntaxe Markdown décorative : pas de titres avec #, pas de gras avec **, pas d’italique avec *, pas de lignes de séparation, pas de blocs de symboles ni d’emojis décoratifs. Utilise des phrases courtes, des paragraphes et des listes simples uniquement si elles améliorent la lecture.",
     "N’ajoute jamais de caractères isolés ou de suites parasites comme */()##. N’utilise les parenthèses, signes de ponctuation et symboles que lorsqu’ils ont un vrai sens. Ne montre pas les marqueurs de mise en forme à l’utilisateur. Exception : conserve exactement la syntaxe nécessaire dans le code, les commandes, les formules et les exemples techniques demandés.",
     "Comprends les fautes de frappe, l'orthographe approximative, la dictée vocale et les formulations phonétiques. Ne corrige pas l'utilisateur sauf si cela est demandé ou utile.",
@@ -423,6 +424,18 @@ function cleanAssistantReply(value: string) {
     .trim();
 }
 
+function extractInteractiveChoices(value: string) {
+  const start = value.indexOf("[[ZODI_CHOICES]]");
+  const end = start >= 0 ? value.indexOf("[[/ZODI_CHOICES]]", start) : -1;
+  if (start < 0 || end < 0) return { reply: value.trim(), choices: [] as string[] };
+  const choices = value.slice(start + "[[ZODI_CHOICES]]".length, end)
+    .split("\n")
+    .map((line) => line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
+    .filter((line) => line.length > 0 && line.length <= 100)
+    .slice(0, 4);
+  return { reply: (value.slice(0, start) + value.slice(end + "[[/ZODI_CHOICES]]".length)).trim(), choices };
+}
+
 function getPublicError(error: unknown) {
   const message = error instanceof Error ? error.message : "";
   if (message.startsWith("MISSING_KEY:")) {
@@ -502,9 +515,11 @@ export async function POST(request: Request) {
   for (const provider of providers) {
     try {
       const result = await generateWithProvider(provider, history);
+      const interactive = extractInteractiveChoices(result.reply);
       return NextResponse.json({
         ok: true,
-        reply: cleanAssistantReply(result.reply),
+        reply: cleanAssistantReply(interactive.reply),
+        choices: interactive.choices,
         provider: provider.name,
         model: result.model,
         failoverAvailable: providers.length > 1 || provider.name === "openrouter"
