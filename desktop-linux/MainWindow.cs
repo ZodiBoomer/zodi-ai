@@ -89,7 +89,6 @@ public sealed class MainWindow : Window
 
         var side = new StackPanel { Spacing = 13, Margin = new Thickness(14), Width = 250 };
                 side.Children.Add(create);
-        side.Children.Add(new TextBlock { Text = "HISTORIQUE", Foreground = Muted, FontSize = 10, Margin = new Thickness(4, 12, 4, 0), FontWeight = FontWeight.Bold });
         side.Children.Add(historySearch);
         side.Children.Add(history);
         
