@@ -171,7 +171,7 @@ public sealed class MainWindow : Window
             actions.Children.Add(Action(feedback.GetValueOrDefault(messageIndex) == "like" ? "👍✓" : "👍", () => { feedback[messageIndex] = feedback.GetValueOrDefault(messageIndex) == "like" ? "" : "like"; if (active != null) Render(); }));
             actions.Children.Add(Action(feedback.GetValueOrDefault(messageIndex) == "dislike" ? "👎✓" : "👎", () => { feedback[messageIndex] = feedback.GetValueOrDefault(messageIndex) == "dislike" ? "" : "dislike"; if (active != null) Render(); }));
             actions.Children.Add(Action("↻ Régénérer", () => _ = RegenerateResponse(messageIndex)));
-            actions.Children.Add(Action("↗ Partager", () => ShareResponse(value)));
+            actions.Children.Add(Action("↗ Partager", () => CopyResponse(value)));
             messages.Children.Add(actions);
         }
     }
