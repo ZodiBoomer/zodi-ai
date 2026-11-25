@@ -77,9 +77,9 @@ public sealed class MainWindow : Window
         StyleButton(update);
         update.Click += async (_, _) =>
         {
-            update.IsEnabled = false; status.Text = "Recherche de mises à jour…";
-            try { status.Text = await AppUpdater.CheckAndInstallAsync(); }
-            catch (Exception ex) { status.Text = "Mise à jour impossible : " + ex.Message; }
+            update.IsEnabled = false; SetStatus("Recherche de mises à jour…");
+            try { SetStatus(await AppUpdater.CheckAndInstallAsync()); }
+            catch (Exception ex) { SetStatus("Mise à jour impossible : " + ex.Message); }
             finally { update.IsEnabled = true; }
         };
         var rename = new Button { Content = "Renommer" }; StyleButton(rename);
@@ -122,14 +122,22 @@ public sealed class MainWindow : Window
     async Task CheckForUpdatesOnStartup()
     {
         await Task.Delay(1500);
-        try { status.Text = await AppUpdater.CheckAndInstallAsync(); }
-        catch { status.Text = "Vérification automatique des mises à jour indisponible. Réessaie avec « Mettre à jour »."; }
+        try { SetStatus(await AppUpdater.CheckAndInstallAsync()); }
+        catch { SetStatus("Vérification automatique des mises à jour indisponible. Réessaie avec « Mettre à jour »."); }
+    }
+
+    void SetStatus(string value)
+    {
+        status.Text = value;
+        status.Foreground = value.Contains("échec", StringComparison.OrdinalIgnoreCase) || value.Contains("impossible", StringComparison.OrdinalIgnoreCase) || value.Contains("indisponible", StringComparison.OrdinalIgnoreCase) || value.Contains("erreur", StringComparison.OrdinalIgnoreCase) ? Brush("#EF5350") :
+            value.Contains("attention", StringComparison.OrdinalIgnoreCase) || value.Contains("confirmation", StringComparison.OrdinalIgnoreCase) || value.Contains("Recherche", StringComparison.OrdinalIgnoreCase) || value.Contains("Régénération", StringComparison.OrdinalIgnoreCase) ? Brush("#FFB74D") :
+            value.Contains("reçu", StringComparison.OrdinalIgnoreCase) || value.Contains("copiée", StringComparison.OrdinalIgnoreCase) || value.Contains("régénérée", StringComparison.OrdinalIgnoreCase) || value.Contains("En ligne", StringComparison.OrdinalIgnoreCase) ? Brush("#4CAF50") : Brush("#64B5F6");
     }
 
     void Save()
     {
         try { Directory.CreateDirectory(Path.GetDirectoryName(store)!); File.WriteAllText(store, JsonSerializer.Serialize(items)); }
-        catch (Exception e) { status.Text = "Sauvegarde impossible : " + e.Message; }
+        catch (Exception e) { SetStatus("Sauvegarde impossible : " + e.Message); }
     }
     void Refresh()
     {
@@ -165,14 +173,14 @@ public sealed class MainWindow : Window
             actions.Children.Add(Action(feedback.GetValueOrDefault(messageIndex) == "like" ? "👍✓" : "👍", () => { feedback[messageIndex] = feedback.GetValueOrDefault(messageIndex) == "like" ? "" : "like"; if (active != null) Render(); }));
             actions.Children.Add(Action(feedback.GetValueOrDefault(messageIndex) == "dislike" ? "👎✓" : "👎", () => { feedback[messageIndex] = feedback.GetValueOrDefault(messageIndex) == "dislike" ? "" : "dislike"; if (active != null) Render(); }));
             actions.Children.Add(Action("↻ Régénérer", () => _ = RegenerateResponse(messageIndex)));
-            actions.Children.Add(Action("↗ Partager", () => CopyResponse(value)));
+            actions.Children.Add(Action("↗ Copier pour partager", () => CopyResponse(value)));
             messages.Children.Add(actions);
         }
     }
     async void CopyResponse(string value)
     {
-        try { await TopLevel.GetTopLevel(this)!.Clipboard!.SetTextAsync(value); status.Text = "Réponse copiée · prête à partager"; }
-        catch { status.Text = "Copie indisponible sur ce bureau"; }
+        try { await TopLevel.GetTopLevel(this)!.Clipboard!.SetTextAsync(value); SetStatus("Réponse copiée · prête à partager"); }
+        catch { SetStatus("Copie indisponible sur ce bureau"); }
     }
     async Task RegenerateResponse(int messageIndex)
     {
@@ -183,7 +191,7 @@ public sealed class MainWindow : Window
         var prompt = conversation.Messages[userIndex];
         var prior = conversation.Messages.Take(userIndex).TakeLast(10).ToArray();
         conversation.Messages.RemoveRange(userIndex + 1, conversation.Messages.Count - userIndex - 1);
-        send.IsEnabled = false; status.Text = "Régénération de la réponse…"; Render();
+        send.IsEnabled = false; SetStatus("Régénération de la réponse…"); Render();
         try
         {
             using var response = await Http.PostAsJsonAsync(Api, new { message = prompt.Content, history = prior, images = (prompt.Images ?? new List<ChatImage>()).Select(image => new { dataUrl = image.DataUrl, mimeType = image.MimeType }) });
@@ -194,13 +202,13 @@ public sealed class MainWindow : Window
             if (string.IsNullOrWhiteSpace(answer)) throw new Exception("Réponse vide du serveur.");
             conversation.Messages.Add(new Message("assistant", answer));
             if (active == conversation) Render();
-            status.Text = "Réponse régénérée"; Save();
+            SetStatus("Réponse régénérée"); Save();
         }
         catch (Exception error)
         {
             conversation.Messages.Add(new Message("assistant", "Régénération impossible : " + error.Message));
             if (active == conversation) Render();
-            status.Text = "Échec de la régénération"; Save();
+            SetStatus("Échec de la régénération"); Save();
         }
         finally { send.IsEnabled = true; }
     }
@@ -240,10 +248,10 @@ public sealed class MainWindow : Window
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = "Choisir des photos", AllowMultiple = true, FileTypeFilter = new[] { new FilePickerFileType("Images") { Patterns = new[] { "*.jpg", "*.jpeg", "*.png", "*.webp" } } } });
         foreach (var file in files.Take(Math.Max(0, 4 - pendingImages.Count)))
         {
-            try { await using var stream = await file.OpenReadAsync(); using var memory = new MemoryStream(); await stream.CopyToAsync(memory); var bytes = memory.ToArray(); if (bytes.Length > 700 * 1024) { status.Text = "Chaque photo doit faire moins de 700 Ko."; continue; } var usedBytes = pendingImages.Sum(image => Convert.FromBase64String(image.DataUrl.Split(',').Last()).Length); if (usedBytes + bytes.Length > 2 * 1024 * 1024) { status.Text = "Les photos jointes ne doivent pas dépasser 2 Mo au total."; continue; } pendingImages.Add(new ChatImage("data:image/jpeg;base64," + Convert.ToBase64String(bytes), "image/jpeg")); }
-            catch { status.Text = "Impossible de lire une photo."; }
+            try { await using var stream = await file.OpenReadAsync(); using var memory = new MemoryStream(); await stream.CopyToAsync(memory); var bytes = memory.ToArray(); if (bytes.Length > 700 * 1024) { SetStatus("Chaque photo doit faire moins de 700 Ko."); continue; } var usedBytes = pendingImages.Sum(image => Convert.FromBase64String(image.DataUrl.Split(',').Last()).Length); if (usedBytes + bytes.Length > 2 * 1024 * 1024) { SetStatus("Les photos jointes ne doivent pas dépasser 2 Mo au total."); continue; } pendingImages.Add(new ChatImage("data:image/jpeg;base64," + Convert.ToBase64String(bytes), "image/jpeg")); }
+            catch { SetStatus("Impossible de lire une photo."); }
         }
-        status.Text = pendingImages.Count > 0 ? $"{pendingImages.Count} photo(s) prête(s) · maximum 4" : status.Text;
+        SetStatus(pendingImages.Count > 0 ? $"{pendingImages.Count} photo(s) prête(s) · maximum 4" : status.Text);
     }
     async Task Send()
     {
@@ -252,7 +260,7 @@ public sealed class MainWindow : Window
         var prior = conversation.Messages.TakeLast(10).ToArray(); var latestImageIndex = images.Count == 0 ? Array.FindLastIndex(prior, message => message.Images?.Count > 0) : -1; prior = prior.Select((message, index) => index == latestImageIndex ? message : message with { Images = null }).ToArray(); conversation.Messages.Add(new Message("user", value, images));
         if (conversation.Title == "Nouvelle conversation") conversation.Title = value.Length > 42 ? value[..39] + "…" : value;
         title.Text = conversation.Title; Refresh(); Bubble(value, true, images, conversation.Messages.Count - 1); Save();
-        send.IsEnabled = false; status.Text = "Zodi réfléchit…";
+        send.IsEnabled = false; SetStatus("Zodi réfléchit…");
         try
         {
             using var response = await Http.PostAsJsonAsync(Api, new { message = value, history = prior, images = images.Select(image => new { dataUrl = image.DataUrl, mimeType = image.MimeType }) });
@@ -263,14 +271,14 @@ public sealed class MainWindow : Window
             if (string.IsNullOrWhiteSpace(answer)) throw new Exception("Réponse vide du serveur.");
             conversation.Messages.Add(new Message("assistant", answer));
             if (active == conversation) Bubble(answer, false, null, conversation.Messages.Count - 1);
-            status.Text = "Réponse reçue · Zodi AI"; Save();
+            SetStatus("Réponse reçue · Zodi AI"); Save();
         }
         catch (Exception error)
         {
             var message = "Impossible de joindre Zodi AI. Vérifie Internet puis réessaie.\n" + error.Message;
             conversation.Messages.Add(new Message("assistant", message));
             if (active == conversation) Bubble(message, false);
-            status.Text = "Connexion indisponible"; Save();
+            SetStatus("Connexion indisponible"); Save();
         }
         finally { send.IsEnabled = true; }
     }
