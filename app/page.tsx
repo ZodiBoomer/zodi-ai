@@ -2,7 +2,8 @@
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
-type Message = { role: "user" | "assistant"; content: string };
+type ImageAttachment = { dataUrl: string; mimeType: "image/jpeg" | "image/png" | "image/webp"; name: string };
+type Message = { role: "user" | "assistant"; content: string; images?: ImageAttachment[] };
 type Conversation = { id: string; title: string; messages: Message[]; updatedAt: number };
 type Health = { ok?: boolean; aiConfigured?: boolean; provider?: string; providers?: string[]; model?: string; modelFallbacks?: string[] };
 const BUILD_ID = process.env.NEXT_PUBLIC_ZODI_BUILD_ID ?? "local";
@@ -13,6 +14,8 @@ export default function Home() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState("");
   const [input, setInput] = useState("");
+  const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState("Connexion au service…");
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -69,16 +72,45 @@ export default function Home() {
   function updateConversation(id: string, transform: (item: Conversation) => Conversation) {
     setConversations((all) => all.map((item) => item.id === id ? transform(item) : item).sort((a, b) => b.updatedAt - a.updatedAt));
   }
+  async function addImages(files: FileList | null) {
+    if (!files) return;
+    const selected = Array.from(files).filter((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type));
+    if (selected.length !== files.length) setStatus("Formats acceptés : JPG, PNG et WEBP.");
+    if (pendingImages.length + selected.length > 4) { setStatus("Tu peux joindre 4 images maximum."); return; }
+    const converted: ImageAttachment[] = [];
+    for (const file of selected) {
+      try {
+        const source = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(new Error("Lecture impossible")); reader.readAsDataURL(file);
+        });
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const image = new Image(); image.onload = () => resolve(image); image.onerror = () => reject(new Error("Image illisible")); image.src = source;
+        });
+        const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+        const canvas = document.createElement("canvas"); canvas.width = Math.max(1, Math.round(img.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        const context = canvas.getContext("2d"); if (!context) throw new Error("Conversion image impossible");
+        context.drawImage(img, 0, 0, canvas.width, canvas.height);
+        let dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+        let quality = 0.72;
+        while (dataUrl.length > 950000 && quality > 0.4) { dataUrl = canvas.toDataURL("image/jpeg", quality); quality -= 0.1; }
+        if (dataUrl.length > 950000) throw new Error("Image trop volumineuse après compression.");
+        converted.push({ dataUrl, mimeType: "image/jpeg", name: file.name });
+      } catch (error) { setStatus(error instanceof Error ? error.message : "Image invalide."); }
+    }
+    setPendingImages((current) => [...current, ...converted].slice(0, 4));
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  }
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = input.trim();
-    if (!text || busy || !active) return;
+    if ((!text && !pendingImages.length) || busy || !active) return;
+    const images = pendingImages;
     const id = active.id, history = active.messages.slice(-10);
-    const userMessages = [...active.messages, { role: "user" as const, content: text }];
+    const userMessages = [...active.messages, { role: "user" as const, content: text || "Analyse cette image.", images }];
     updateConversation(id, (item) => ({ ...item, title: item.title === "Nouvelle discussion" ? text.slice(0, 38) + (text.length > 38 ? "…" : "") : item.title, messages: userMessages, updatedAt: Date.now() }));
-    setInput(""); setBusy(true);
+    setInput(""); setPendingImages([]); setBusy(true);
     try {
-      const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text, history }) });
+      const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text, history, images: images.map(({ dataUrl, mimeType }) => ({ dataUrl, mimeType })) }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Erreur inconnue");
       updateConversation(id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: data.reply }], updatedAt: Date.now() }));
@@ -124,7 +156,10 @@ export default function Home() {
             </div> : <div className="message-stack">
               {messages.map((message, index) => <article className={`message-row ${message.role}`} key={index}>
                 {message.role === "assistant" && <div className="assistant-mark">✳</div>}
-                <div className={`message-content ${message.role}`}>{message.content}</div>
+                <div className={`message-content ${message.role}`}>
+                  {message.images?.length ? <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>{message.images.map((image, imageIndex) => <img key={imageIndex} src={image.dataUrl} alt={image.name || "Image jointe"} style={{ maxWidth: 220, maxHeight: 220, objectFit: "contain", borderRadius: 12 }} />)}</div> : null}
+                  {message.content}
+                </div>
               </article>)}
               {busy && <div className="message-row assistant"><div className="assistant-mark">✳</div><div className="thinking">Zodi réfléchit…</div></div>}
               <div ref={chatEndRef} />
@@ -134,8 +169,10 @@ export default function Home() {
         <div className="composer-area">
           <form className="chat-composer" onSubmit={send}>
             <label className="sr-only" htmlFor="message-input">Message à Zodi</label>
+            <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={(event) => void addImages(event.target.files)} />
+            {pendingImages.length > 0 && <div style={{ display: "flex", gap: 8, padding: "8px 12px", flexWrap: "wrap" }}>{pendingImages.map((image, index) => <div key={index} style={{ position: "relative" }}><img src={image.dataUrl} alt={image.name} style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8 }} /><button type="button" aria-label="Retirer l'image" onClick={() => setPendingImages((all) => all.filter((_, i) => i !== index))} style={{ position: "absolute", right: -6, top: -6 }}>×</button></div>)}</div>}
             <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Écris un message à Zodi" rows={1} aria-label="Message à Zodi" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
-            <div className="composer-actions"><span>Entrée pour envoyer · Maj + Entrée pour un saut de ligne</span><button className="send-button" disabled={busy || !input.trim()} type="submit" aria-label="Envoyer le message" title="Envoyer">↑</button></div>
+            <div className="composer-actions"><span>Entrée pour envoyer · Maj + Entrée pour un saut de ligne</span><button type="button" onClick={() => imageInputRef.current?.click()} disabled={busy || pendingImages.length >= 4} aria-label="Ajouter des photos" title="Ajouter des photos">＋</button><button className="send-button" disabled={busy || (!input.trim() && !pendingImages.length)} type="submit" aria-label="Envoyer le message" title="Envoyer">↑</button></div>
           </form>
           <p className="disclaimer">Zodi AI peut faire des erreurs. Pense à vérifier les informations importantes.</p>
         </div>

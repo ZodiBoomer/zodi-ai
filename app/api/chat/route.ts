@@ -4,6 +4,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
+type ChatImage = { dataUrl: string; mimeType: "image/jpeg" | "image/png" | "image/webp" };
 type CloudProvider = "openai" | "openrouter";
 
 type ProviderResponse = {
@@ -30,6 +31,9 @@ const DEFAULT_OPENROUTER_FALLBACKS = [
 ];
 const MAX_HISTORY_MESSAGES = 10;
 const MAX_MESSAGE_LENGTH = 4000;
+const MAX_IMAGES = 4;
+const MAX_IMAGE_BYTES = 700 * 1024;
+const MAX_TOTAL_IMAGE_BYTES = 2 * 1024 * 1024;
 // Three OpenRouter model attempts must fit inside Vercel's 60-second function limit.
 const OPENROUTER_TIMEOUT_MS = Math.min(
   15_000,
@@ -268,11 +272,16 @@ function shouldTryChatCompletions(error: unknown) {
     message.includes("PROVIDER_HTTP_405");
 }
 
-async function generateWithProvider(config: ProviderConfig, history: ChatMessage[]) {
+async function generateWithProvider(config: ProviderConfig, history: ChatMessage[], images: ChatImage[] = []) {
   const system = getSystemPrompt();
   const messages = [
     { role: "system" as const, content: system },
-    ...history.map((item) => ({ role: item.role, content: item.content }))
+    ...history.map((item, index) => ({
+      role: item.role,
+      content: images.length && index === history.length - 1 && item.role === "user"
+        ? [{ type: "text", text: item.content }, ...images.map((image) => ({ type: "image_url", image_url: { url: image.dataUrl, detail: "auto" } }))]
+        : item.content
+    }))
   ];
 
   if (config.name === "openrouter") {
@@ -337,7 +346,7 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
     throw lastError || new Error("ALL_OPENROUTER_MODELS_FAILED");
   }
 
-  try {
+  if (images.length === 0) try {
     const response = await postJson(config, "responses", {
       model: config.model,
       instructions: system,
@@ -425,7 +434,23 @@ export async function POST(request: Request) {
   }
 
   const message = typeof body.message === "string" ? body.message.trim() : "";
-  if (!message || message.length > MAX_MESSAGE_LENGTH) {
+  const rawImages = Array.isArray((body as { images?: unknown }).images) ? (body as { images: unknown[] }).images : [];
+  if (rawImages.length > MAX_IMAGES) return NextResponse.json({ error: "Maximum 4 images par message." }, { status: 400 });
+  const images: ChatImage[] = [];
+  let totalImageBytes = 0;
+  for (const item of rawImages) {
+    if (!item || typeof item !== "object") return NextResponse.json({ error: "Pièce jointe invalide." }, { status: 400 });
+    const image = item as { dataUrl?: unknown; mimeType?: unknown };
+    if (!["image/jpeg", "image/png", "image/webp"].includes(String(image.mimeType)) || typeof image.dataUrl !== "string") return NextResponse.json({ error: "Format accepté : JPG, PNG ou WEBP." }, { status: 400 });
+    const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+=*)$/.exec(image.dataUrl);
+    if (!match || match[1] !== image.mimeType) return NextResponse.json({ error: "Contenu image invalide." }, { status: 400 });
+    const size = Buffer.from(match[2], "base64").byteLength;
+    if (!size || size > MAX_IMAGE_BYTES) return NextResponse.json({ error: "Chaque image doit faire au maximum 700 Ko." }, { status: 413 });
+    totalImageBytes += size;
+    if (totalImageBytes > MAX_TOTAL_IMAGE_BYTES) return NextResponse.json({ error: "La taille totale des images dépasse 2 Mo." }, { status: 413 });
+    images.push({ dataUrl: image.dataUrl, mimeType: image.mimeType as ChatImage["mimeType"] });
+  }
+  if ((!message && !images.length) || message.length > MAX_MESSAGE_LENGTH) {
     return NextResponse.json(
       { error: "Le message doit contenir entre 1 et 4000 caractères." },
       { status: 400 }
@@ -440,13 +465,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const history = [...normalizeHistory(body.history), { role: "user" as const, content: message }]
+  const history = [...normalizeHistory(body.history), { role: "user" as const, content: message || "Analyse les images jointes." }]
     .slice(-MAX_HISTORY_MESSAGES);
 
   let lastError: unknown;
   for (const provider of providers) {
     try {
-      const result = await generateWithProvider(provider, history);
+      const result = await generateWithProvider(provider, history, images);
       return NextResponse.json({
         ok: true,
         reply: cleanAssistantReply(result.reply),
