@@ -36,17 +36,27 @@ jobs:
       - name: Trigger Android rebuild for shared backend changes
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
-          ANDROID_REPO_DISPATCH_TOKEN: ${{ secrets.ANDROID_REPO_DISPATCH_TOKEN || secrets.PUBLIC_RELEASE_TOKEN }}
+          ANDROID_REPO_DISPATCH_TOKEN: ${{ secrets.ANDROID_REPO_DISPATCH_TOKEN }}
+          PUBLIC_RELEASE_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
         shell: bash
         run: |
-          if [[ -z "$ANDROID_REPO_DISPATCH_TOKEN" ]]; then
-            echo "::warning::Android cross-repository rebuild skipped. Configure ANDROID_REPO_DISPATCH_TOKEN with access to ZodiBoomer/zodi-ai-android."
-            exit 0
-          fi
-          curl --fail-with-body --silent --show-error \
-            -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $ANDROID_REPO_DISPATCH_TOKEN" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/ZodiBoomer/zodi-ai-android/dispatches \
-            -d '{"event_type":"zodi-core-updated","client_payload":{"source":"ZodiBoomer/zodi-ai","sha":"'${{ github.sha }}'"}}'
+          payload='{"event_type":"zodi-core-updated","client_payload":{"source":"ZodiBoomer/zodi-ai","sha":"'"${{ github.sha }}"'"}}'
+          for token in "$ANDROID_REPO_DISPATCH_TOKEN" "$PUBLIC_RELEASE_TOKEN"; do
+            if [[ -z "$token" ]]; then
+              continue
+            fi
+            status="$(curl --silent --show-error --output /tmp/android-dispatch-response.json --write-out '%{http_code}' \
+              -X POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $token" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/repos/ZodiBoomer/zodi-ai-android/dispatches \
+              -d "$payload" || true)"
+            if [[ "$status" == 204 ]]; then
+              echo "Android rebuild successfully dispatched."
+              exit 0
+            fi
+            echo "::warning::Android dispatch token did not authorize the private repository (HTTP $status); trying the next configured token."
+          done
+          echo "::warning::No configured token could dispatch to ZodiBoomer/zodi-ai-android. Web build remains successful; Android must be triggered by its own repository workflow until repository access is corrected."
+          exit 0
