@@ -3,10 +3,6 @@ on:
   workflow_dispatch:
   push:
     branches: [main, feat/desktop-multi-conversations]
-    paths:
-      - "desktop-windows/**"
-      - "desktop-linux/**"
-      - ".github/workflows/desktop-builds.yml"
   pull_request:
     branches: [main]
     paths:
@@ -147,3 +143,12 @@ jobs:
               --title "Zodi AI Desktop $version" \
               --notes "Windows and Linux binaries built from commit $COMMIT_SHA."
           fi
+      - name: Refresh unified public update index
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+          RUN_NUMBER: ${{ github.run_number }}
+        shell: bash
+        run: |
+          gh api --method POST repos/ZodiBoomer/zodi-ai-releases-publique/dispatches \
+            -f event_type=zodi-desktop-release-published \
+            -F client_payload[tag_name]=desktop-v0.3.$RUN_NUMBER
