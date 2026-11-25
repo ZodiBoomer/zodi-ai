@@ -162,7 +162,7 @@ public sealed class MainWindow : Window
         {
             try { var bytes = Convert.FromBase64String(image.DataUrl.Split(',').Last()); using var stream = new MemoryStream(bytes); content.Children.Add(new Image { Source = new Bitmap(stream), MaxWidth = 360, MaxHeight = 240, Stretch = Avalonia.Media.Stretch.Uniform }); } catch { }
         }
-        content.Children.Add(new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap, Foreground = Text, FontSize = 14, LineHeight = 22, IsTextSelectionEnabled = true });
+        content.Children.Add(new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap, Foreground = Text, FontSize = 14, LineHeight = 22 });
         var bubble = new Border { Background = Brush("#303030"), BorderBrush = Brush("#424242"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(16), Padding = new Thickness(16, 12), MaxWidth = 720, HorizontalAlignment = user ? HorizontalAlignment.Right : HorizontalAlignment.Left, Child = content };
         messages.Children.Add(bubble);
         if (!user && messageIndex >= 0)
@@ -251,12 +251,12 @@ public sealed class MainWindow : Window
             try { await using var stream = await file.OpenReadAsync(); using var memory = new MemoryStream(); await stream.CopyToAsync(memory); var bytes = memory.ToArray(); if (bytes.Length > 700 * 1024) { SetStatus("Chaque photo doit faire moins de 700 Ko."); continue; } var usedBytes = pendingImages.Sum(image => Convert.FromBase64String(image.DataUrl.Split(',').Last()).Length); if (usedBytes + bytes.Length > 2 * 1024 * 1024) { SetStatus("Les photos jointes ne doivent pas dépasser 2 Mo au total."); continue; } pendingImages.Add(new ChatImage("data:image/jpeg;base64," + Convert.ToBase64String(bytes), "image/jpeg")); }
             catch { SetStatus("Impossible de lire une photo."); }
         }
-        SetStatus(pendingImages.Count > 0 ? $"{pendingImages.Count} photo(s) prête(s) · maximum 4" : status.Text);
+        SetStatus(pendingImages.Count > 0 ? $"{pendingImages.Count} photo(s) prête(s) · maximum 4" : string.Empty);
     }
     async Task Send()
     {
         if (active == null || (string.IsNullOrWhiteSpace(input.Text) && pendingImages.Count == 0) || !send.IsEnabled) return;
-        var conversation = active; var value = input.Text.Trim(); var images = pendingImages.ToList(); pendingImages.Clear(); input.Text = "";
+        var conversation = active!; var value = input.Text.Trim(); var images = pendingImages.ToList(); pendingImages.Clear(); input.Text = "";
         var prior = conversation.Messages.TakeLast(10).ToArray(); var latestImageIndex = images.Count == 0 ? Array.FindLastIndex(prior, message => message.Images?.Count > 0) : -1; prior = prior.Select((message, index) => index == latestImageIndex ? message : message with { Images = null }).ToArray(); conversation.Messages.Add(new Message("user", value, images));
         if (conversation.Title == "Nouvelle conversation") conversation.Title = value.Length > 42 ? value[..39] + "…" : value;
         title.Text = conversation.Title; Refresh(); Bubble(value, true, images, conversation.Messages.Count - 1); Save();
