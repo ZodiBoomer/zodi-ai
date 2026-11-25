@@ -94,6 +94,9 @@ export default function Home() {
         let quality = 0.72;
         while (dataUrl.length > 950000 && quality > 0.4) { dataUrl = canvas.toDataURL("image/jpeg", quality); quality -= 0.1; }
         if (dataUrl.length > 950000) throw new Error("Image trop volumineuse après compression.");
+        const imageBytes = Math.floor((dataUrl.length - dataUrl.indexOf(",") - 1) * 3 / 4);
+        const usedBytes = [...pendingImages, ...converted].reduce((sum, image) => sum + Math.floor((image.dataUrl.length - image.dataUrl.indexOf(",") - 1) * 3 / 4), 0);
+        if (usedBytes + imageBytes > 2 * 1024 * 1024) throw new Error("Les photos jointes ne doivent pas dépasser 2 Mo au total.");
         converted.push({ dataUrl, mimeType: "image/jpeg", name: file.name });
       } catch (error) { setStatus(error instanceof Error ? error.message : "Image invalide."); }
     }
