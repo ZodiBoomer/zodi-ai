@@ -20,12 +20,14 @@ export default function Home() {
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [historyQuery, setHistoryQuery] = useState("");
   const [updateStatus, setUpdateStatus] = useState("Vérifier les mises à jour");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const checkingUpdateRef = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const active = conversations.find((item) => item.id === activeId);
   const messages = active?.messages ?? [];
+  const visibleConversations = conversations.filter((item) => item.title.toLowerCase().includes(historyQuery.trim().toLowerCase()) || item.messages.some((message) => message.content.toLowerCase().includes(historyQuery.trim().toLowerCase())));
 
   useEffect(() => {
     let stored: Conversation[] = [];
@@ -71,6 +73,20 @@ export default function Home() {
   }
   function updateConversation(id: string, transform: (item: Conversation) => Conversation) {
     setConversations((all) => all.map((item) => item.id === id ? transform(item) : item).sort((a, b) => b.updatedAt - a.updatedAt));
+  }
+  function renameActiveChat() {
+    if (!active || busy) return;
+    const value = window.prompt("Nouveau nom de la conversation :", active.title);
+    if (value?.trim()) updateConversation(active.id, (item) => ({ ...item, title: value.trim(), updatedAt: Date.now() }));
+  }
+  function deleteActiveChat() {
+    if (!active || busy || !window.confirm("Supprimer cette conversation de cet appareil ?")) return;
+    const remaining = conversations.filter((item) => item.id !== active.id);
+    const next = remaining.length ? remaining : [createConversation()];
+    setConversations(next);
+    setActiveId(next[0].id);
+    setInput("");
+    setPendingImages([]);
   }
   async function addImages(files: FileList | null) {
     if (!files) return;
@@ -133,8 +149,9 @@ export default function Home() {
         </div>
         <button className="new-chat-button" type="button" onClick={startNewChat}>＋　Nouvelle discussion</button>
         <div className="history-label">Historique</div>
+        <input className="history-search" type="search" value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="Rechercher une conversation…" aria-label="Rechercher dans l'historique" />
         <nav className="conversation-list" aria-label="Historique des conversations">
-          {conversations.map((item) => <button key={item.id} type="button" className={`conversation-item ${item.id === activeId ? "active" : ""}`} onClick={() => setActiveId(item.id)} title={item.title}><span>◌</span><span className="conversation-title">{item.title}</span></button>)}
+          {visibleConversations.length ? visibleConversations.map((item) => <button key={item.id} type="button" className={`conversation-item ${item.id === activeId ? "active" : ""}`} onClick={() => setActiveId(item.id)} title={item.title}><span>◌</span><span className="conversation-title">{item.title}</span></button>) : <p className="history-empty">Aucune conversation trouvée.</p>}
         </nav>
         <div className="sidebar-bottom"><div className="profile-avatar">Z</div><div className="profile-copy"><strong>Zodi AI</strong><span>Assistant personnel</span></div><i className={ready ? "online-dot" : "offline-dot"} /></div>
       </aside>
@@ -144,7 +161,7 @@ export default function Home() {
             {!sidebarOpen && <button className="icon-button" type="button" onClick={() => setSidebarOpen(true)} aria-label="Afficher le menu">☰</button>}
             <button className="model-selector" type="button">Zodi <span>AI</span>　⌄</button>
           </div>
-          <div className="topbar-right"><span className={`connection-label ${ready ? "online" : ""}`} title={status}><i />{ready ? "En ligne" : "Connexion…"}</span><button className="icon-button" type="button" onClick={() => void checkForUpdates(true)} disabled={checkingUpdate} title={updateStatus} aria-label={updateStatus}>↻</button></div>
+          <div className="topbar-right"><span className={`connection-label ${ready ? "online" : ""}`} title={status}><i />{ready ? "En ligne" : "Connexion…"}</span><button className="icon-button" type="button" onClick={renameActiveChat} disabled={!active || busy} title="Renommer la conversation" aria-label="Renommer la conversation">✎</button><button className="icon-button" type="button" onClick={deleteActiveChat} disabled={!active || busy} title="Supprimer la conversation" aria-label="Supprimer la conversation">⌫</button><button className="icon-button" type="button" onClick={() => void checkForUpdates(true)} disabled={checkingUpdate} title={updateStatus} aria-label={updateStatus}>↻</button></div>
         </header>
         <div className="conversation-viewport">
           <div className={`messages-container ${messages.length <= 1 ? "welcome-state" : ""}`}>
