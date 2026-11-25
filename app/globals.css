@@ -78,3 +78,10 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
   .composer-actions>span{font-size:10px}
   .disclaimer{font-size:9px;margin:7px 0 0}
 }
+
+/* Blue is the shared brand accent; green remains reserved for healthy/online status. */
+:root{--accent:#3b82f6}
+.model-selector span,.welcome-mark{color:#60a5fa}
+.assistant-mark{background:#2563eb}
+.profile-avatar{background:#1d4ed8}
+.online-dot,.connection-label.online i{background:#22c55e}
