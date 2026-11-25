@@ -119,7 +119,7 @@ public sealed class MainWindow : Window
 
     void Save()
     {
-        try { Directory.CreateDirectory(Path.GetDirectoryName(store)!); File.WriteAllText(store, JsonSerializer.Serialize(items)); }
+        try { Directory.CreateDirectory(Path.GetDirectoryName(store)!); var temporary = store + ".tmp"; File.WriteAllText(temporary, JsonSerializer.Serialize(items)); File.Move(temporary, store, true); }
         catch (Exception e) { status.Text = "Sauvegarde impossible : " + e.Message; }
     }
     void Refresh()
