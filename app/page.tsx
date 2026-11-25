@@ -125,11 +125,13 @@ export default function Home() {
     if ((!text && !pendingImages.length) || busy || !active) return;
     const images = pendingImages;
     const id = active.id, history = active.messages.slice(-10);
+    const latestImageMessage = images.length ? -1 : history.reduce((last, message, index) => message.images?.length ? index : last, -1);
+    const requestHistory = history.map((message, index) => ({ ...message, images: index === latestImageMessage ? message.images : undefined }));
     const userMessages = [...active.messages, { role: "user" as const, content: text || "Analyse cette image.", images }];
     updateConversation(id, (item) => ({ ...item, title: item.title === "Nouvelle discussion" ? text.slice(0, 38) + (text.length > 38 ? "…" : "") : item.title, messages: userMessages, updatedAt: Date.now() }));
     setInput(""); setPendingImages([]); setBusy(true);
     try {
-      const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text, history, images: images.map(({ dataUrl, mimeType }) => ({ dataUrl, mimeType })) }) });
+      const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text, history: requestHistory, images: images.map(({ dataUrl, mimeType }) => ({ dataUrl, mimeType })) }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Erreur inconnue");
       updateConversation(id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: data.reply }], updatedAt: Date.now() }));
