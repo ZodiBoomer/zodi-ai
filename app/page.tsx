@@ -23,7 +23,6 @@ export default function Home() {
   const [historyQuery, setHistoryQuery] = useState("");
   const [updateStatus, setUpdateStatus] = useState("Vérifier les mises à jour");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
-  const [feedback, setFeedback] = useState<Record<number, "like" | "dislike">>({});
   const checkingUpdateRef = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const active = conversations.find((item) => item.id === activeId);
@@ -236,8 +235,6 @@ export default function Home() {
                   </div>
                   {message.role === "assistant" && index > 0 && <div className="message-actions" aria-label="Actions sur la réponse">
                     <button type="button" onClick={() => void copyMessage(message.content)} title="Copier la réponse" aria-label="Copier la réponse">▢</button>
-                    <button type="button" className={feedback[index] === "like" ? "selected" : ""} onClick={() => setFeedback((all) => ({ ...all, [index]: all[index] === "like" ? undefined as never : "like" }))} title="J'aime" aria-label="J'aime">👍</button>
-                    <button type="button" className={feedback[index] === "dislike" ? "selected" : ""} onClick={() => setFeedback((all) => ({ ...all, [index]: all[index] === "dislike" ? undefined as never : "dislike" }))} title="Je n'aime pas" aria-label="Je n'aime pas">👎</button>
                     <button type="button" onClick={() => void regenerate(index)} disabled={busy} title="Régénérer la réponse" aria-label="Régénérer la réponse">↻</button>
                     <button type="button" onClick={() => void shareMessage(message.content)} title="Partager la réponse" aria-label="Partager la réponse">↗</button>
                   </div>}
