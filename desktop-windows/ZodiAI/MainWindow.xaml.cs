@@ -45,7 +45,7 @@ public sealed partial class MainWindow : Window {
   var stack=new StackPanel{Spacing=8};
   if(images!=null)foreach(var image in images)stack.Children.Add(new TextBlock{Text="📷 "+image.Name,Foreground=new SolidColorBrush(Color.FromArgb(255,210,210,210))});
   stack.Children.Add(new TextBlock{Text=text,TextWrapping=TextWrapping.Wrap,FontSize=15,Foreground=new SolidColorBrush(Color.FromArgb(255,244,246,252)),IsTextSelectionEnabled=true});
-  var b=new Border{Background=new SolidColorBrush(user?Color.FromArgb(255,48,48,48):Color.FromArgb(255,47,47,47)),CornerRadius=new CornerRadius(16),Padding=new Thickness(16,12,16,12),MaxWidth=720,HorizontalAlignment=user?HorizontalAlignment.Right:HorizontalAlignment.Left,Child=stack};
+  var b=new Border{Background=new SolidColorBrush(user?Color.FromArgb(255,38,59,99):Color.FromArgb(0,0,0,0)),BorderBrush=new SolidColorBrush(user?Color.FromArgb(255,59,130,246):Color.FromArgb(0,0,0,0)),BorderThickness=new Thickness(user?1:0),CornerRadius=new CornerRadius(20),Padding=user?new Thickness(16,12,16,12):new Thickness(0,4),MaxWidth=720,HorizontalAlignment=user?HorizontalAlignment.Right:HorizontalAlignment.Left,Child=stack};
   MessagesPanel.Children.Add(b);
   if(!user&&messageIndex>=0){
    var actions=new StackPanel{Orientation=Orientation.Horizontal,Spacing=2,HorizontalAlignment=HorizontalAlignment.Left};
