@@ -196,7 +196,7 @@ function normalizeHistory(
         const candidate = item.images[imageIndex] as { dataUrl?: unknown; mimeType?: unknown };
         if (!candidate || typeof candidate !== "object" || typeof candidate.dataUrl !== "string") continue;
         if (!["image/jpeg", "image/png", "image/webp"].includes(String(candidate.mimeType))) continue;
-        const match = /^data:(image\\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+=*)$/.exec(candidate.dataUrl);
+        const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+=*)$/.exec(candidate.dataUrl);
         if (!match || match[1] !== candidate.mimeType) continue;
         const size = Buffer.from(match[2], "base64").byteLength;
         if (!size || size > MAX_IMAGE_BYTES || totalImageBytes + size > maxImageBytes) continue;
