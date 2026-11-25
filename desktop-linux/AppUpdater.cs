@@ -8,53 +8,48 @@ namespace ZodiAI.Linux;
 
 internal static class AppUpdater
 {
-    private const string ReleasesApi = "https://api.github.com/repos/ZodiBoomer/zodi-ai-releases-publique/releases?per_page=30";
+    private const string UpdateIndexUrl = "https://raw.githubusercontent.com/ZodiBoomer/zodi-ai-releases-publique/main/latest.json";
+    private const string OfficialReleasePrefix = "https://github.com/ZodiBoomer/zodi-ai-releases-publique/releases/download/";
     private static readonly HttpClient Http = CreateClient();
 
     private static HttpClient CreateClient()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Zodi-AI-Updater/1.0");
-        client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+        client.DefaultRequestHeaders.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
         return client;
     }
 
     public static async Task<string> CheckAndInstallAsync()
     {
-        using var releasesDoc = JsonDocument.Parse(await Http.GetStringAsync(ReleasesApi));
-        var release = releasesDoc.RootElement.EnumerateArray()
-            .FirstOrDefault(x => x.GetProperty("tag_name").GetString()?.StartsWith("desktop-v", StringComparison.Ordinal) == true);
-        if (release.ValueKind == JsonValueKind.Undefined)
-            return "Aucune version Linux publiée pour le moment.";
+        using var indexDoc = JsonDocument.Parse(await Http.GetStringAsync(UpdateIndexUrl));
+        var platforms = indexDoc.RootElement.GetProperty("platforms");
+        var platform = platforms.GetProperty("linux-x64-deb");
+        var version = platform.GetProperty("version").GetString()
+            ?? throw new InvalidOperationException("Version manquante dans le catalogue.");
+        var downloadUrl = platform.GetProperty("url").GetString()
+            ?? throw new InvalidOperationException("Adresse de téléchargement absente.");
+        var expectedSha256 = platform.GetProperty("sha256").GetString()?.ToLowerInvariant()
+            ?? throw new InvalidOperationException("Empreinte SHA-256 absente.");
 
-        var assets = release.GetProperty("assets").EnumerateArray().ToArray();
-        var manifestAsset = assets.FirstOrDefault(x => x.GetProperty("name").GetString() == "latest-desktop.json");
-        if (manifestAsset.ValueKind == JsonValueKind.Undefined)
-            throw new InvalidOperationException("Le manifeste de mise à jour est absent.");
+        if (!downloadUrl.StartsWith(OfficialReleasePrefix, StringComparison.Ordinal) ||
+            expectedSha256.Length != 64 || !expectedSha256.All(Uri.IsHexDigit))
+            throw new InvalidOperationException("Le catalogue de mise à jour contient des informations invalides.");
 
-        using var manifest = JsonDocument.Parse(await Http.GetStringAsync(manifestAsset.GetProperty("browser_download_url").GetString()!));
-        var root = manifest.RootElement;
-        var version = root.GetProperty("version").GetString() ?? throw new InvalidOperationException("Version manquante.");
         var current = Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? "0.0.0";
         if (CompareVersions(version, current) <= 0)
             return $"Zodi AI est à jour (v{current}).";
 
-        var platform = root.GetProperty("platforms").GetProperty("linux-x64-deb");
-        var assetName = platform.GetProperty("asset").GetString() ?? throw new InvalidOperationException("Paquet Debian absent du manifeste.");
-        var checksumName = root.GetProperty("checksums").GetString() ?? "SHA256SUMS.txt";
-        var asset = assets.FirstOrDefault(x => x.GetProperty("name").GetString() == assetName);
-        var checksumAsset = assets.FirstOrDefault(x => x.GetProperty("name").GetString() == checksumName);
-        if (asset.ValueKind == JsonValueKind.Undefined || checksumAsset.ValueKind == JsonValueKind.Undefined)
-            throw new InvalidOperationException("Les fichiers de mise à jour sont incomplets.");
+        var assetName = Path.GetFileName(new Uri(downloadUrl).AbsolutePath);
+        if (!assetName.EndsWith(".deb", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Le catalogue ne pointe pas vers un paquet Debian.");
 
-        var checksums = await Http.GetStringAsync(checksumAsset.GetProperty("browser_download_url").GetString()!);
-        var expected = ReadChecksum(checksums, assetName);
         var downloadDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
         Directory.CreateDirectory(downloadDirectory);
         var destination = Path.Combine(downloadDirectory, assetName);
-        await DownloadAsync(asset.GetProperty("browser_download_url").GetString()!, destination);
-        var actual = await ComputeSha256Async(destination);
-        if (!CryptographicOperations.FixedTimeEquals(Convert.FromHexString(expected), Convert.FromHexString(actual)))
+        await DownloadAsync(downloadUrl, destination);
+        var actualSha256 = await ComputeSha256Async(destination);
+        if (!CryptographicOperations.FixedTimeEquals(Convert.FromHexString(expectedSha256), Convert.FromHexString(actualSha256)))
         {
             File.Delete(destination);
             throw new InvalidOperationException("La vérification SHA-256 du paquet Debian a échoué.");
@@ -64,18 +59,6 @@ internal static class AppUpdater
         installer.ArgumentList.Add(destination);
         Process.Start(installer);
         return $"Paquet v{version} vérifié et téléchargé dans {downloadDirectory}. Le gestionnaire de logiciels va s'ouvrir pour confirmer l'installation.";
-    }
-
-    private static string ReadChecksum(string content, string fileName)
-    {
-        foreach (var line in content.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var parts = line.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length >= 2 && parts[^1].TrimStart('*') == fileName &&
-                parts[0].Length == 64 && parts[0].All(Uri.IsHexDigit))
-                return parts[0].ToLowerInvariant();
-        }
-        throw new InvalidOperationException("Aucune empreinte SHA-256 trouvée pour le paquet Debian.");
     }
 
     private static async Task DownloadAsync(string address, string destination)
