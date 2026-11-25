@@ -75,7 +75,7 @@ jobs:
           retention-days: 30
   publish-desktop-release:
     name: Publish Windows and Linux installers
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     needs: [windows, linux]
     runs-on: ubuntu-latest
     env:
