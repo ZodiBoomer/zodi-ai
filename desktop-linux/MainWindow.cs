@@ -40,7 +40,6 @@ public sealed class MainWindow : Window
     readonly Button send = new() { Content = "↑", MinWidth = 42, Width = 42, Height = 42 };
     readonly Button attach = new() { Content = "＋ Photo", MinWidth = 86, Height = 46 };
     readonly List<ChatImage> pendingImages = new();
-    readonly Dictionary<int, string> feedback = new();
     readonly Button update = new() { Content = "Mettre à jour" };
     Conversation? active;
     bool switching;
@@ -167,8 +166,6 @@ public sealed class MainWindow : Window
             var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, HorizontalAlignment = HorizontalAlignment.Left };
             Button Action(string label, Action run) { var button = new Button { Content = label, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Muted, Padding = new Thickness(5, 2), MinWidth = 28, MinHeight = 28, FontSize = 11 }; button.Click += (_, _) => run(); return button; }
             actions.Children.Add(Action("▢ Copier", () => CopyResponse(value)));
-            actions.Children.Add(Action(feedback.GetValueOrDefault(messageIndex) == "like" ? "👍✓" : "👍", () => { feedback[messageIndex] = feedback.GetValueOrDefault(messageIndex) == "like" ? "" : "like"; if (active != null) Render(); }));
-            actions.Children.Add(Action(feedback.GetValueOrDefault(messageIndex) == "dislike" ? "👎✓" : "👎", () => { feedback[messageIndex] = feedback.GetValueOrDefault(messageIndex) == "dislike" ? "" : "dislike"; if (active != null) Render(); }));
             actions.Children.Add(Action("↻ Régénérer", () => _ = RegenerateResponse(messageIndex)));
             actions.Children.Add(Action("↗ Partager", () => CopyResponse(value)));
             messages.Children.Add(actions);
