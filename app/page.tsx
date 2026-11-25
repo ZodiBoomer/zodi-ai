@@ -3,138 +3,142 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 type Message = { role: "user" | "assistant"; content: string };
-type Health = {
-  ok?: boolean; aiConfigured?: boolean; provider?: string; providers?: string[];
-  model?: string; modelFallbacks?: string[]; failoverEnabled?: boolean; localAI?: boolean;
-};
+type Conversation = { id: string; title: string; messages: Message[]; updatedAt: number };
+type Health = { ok?: boolean; aiConfigured?: boolean; provider?: string; providers?: string[]; model?: string; modelFallbacks?: string[] };
 const BUILD_ID = process.env.NEXT_PUBLIC_ZODI_BUILD_ID ?? "local";
+const welcome = (): Message[] => [{ role: "assistant", content: "Salut ! Je suis Zodi. Comment puis-je t'aider aujourd'hui ?" }];
+const createConversation = (): Conversation => ({ id: crypto.randomUUID(), title: "Nouvelle discussion", messages: welcome(), updatedAt: Date.now() });
 
 export default function Home() {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: "Salut ! Je suis Zodi. Tu peux discuter avec moi ici." }
-  ]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState("");
   const [input, setInput] = useState("");
-  const [status, setStatus] = useState("Vérification de la configuration cloud…");
+  const [status, setStatus] = useState("Connexion au service…");
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [updateStatus, setUpdateStatus] = useState("Vérifier les mises à jour");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const checkingUpdateRef = useRef(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const active = conversations.find((item) => item.id === activeId);
+  const messages = active?.messages ?? [];
 
-  const checkForUpdates = useCallback(async (reloadWhenAvailable = false) => {
+  useEffect(() => {
+    let stored: Conversation[] = [];
+    try { stored = JSON.parse(localStorage.getItem("zodi-conversations-v2") || "[]"); } catch {}
+    const initial = stored.length ? stored : [createConversation()];
+    setConversations(initial); setActiveId(initial[0].id);
+  }, []);
+  useEffect(() => { if (conversations.length) localStorage.setItem("zodi-conversations-v2", JSON.stringify(conversations)); }, [conversations]);
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length, busy]);
+
+  const checkForUpdates = useCallback(async (reload = false) => {
     if (checkingUpdateRef.current) return;
-    checkingUpdateRef.current = true;
-    setCheckingUpdate(true);
-    setUpdateStatus("Vérification…");
+    checkingUpdateRef.current = true; setCheckingUpdate(true); setUpdateStatus("Vérification…");
     try {
       const response = await fetch("/api/version", { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
-      if (!response.ok) throw new Error("Service de version indisponible");
-      const data = (await response.json()) as { buildId?: string };
-      const latestBuild = data.buildId ?? "unknown";
-      const available = latestBuild !== "unknown" && BUILD_ID !== "local" && latestBuild !== BUILD_ID;
-      if (available) {
-        setUpdateStatus("Mise à jour disponible · Recharger");
-        if (reloadWhenAvailable) window.location.reload();
-      } else setUpdateStatus("Zodi AI est à jour");
-    } catch {
-      setUpdateStatus("Vérification impossible · Réessayer");
-    } finally {
-      checkingUpdateRef.current = false;
-      setCheckingUpdate(false);
-    }
+      if (!response.ok) throw new Error();
+      const data = await response.json() as { buildId?: string };
+      const available = Boolean(data.buildId && data.buildId !== "unknown" && BUILD_ID !== "local" && data.buildId !== BUILD_ID);
+      if (available) { setUpdateStatus("Mise à jour disponible · Recharger"); if (reload) window.location.reload(); }
+      else setUpdateStatus("Zodi AI est à jour");
+    } catch { setUpdateStatus("Vérification impossible · Réessayer"); }
+    finally { checkingUpdateRef.current = false; setCheckingUpdate(false); }
   }, []);
 
   useEffect(() => {
-    fetch("/api/health", { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Health check failed");
-        const data = (await response.json()) as Health;
-        const connected = Boolean(data.ok && data.aiConfigured && data.provider && data.provider !== "none");
-        setReady(connected);
-        if (!connected) { setStatus("Aucun fournisseur IA cloud configuré"); return; }
-        const providerName = data.provider === "openrouter" ? "OpenRouter" : "OpenAI";
-        const modelFallbackCount = data.modelFallbacks?.length || 0;
-        const providerFallbackCount = Math.max(0, (data.providers?.length || 0) - 1);
-        const backupText = [
-          modelFallbackCount ? modelFallbackCount + " modèles de secours" : "",
-          providerFallbackCount ? providerFallbackCount + " fournisseur(s) secondaire(s)" : ""
-        ].filter(Boolean).join(" · ");
-        setStatus("Configuration cloud OK · " + providerName + " · " + data.model + (backupText ? " · " + backupText : ""));
-      })
-      .catch(() => { setReady(false); setStatus("Impossible de vérifier la configuration du serveur"); });
+    fetch("/api/health", { cache: "no-store" }).then(async (response) => {
+      if (!response.ok) throw new Error();
+      const data = await response.json() as Health;
+      const connected = Boolean(data.ok && data.aiConfigured && data.provider && data.provider !== "none");
+      setReady(connected);
+      if (!connected) { setStatus("Aucun fournisseur IA cloud configuré"); return; }
+      const provider = data.provider === "openrouter" ? "OpenRouter" : "OpenAI";
+      setStatus(provider + " connecté · " + data.model);
+    }).catch(() => { setReady(false); setStatus("Impossible de vérifier la connexion"); });
     void checkForUpdates(false);
-    const interval = window.setInterval(() => void checkForUpdates(false), 5 * 60 * 1000);
-    return () => window.clearInterval(interval);
+    const timer = window.setInterval(() => void checkForUpdates(false), 300000);
+    return () => window.clearInterval(timer);
   }, [checkForUpdates]);
 
+  function startNewChat() {
+    const item = createConversation();
+    setConversations((all) => [item, ...all]); setActiveId(item.id); setInput("");
+  }
+  function updateConversation(id: string, transform: (item: Conversation) => Conversation) {
+    setConversations((all) => all.map((item) => item.id === id ? transform(item) : item).sort((a, b) => b.updatedAt - a.updatedAt));
+  }
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = input.trim();
-    if (!text || busy) return;
-    const conversation = [...messages.slice(1), { role: "user" as const, content: text }].slice(-10);
-    setMessages((current) => [...current, { role: "user", content: text }]);
-    setInput("");
-    setBusy(true);
+    if (!text || busy || !active) return;
+    const id = active.id, history = active.messages.slice(-10);
+    const userMessages = [...active.messages, { role: "user" as const, content: text }];
+    updateConversation(id, (item) => ({ ...item, title: item.title === "Nouvelle discussion" ? text.slice(0, 38) + (text.length > 38 ? "…" : "") : item.title, messages: userMessages, updatedAt: Date.now() }));
+    setInput(""); setBusy(true);
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, history: conversation.slice(0, -1) })
-      });
+      const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text, history }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Erreur inconnue");
-      setMessages((current) => [...current, { role: "assistant", content: data.reply }]);
-      setReady(true);
-      const providerName = data.provider === "openrouter" ? "OpenRouter" : "OpenAI";
-      setStatus(providerName + " connecté · modèle " + data.model);
+      updateConversation(id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: data.reply }], updatedAt: Date.now() }));
+      setReady(true); setStatus((data.provider === "openrouter" ? "OpenRouter" : "OpenAI") + " connecté · modèle " + data.model);
     } catch (error) {
-      setMessages((current) => [...current, {
-        role: "assistant", content: error instanceof Error ? error.message : "Impossible de contacter les fournisseurs IA."
-      }]);
-      setReady(false);
-      setStatus("Tous les fournisseurs configurés ont échoué");
+      updateConversation(id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: error instanceof Error ? error.message : "Impossible de contacter les fournisseurs IA." }], updatedAt: Date.now() }));
+      setReady(false); setStatus("Échec de la connexion IA");
     } finally { setBusy(false); }
   }
 
   return (
-    <main className="app-shell">
-      <aside className="brand-rail" aria-label="Identité Zodi">
-        <div className="brand-mark" aria-hidden="true">✦</div>
-        <div className="brand-copy"><span className="eyebrow">ASSISTANT INTELLIGENT</span><h1>Zodi <span>AI</span></h1><p>Ton espace de conversation</p></div>
+    <main className={`chatgpt-shell ${sidebarOpen ? "" : "sidebar-collapsed"}`}>
+      <aside className="sidebar">
+        <div className="sidebar-top">
+          <button className="icon-button" type="button" onClick={() => setSidebarOpen(false)} aria-label="Réduire le menu" title="Réduire le menu">☰</button>
+          <button className="icon-button" type="button" onClick={startNewChat} aria-label="Nouvelle discussion" title="Nouvelle discussion">＋</button>
+        </div>
+        <button className="new-chat-button" type="button" onClick={startNewChat}>＋　Nouvelle discussion</button>
+        <div className="history-label">Historique</div>
+        <nav className="conversation-list" aria-label="Historique des conversations">
+          {conversations.map((item) => <button key={item.id} type="button" className={`conversation-item ${item.id === activeId ? "active" : ""}`} onClick={() => setActiveId(item.id)} title={item.title}><span>◌</span><span className="conversation-title">{item.title}</span></button>)}
+        </nav>
+        <div className="sidebar-bottom"><div className="profile-avatar">Z</div><div className="profile-copy"><strong>Zodi AI</strong><span>Assistant personnel</span></div><i className={ready ? "online-dot" : "offline-dot"} /></div>
       </aside>
-      <section className="workspace">
-        <header className="topbar">
-          <div><span className="eyebrow">ESPACE PERSONNEL</span><h2>Discussion</h2></div>
-          <div className="topbar-actions">
-            <span className="platform-label">ZODI AI · CLOUD</span>
-            <button className="button button-quiet update-button" type="button" onClick={() => void checkForUpdates(true)} disabled={checkingUpdate} aria-live="polite">
-              <span aria-hidden="true">↻</span>{checkingUpdate ? "Vérification…" : updateStatus}
-            </button>
+      <section className="main-chat">
+        <header className="chat-topbar">
+          <div className="topbar-left">
+            {!sidebarOpen && <button className="icon-button" type="button" onClick={() => setSidebarOpen(true)} aria-label="Afficher le menu">☰</button>}
+            <button className="model-selector" type="button">Zodi <span>AI</span>　⌄</button>
           </div>
+          <div className="topbar-right"><span className={`connection-label ${ready ? "online" : ""}`} title={status}><i />{ready ? "En ligne" : "Connexion…"}</span><button className="icon-button" type="button" onClick={() => void checkForUpdates(true)} disabled={checkingUpdate} title={updateStatus} aria-label={updateStatus}>↻</button></div>
         </header>
-        <section className="chat-panel" aria-label="Conversation avec Zodi">
-          <div className="chat-heading">
-            <div className="avatar">✦</div>
-            <div className="chat-heading-copy"><h3>Zodi</h3><p>Assistant personnel</p></div>
-            <div className="connection-pill"><span className={`connection-dot ${ready ? "is-ready" : ""}`} />{ready ? "En ligne" : "Connexion…"}</div>
-          </div>
-          <div className="status-line" role="status"><span className={`status-indicator ${ready ? "is-ready" : ""}`} />{status}</div>
-          <div className="chat" aria-live="polite" aria-relevant="additions text">
-            {messages.map((message, index) => (
-              <div className={`message-row ${message.role}`} key={index}>
-                {message.role === "assistant" && <div className="message-avatar" aria-hidden="true">✦</div>}
-                <div className={`message ${message.role}`}>{message.content}</div>
+        <div className="conversation-viewport">
+          <div className={`messages-container ${messages.length <= 1 ? "welcome-state" : ""}`}>
+            {messages.length <= 1 ? <div className="welcome-panel">
+              <div className="welcome-mark">✳</div><h1>Que puis-je faire pour toi ?</h1><p>Pose une question, partage une idée ou lance un projet.</p>
+              <div className="suggestion-grid">
+                <button type="button" onClick={() => setInput("Aide-moi à organiser ma journée")}><strong>Organiser ma journée</strong><span>Planifier et prioriser mes tâches</span></button>
+                <button type="button" onClick={() => setInput("Explique-moi un sujet simplement")}><strong>Apprendre quelque chose</strong><span>Comprendre un sujet étape par étape</span></button>
+                <button type="button" onClick={() => setInput("Aide-moi à écrire un texte")}><strong>Écrire un texte</strong><span>Rédiger, corriger ou reformuler</span></button>
+                <button type="button" onClick={() => setInput("Aide-moi sur mon projet")}><strong>Faire avancer un projet</strong><span>Réfléchir et passer à l&apos;action</span></button>
               </div>
-            ))}
-            {busy && <div className="message-row assistant"><div className="message-avatar" aria-hidden="true">✦</div><div className="message assistant typing"><span></span><span></span><span></span><em>Zodi réfléchit…</em></div></div>}
+            </div> : <div className="message-stack">
+              {messages.map((message, index) => <article className={`message-row ${message.role}`} key={index}>
+                {message.role === "assistant" && <div className="assistant-mark">✳</div>}
+                <div className={`message-content ${message.role}`}>{message.content}</div>
+              </article>)}
+              {busy && <div className="message-row assistant"><div className="assistant-mark">✳</div><div className="thinking">Zodi réfléchit…</div></div>}
+              <div ref={chatEndRef} />
+            </div>}
           </div>
-          <form className="composer" onSubmit={send}>
+        </div>
+        <div className="composer-area">
+          <form className="chat-composer" onSubmit={send}>
             <label className="sr-only" htmlFor="message-input">Message à Zodi</label>
-            <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Écris un message à Zodi…" aria-label="Message" rows={1} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
-            <button className="button button-primary send-button" disabled={busy || !input.trim()} type="submit"><span>{busy ? "…" : "Envoyer"}</span><span aria-hidden="true">↗</span></button>
-            <p className="composer-hint">Entrée pour envoyer · Maj + Entrée pour un saut de ligne</p>
+            <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Écris un message à Zodi" rows={1} aria-label="Message à Zodi" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
+            <div className="composer-actions"><span>Entrée pour envoyer · Maj + Entrée pour un saut de ligne</span><button className="send-button" disabled={busy || !input.trim()} type="submit" aria-label="Envoyer le message" title="Envoyer">↑</button></div>
           </form>
-        </section>
-        <footer className="app-footer"><span><span className="footer-shield">◆</span> Connexion sécurisée · Les clés API restent côté serveur.</span><span>Propulsé par Zodi AI</span></footer>
+          <p className="disclaimer">Zodi AI peut faire des erreurs. Pense à vérifier les informations importantes.</p>
+        </div>
       </section>
     </main>
   );
