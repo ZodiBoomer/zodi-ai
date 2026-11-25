@@ -18,14 +18,14 @@ public sealed class MainWindow : Window
 {
     const string Api = "https://zodi-ai-core.vercel.app/api/chat";
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(70) };
-    static readonly SolidColorBrush Page = Brush("#090E1B");
-    static readonly SolidColorBrush Panel = Brush("#111A2D");
-    static readonly SolidColorBrush PanelAlt = Brush("#17233A");
-    static readonly SolidColorBrush Surface = Brush("#202D47");
-    static readonly SolidColorBrush Text = Brush("#F2F5FF");
-    static readonly SolidColorBrush Muted = Brush("#9BA9C3");
-    static readonly SolidColorBrush Accent = Brush("#7868F6");
-    static readonly SolidColorBrush Line = Brush("#283650");
+    static readonly SolidColorBrush Page = Brush("#212121");
+    static readonly SolidColorBrush Panel = Brush("#171717");
+    static readonly SolidColorBrush PanelAlt = Brush("#212121");
+    static readonly SolidColorBrush Surface = Brush("#303030");
+    static readonly SolidColorBrush Text = Brush("#ECECEC");
+    static readonly SolidColorBrush Muted = Brush("#999999");
+    static readonly SolidColorBrush Accent = Brush("#10A37F");
+    static readonly SolidColorBrush Line = Brush("#424242");
 
     readonly string store = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "zodi-ai", "conversations.json");
     readonly List<Conversation> items = new();
@@ -78,11 +78,11 @@ public sealed class MainWindow : Window
         var delete = new Button { Content = "Supprimer" }; StyleButton(delete);
         delete.Click += async (_, _) => await Delete();
 
-        var side = new StackPanel { Spacing = 13, Margin = new Thickness(18), Width = 250 };
-        side.Children.Add(new TextBlock { Text = "✦  Zodi AI", FontSize = 23, FontWeight = FontWeight.Bold, Foreground = Text, Margin = new Thickness(4, 8) });
+        var side = new StackPanel { Spacing = 13, Margin = new Thickness(14), Width = 250 };
+        side.Children.Add(new TextBlock { Text = "Zodi AI", FontSize = 20, FontWeight = FontWeight.SemiBold, Foreground = Text, Margin = new Thickness(8, 8) });
         side.Children.Add(new TextBlock { Text = "Ton espace de conversation", Foreground = Muted, FontSize = 12 });
         side.Children.Add(create);
-        side.Children.Add(new TextBlock { Text = "TES CONVERSATIONS", Foreground = Muted, FontSize = 10, Margin = new Thickness(4, 12, 4, 0), FontWeight = FontWeight.Bold });
+        side.Children.Add(new TextBlock { Text = "HISTORIQUE", Foreground = Muted, FontSize = 10, Margin = new Thickness(4, 12, 4, 0), FontWeight = FontWeight.Bold });
         side.Children.Add(history);
         side.Children.Add(new TextBlock { Text = "Historique enregistré sur cet ordinateur", Foreground = Brush("#71819E"), FontSize = 11, TextWrapping = TextWrapping.Wrap });
 
@@ -94,8 +94,8 @@ public sealed class MainWindow : Window
         Grid.SetColumn(actions, 1); head.Children.Add(actions);
 
         var scroll = new ScrollViewer { Content = messages, Padding = new Thickness(26), Background = Page };
-        var composer = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(20, 14), Background = PanelAlt };
-        input.Background = Brush("#0B1425"); input.Foreground = Text; input.BorderBrush = Line; input.BorderThickness = new Thickness(1); input.CornerRadius = new CornerRadius(12); input.Padding = new Thickness(14, 10);
+        var composer = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(20, 14), Background = Page };
+        input.Background = Brush("#303030"); input.Foreground = Text; input.BorderBrush = Brush("#555555"); input.BorderThickness = new Thickness(1); input.CornerRadius = new CornerRadius(24); input.Padding = new Thickness(16, 12);
         composer.Children.Add(input); Grid.SetColumn(send, 1); send.Margin = new Thickness(12, 0, 0, 0); StyleButton(send, true); composer.Children.Add(send);
 
         var right = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto"), Background = Page };
@@ -132,8 +132,8 @@ public sealed class MainWindow : Window
     {
         var bubble = new Border
         {
-            Background = Brush(user ? "#5145B8" : "#202D47"),
-            BorderBrush = user ? Brush("#7166E7") : Line,
+            Background = Brush(user ? "#303030" : "#303030"),
+            BorderBrush = user ? Brush("#303030") : Brush("#303030"),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(16),
             Padding = new Thickness(16, 12),
