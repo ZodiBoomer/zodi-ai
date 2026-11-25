@@ -54,9 +54,9 @@ public sealed class MainWindow : Window
         button.BorderBrush = primary ? Accent : Line;
         button.BorderThickness = new Thickness(1);
         button.CornerRadius = new CornerRadius(primary ? 24 : 11);
-        button.Padding = primary ? new Thickness(0) : new Thickness(14, 9);
+        button.Padding = primary ? new Thickness(0) : new Thickness(10, 7);
         button.FontWeight = FontWeight.SemiBold;
-        button.MinHeight = primary ? 46 : 40;
+        button.MinHeight = primary ? 42 : 34;
     }
 
     public MainWindow()
@@ -88,17 +88,15 @@ public sealed class MainWindow : Window
         delete.Click += async (_, _) => await Delete();
 
         var side = new StackPanel { Spacing = 13, Margin = new Thickness(14), Width = 250 };
-        side.Children.Add(new TextBlock { Text = "Zodi AI", FontSize = 20, FontWeight = FontWeight.SemiBold, Foreground = Text, Margin = new Thickness(8, 8) });
-        side.Children.Add(new TextBlock { Text = "Ton espace de conversation", Foreground = Muted, FontSize = 12 });
-        side.Children.Add(create);
+                side.Children.Add(create);
         side.Children.Add(new TextBlock { Text = "HISTORIQUE", Foreground = Muted, FontSize = 10, Margin = new Thickness(4, 12, 4, 0), FontWeight = FontWeight.Bold });
         side.Children.Add(historySearch);
         side.Children.Add(history);
-        side.Children.Add(new TextBlock { Text = "Historique enregistré sur cet ordinateur", Foreground = Brush("#71819E"), FontSize = 11, TextWrapping = TextWrapping.Wrap });
+        
 
         var head = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Background = PanelAlt };
         var labels = new StackPanel { Spacing = 5, Margin = new Thickness(24, 18) };
-        labels.Children.Add(title); labels.Children.Add(status); head.Children.Add(labels);
+        labels.Children.Add(title); head.Children.Add(labels);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12) };
         actions.Children.Add(update); actions.Children.Add(rename); actions.Children.Add(delete);
         Grid.SetColumn(actions, 1); head.Children.Add(actions);
@@ -168,12 +166,12 @@ public sealed class MainWindow : Window
         if (!user && messageIndex >= 0)
         {
             var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, HorizontalAlignment = HorizontalAlignment.Left };
-            Button Action(string label, Action run) { var button = new Button { Content = label, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Muted, Padding = new Thickness(7, 3) }; button.Click += (_, _) => run(); return button; }
+            Button Action(string label, Action run) { var button = new Button { Content = label, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Muted, Padding = new Thickness(5, 2), MinWidth = 28, MinHeight = 28, FontSize = 11 }; button.Click += (_, _) => run(); return button; }
             actions.Children.Add(Action("▢ Copier", () => CopyResponse(value)));
             actions.Children.Add(Action(feedback.GetValueOrDefault(messageIndex) == "like" ? "👍✓" : "👍", () => { feedback[messageIndex] = feedback.GetValueOrDefault(messageIndex) == "like" ? "" : "like"; if (active != null) Render(); }));
             actions.Children.Add(Action(feedback.GetValueOrDefault(messageIndex) == "dislike" ? "👎✓" : "👎", () => { feedback[messageIndex] = feedback.GetValueOrDefault(messageIndex) == "dislike" ? "" : "dislike"; if (active != null) Render(); }));
             actions.Children.Add(Action("↻ Régénérer", () => _ = RegenerateResponse(messageIndex)));
-            actions.Children.Add(Action("↗ Copier pour partager", () => CopyResponse(value)));
+            actions.Children.Add(Action("↗ Partager", () => ShareResponse(value)));
             messages.Children.Add(actions);
         }
     }
