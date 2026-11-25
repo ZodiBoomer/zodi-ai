@@ -21,6 +21,8 @@ public sealed partial class MainWindow : Window {
    foreach(var file in files.Take(Math.Max(0,4-pendingImages.Count))){
     var buffer=await Windows.Storage.FileIO.ReadBufferAsync(file);var bytes=new byte[buffer.Length];using(var reader=DataReader.FromBuffer(buffer))reader.ReadBytes(bytes);
     if(bytes.Length>700*1024){StatusText.Text="Chaque photo doit faire moins de 700 Ko.";continue;}
+    var usedBytes=pendingImages.Sum(image=>Convert.FromBase64String(image.DataUrl.Split(',').Last()).Length);
+    if(usedBytes+bytes.Length>2*1024*1024){StatusText.Text="Les photos jointes ne doivent pas dépasser 2 Mo au total.";continue;}
     var ext=Path.GetExtension(file.Name).ToLowerInvariant();var mime=ext==".png"?"image/png":ext==".webp"?"image/webp":"image/jpeg";
     pendingImages.Add(new ChatImage("data:"+mime+";base64,"+Convert.ToBase64String(bytes),mime,file.Name));
    }
