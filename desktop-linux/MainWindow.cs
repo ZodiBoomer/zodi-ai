@@ -32,6 +32,7 @@ public sealed class MainWindow : Window
     readonly string store = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "zodi-ai", "conversations.json");
     readonly List<Conversation> items = new();
     readonly ListBox history = new() { Background = Brushes.Transparent, Foreground = Text };
+    readonly TextBox historySearch = new() { Watermark = "Rechercher dans l’historique…", FontSize = 12, Padding = new Thickness(10, 8) };
     readonly StackPanel messages = new() { Spacing = 14 };
     readonly TextBox input = new() { Watermark = "Écris ton message à Zodi…", AcceptsReturn = true, MinHeight = 52, FontSize = 14 };
     readonly TextBlock title = new() { Text = "Zodi AI", FontSize = 20, FontWeight = FontWeight.Bold, Foreground = Text };
@@ -63,6 +64,8 @@ public sealed class MainWindow : Window
         try { if (File.Exists(store)) items.AddRange(JsonSerializer.Deserialize<List<Conversation>>(File.ReadAllText(store)) ?? new()); } catch { }
 
         history.SelectionChanged += (_, _) => { if (!switching && history.SelectedItem is Conversation c) Select(c); };
+        historySearch.TextChanged += (_, _) => Refresh();
+        historySearch.Background = Surface; historySearch.Foreground = Text; historySearch.BorderBrush = Line;
         send.Click += async (_, _) => await Send();
         attach.Click += async (_, _) => await AttachImages();
         input.KeyDown += async (_, e) => { if (e.Key == Key.Enter && !e.KeyModifiers.HasFlag(KeyModifiers.Shift)) { e.Handled = true; await Send(); } };
@@ -88,6 +91,7 @@ public sealed class MainWindow : Window
         side.Children.Add(new TextBlock { Text = "Ton espace de conversation", Foreground = Muted, FontSize = 12 });
         side.Children.Add(create);
         side.Children.Add(new TextBlock { Text = "HISTORIQUE", Foreground = Muted, FontSize = 10, Margin = new Thickness(4, 12, 4, 0), FontWeight = FontWeight.Bold });
+        side.Children.Add(historySearch);
         side.Children.Add(history);
         side.Children.Add(new TextBlock { Text = "Historique enregistré sur cet ordinateur", Foreground = Brush("#71819E"), FontSize = 11, TextWrapping = TextWrapping.Wrap });
 
@@ -120,7 +124,7 @@ public sealed class MainWindow : Window
     }
     void Refresh()
     {
-        switching = true; history.ItemsSource = null; history.ItemsSource = items; history.SelectedItem = active; switching = false;
+        switching = true; var query = historySearch.Text?.Trim() ?? ""; history.ItemsSource = null; history.ItemsSource = items.Where(c => c.Title.Contains(query, StringComparison.OrdinalIgnoreCase) || c.Messages.Any(m => m.Content.Contains(query, StringComparison.OrdinalIgnoreCase))).ToList(); history.SelectedItem = active; switching = false;
     }
     void Create()
     {
@@ -191,7 +195,7 @@ public sealed class MainWindow : Window
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = "Choisir des photos", AllowMultiple = true, FileTypeFilter = new[] { new FilePickerFileType("Images") { Patterns = new[] { "*.jpg", "*.jpeg", "*.png", "*.webp" } } } });
         foreach (var file in files.Take(Math.Max(0, 4 - pendingImages.Count)))
         {
-            try { await using var stream = await file.OpenReadAsync(); using var memory = new MemoryStream(); await stream.CopyToAsync(memory); var bytes = memory.ToArray(); if (bytes.Length > 700 * 1024) { status.Text = "Chaque photo doit faire moins de 700 Ko."; continue; } pendingImages.Add(new ChatImage("data:image/jpeg;base64," + Convert.ToBase64String(bytes), "image/jpeg")); }
+            try { await using var stream = await file.OpenReadAsync(); using var memory = new MemoryStream(); await stream.CopyToAsync(memory); var bytes = memory.ToArray(); if (bytes.Length > 700 * 1024) { status.Text = "Chaque photo doit faire moins de 700 Ko."; continue; } var usedBytes = pendingImages.Sum(image => Convert.FromBase64String(image.DataUrl.Split(',').Last()).Length); if (usedBytes + bytes.Length > 2 * 1024 * 1024) { status.Text = "Les photos jointes ne doivent pas dépasser 2 Mo au total."; continue; } pendingImages.Add(new ChatImage("data:image/jpeg;base64," + Convert.ToBase64String(bytes), "image/jpeg")); }
             catch { status.Text = "Impossible de lire une photo."; }
         }
         status.Text = pendingImages.Count > 0 ? $"{pendingImages.Count} photo(s) prête(s) · maximum 4" : status.Text;
@@ -200,7 +204,7 @@ public sealed class MainWindow : Window
     {
         if (active == null || (string.IsNullOrWhiteSpace(input.Text) && pendingImages.Count == 0) || !send.IsEnabled) return;
         var conversation = active; var value = input.Text.Trim(); var images = pendingImages.ToList(); pendingImages.Clear(); input.Text = "";
-        var prior = conversation.Messages.ToArray(); conversation.Messages.Add(new Message("user", value, images));
+        var prior = conversation.Messages.TakeLast(10).ToArray(); var latestImageIndex = images.Count == 0 ? Array.FindLastIndex(prior, message => message.Images?.Count > 0) : -1; prior = prior.Select((message, index) => index == latestImageIndex ? message : message with { Images = null }).ToArray(); conversation.Messages.Add(new Message("user", value, images));
         if (conversation.Title == "Nouvelle conversation") conversation.Title = value.Length > 42 ? value[..39] + "…" : value;
         title.Text = conversation.Title; Refresh(); Bubble(value, true); Save();
         send.IsEnabled = false; status.Text = "Zodi réfléchit…";

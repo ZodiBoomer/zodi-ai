@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-type ChatMessage = { role: "user" | "assistant"; content: string };
+type ChatMessage = { role: "user" | "assistant"; content: string; images?: ChatImage[] };
 type ChatImage = { dataUrl: string; mimeType: "image/jpeg" | "image/png" | "image/webp" };
 type CloudProvider = "openai" | "openrouter";
 
@@ -170,18 +170,48 @@ function getSystemPrompt() {
   ].join("\n");
 }
 
-function normalizeHistory(value: unknown): ChatMessage[] {
+function normalizeHistory(
+  value: unknown,
+  maxImages = MAX_IMAGES,
+  maxImageBytes = MAX_TOTAL_IMAGE_BYTES
+): ChatMessage[] {
   if (!Array.isArray(value)) return [];
-  return value
-    .filter((item): item is ChatMessage =>
-      Boolean(item) &&
-      typeof item === "object" &&
-      ((item as ChatMessage).role === "user" || (item as ChatMessage).role === "assistant") &&
-      typeof (item as ChatMessage).content === "string"
-    )
-    .map((item) => ({ role: item.role, content: item.content.trim().slice(0, MAX_MESSAGE_LENGTH) }))
-    .filter((item) => item.content.length > 0)
-    .slice(-MAX_HISTORY_MESSAGES);
+  const source = value.slice(-MAX_HISTORY_MESSAGES);
+  const normalized: ChatMessage[] = [];
+  let imageCount = 0;
+  let totalImageBytes = 0;
+
+  // Walk backwards so recent image context is retained when the request budget is reached.
+  for (let index = source.length - 1; index >= 0; index -= 1) {
+    const raw = source[index];
+    if (!raw || typeof raw !== "object") continue;
+    const item = raw as { role?: unknown; content?: unknown; images?: unknown };
+    if ((item.role !== "user" && item.role !== "assistant") || typeof item.content !== "string") continue;
+
+    const content = item.content.trim().slice(0, MAX_MESSAGE_LENGTH);
+    const images: ChatImage[] = [];
+    if (item.role === "user" && Array.isArray(item.images)) {
+      for (let imageIndex = item.images.length - 1; imageIndex >= 0; imageIndex -= 1) {
+        if (imageCount >= maxImages) break;
+        const candidate = item.images[imageIndex] as { dataUrl?: unknown; mimeType?: unknown };
+        if (!candidate || typeof candidate !== "object" || typeof candidate.dataUrl !== "string") continue;
+        if (!["image/jpeg", "image/png", "image/webp"].includes(String(candidate.mimeType))) continue;
+        const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+=*)$/.exec(candidate.dataUrl);
+        if (!match || match[1] !== candidate.mimeType) continue;
+        const size = Buffer.from(match[2], "base64").byteLength;
+        if (!size || size > MAX_IMAGE_BYTES || totalImageBytes + size > maxImageBytes) continue;
+        images.unshift({ dataUrl: candidate.dataUrl, mimeType: candidate.mimeType as ChatImage["mimeType"] });
+        imageCount += 1;
+        totalImageBytes += size;
+      }
+    }
+
+    if (content.length > 0 || images.length > 0) {
+      normalized.unshift({ role: item.role, content, ...(images.length ? { images } : {}) });
+    }
+  }
+
+  return normalized.slice(-MAX_HISTORY_MESSAGES);
 }
 
 function buildResponsesInput(history: ChatMessage[]) {
@@ -272,14 +302,14 @@ function shouldTryChatCompletions(error: unknown) {
     message.includes("PROVIDER_HTTP_405");
 }
 
-async function generateWithProvider(config: ProviderConfig, history: ChatMessage[], images: ChatImage[] = []) {
+async function generateWithProvider(config: ProviderConfig, history: ChatMessage[]) {
   const system = getSystemPrompt();
   const messages = [
     { role: "system" as const, content: system },
-    ...history.map((item, index) => ({
+    ...history.map((item) => ({
       role: item.role,
-      content: images.length && index === history.length - 1 && item.role === "user"
-        ? [{ type: "text", text: item.content }, ...images.map((image) => ({ type: "image_url", image_url: { url: image.dataUrl, detail: "auto" } }))]
+      content: item.images?.length && item.role === "user"
+        ? [{ type: "text", text: item.content }, ...item.images.map((image) => ({ type: "image_url", image_url: { url: image.dataUrl, detail: "auto" } }))]
         : item.content
     }))
   ];
@@ -346,7 +376,7 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
     throw lastError || new Error("ALL_OPENROUTER_MODELS_FAILED");
   }
 
-  if (images.length === 0) try {
+  if (!history.some((item) => item.images?.length)) try {
     const response = await postJson(config, "responses", {
       model: config.model,
       instructions: system,
@@ -465,13 +495,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const history = [...normalizeHistory(body.history), { role: "user" as const, content: message || "Analyse les images jointes." }]
+  const history = [...normalizeHistory(body.history, MAX_IMAGES - images.length, MAX_TOTAL_IMAGE_BYTES - totalImageBytes), { role: "user" as const, content: message || "Analyse les images jointes.", ...(images.length ? { images } : {}) }]
     .slice(-MAX_HISTORY_MESSAGES);
 
   let lastError: unknown;
   for (const provider of providers) {
     try {
-      const result = await generateWithProvider(provider, history, images);
+      const result = await generateWithProvider(provider, history);
       return NextResponse.json({
         ok: true,
         reply: cleanAssistantReply(result.reply),
