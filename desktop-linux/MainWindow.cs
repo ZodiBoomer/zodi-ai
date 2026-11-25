@@ -26,7 +26,7 @@ public sealed class MainWindow : Window
     static readonly SolidColorBrush Surface = Brush("#303030");
     static readonly SolidColorBrush Text = Brush("#ECECEC");
     static readonly SolidColorBrush Muted = Brush("#999999");
-    static readonly SolidColorBrush Accent = Brush("#10A37F");
+    static readonly SolidColorBrush Accent = Brush("#2563EB");
     static readonly SolidColorBrush Line = Brush("#424242");
 
     readonly string store = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "zodi-ai", "conversations.json");
@@ -37,7 +37,7 @@ public sealed class MainWindow : Window
     readonly TextBox input = new() { Watermark = "Écris ton message à Zodi…", AcceptsReturn = true, MinHeight = 52, FontSize = 14 };
     readonly TextBlock title = new() { Text = "Zodi AI", FontSize = 20, FontWeight = FontWeight.Bold, Foreground = Text };
     readonly TextBlock status = new() { Text = "Assistant personnel · Internet requis", Foreground = Muted, FontSize = 12 };
-    readonly Button send = new() { Content = "Envoyer  ↗", MinWidth = 112, Height = 46 };
+    readonly Button send = new() { Content = "↑", MinWidth = 42, Width = 42, Height = 42 };
     readonly Button attach = new() { Content = "＋ Photo", MinWidth = 86, Height = 46 };
     readonly List<ChatImage> pendingImages = new();
     readonly Dictionary<int, string> feedback = new();
@@ -53,8 +53,8 @@ public sealed class MainWindow : Window
         button.Foreground = Brushes.White;
         button.BorderBrush = primary ? Accent : Line;
         button.BorderThickness = new Thickness(1);
-        button.CornerRadius = new CornerRadius(11);
-        button.Padding = new Thickness(primary ? 18 : 14, 9);
+        button.CornerRadius = new CornerRadius(primary ? 24 : 11);
+        button.Padding = primary ? new Thickness(0) : new Thickness(14, 9);
         button.FontWeight = FontWeight.SemiBold;
         button.MinHeight = primary ? 46 : 40;
     }
@@ -105,7 +105,7 @@ public sealed class MainWindow : Window
 
         var scroll = new ScrollViewer { Content = messages, Padding = new Thickness(26), Background = Page };
         var composer = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), Margin = new Thickness(20, 14), Background = Page };
-        input.Background = Brush("#303030"); input.Foreground = Text; input.BorderBrush = Brush("#555555"); input.BorderThickness = new Thickness(1); input.CornerRadius = new CornerRadius(24); input.Padding = new Thickness(16, 12);
+        input.Background = Brush("#292D35"); input.Foreground = Text; input.BorderBrush = Brush("#46536A"); input.BorderThickness = new Thickness(1); input.CornerRadius = new CornerRadius(24); input.Padding = new Thickness(16, 12);
         composer.Children.Add(input); Grid.SetColumn(attach, 1); attach.Margin = new Thickness(8, 0, 0, 0); StyleButton(attach); composer.Children.Add(attach);
         Grid.SetColumn(send, 2); send.Margin = new Thickness(8, 0, 0, 0); StyleButton(send, true); composer.Children.Add(send);
 
@@ -163,7 +163,7 @@ public sealed class MainWindow : Window
             try { var bytes = Convert.FromBase64String(image.DataUrl.Split(',').Last()); using var stream = new MemoryStream(bytes); content.Children.Add(new Image { Source = new Bitmap(stream), MaxWidth = 360, MaxHeight = 240, Stretch = Avalonia.Media.Stretch.Uniform }); } catch { }
         }
         content.Children.Add(new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap, Foreground = Text, FontSize = 14, LineHeight = 22 });
-        var bubble = new Border { Background = Brush("#303030"), BorderBrush = Brush("#424242"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(16), Padding = new Thickness(16, 12), MaxWidth = 720, HorizontalAlignment = user ? HorizontalAlignment.Right : HorizontalAlignment.Left, Child = content };
+        var bubble = new Border { Background = user ? Brush("#263B63") : Brushes.Transparent, BorderBrush = user ? Brush("#3B82F6") : Brushes.Transparent, BorderThickness = user ? new Thickness(1) : new Thickness(0), CornerRadius = new CornerRadius(20), Padding = user ? new Thickness(16, 12) : new Thickness(0, 4), MaxWidth = 720, HorizontalAlignment = user ? HorizontalAlignment.Right : HorizontalAlignment.Left, Child = content };
         messages.Children.Add(bubble);
         if (!user && messageIndex >= 0)
         {
