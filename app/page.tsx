@@ -10,8 +10,72 @@ const BUILD_ID = process.env.NEXT_PUBLIC_ZODI_BUILD_ID ?? "local";
 const welcome = (): Message[] => [{ role: "assistant", content: "Salut ! Je suis Zodi. Comment puis-je t'aider aujourd'hui ?" }];
 const createConversation = (): Conversation => ({ id: crypto.randomUUID(), title: "Nouvelle discussion", messages: welcome(), updatedAt: Date.now() });
 
+const STORAGE_DB = "zodi-ai-local";
+const STORAGE_STORE = "app-state";
+function openConversationDatabase(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(STORAGE_DB, 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(STORAGE_STORE)) request.result.createObjectStore(STORAGE_STORE);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("Ouverture du stockage impossible."));
+  });
+}
+function readLegacyConversations(): Conversation[] {
+  try {
+    const stored = JSON.parse(localStorage.getItem("zodi-conversations-v2") || "[]");
+    return Array.isArray(stored) ? stored as Conversation[] : [];
+  } catch {
+    return [];
+  }
+}
+async function loadConversationsFromStorage(): Promise<Conversation[]> {
+  if (typeof indexedDB === "undefined") return readLegacyConversations();
+  try {
+    const db = await openConversationDatabase();
+    const stored = await new Promise<Conversation[] | undefined>((resolve, reject) => {
+      const transaction = db.transaction(STORAGE_STORE, "readonly");
+      const request = transaction.objectStore(STORAGE_STORE).get("conversations");
+      request.onsuccess = () => resolve(request.result as Conversation[] | undefined);
+      request.onerror = () => reject(request.error || new Error("Lecture du stockage impossible."));
+    });
+    db.close();
+    if (stored?.length) return stored;
+    const legacy = readLegacyConversations();
+    if (legacy.length) {
+      await saveConversationsToStorage(legacy);
+      try { localStorage.removeItem("zodi-conversations-v2"); } catch {}
+    }
+    return legacy;
+  } catch {
+    return readLegacyConversations();
+  }
+}
+async function saveConversationsToStorage(conversations: Conversation[]): Promise<void> {
+  if (typeof indexedDB === "undefined") {
+    localStorage.setItem("zodi-conversations-v2", JSON.stringify(conversations));
+    return;
+  }
+  try {
+    const db = await openConversationDatabase();
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(STORAGE_STORE, "readwrite");
+      transaction.objectStore(STORAGE_STORE).put(conversations, "conversations");
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error || new Error("Écriture du stockage impossible."));
+      transaction.onabort = () => reject(transaction.error || new Error("Écriture du stockage interrompue."));
+    });
+    db.close();
+  } catch (error) {
+    try { localStorage.setItem("zodi-conversations-v2", JSON.stringify(conversations)); }
+    catch { throw error; }
+  }
+}
+
 export default function Home() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [storageReady, setStorageReady] = useState(false);
   const [activeId, setActiveId] = useState("");
   const [input, setInput] = useState("");
   const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
@@ -30,12 +94,20 @@ export default function Home() {
   const visibleConversations = conversations.filter((item) => item.title.toLowerCase().includes(historyQuery.trim().toLowerCase()) || item.messages.some((message) => message.content.toLowerCase().includes(historyQuery.trim().toLowerCase())));
 
   useEffect(() => {
-    let stored: Conversation[] = [];
-    try { stored = JSON.parse(localStorage.getItem("zodi-conversations-v2") || "[]"); } catch {}
-    const initial = stored.length ? stored : [createConversation()];
-    setConversations(initial); setActiveId(initial[0].id);
+    let cancelled = false;
+    void loadConversationsFromStorage().then((stored) => {
+      if (cancelled) return;
+      const initial = stored.length ? stored : [createConversation()];
+      setConversations(initial);
+      setActiveId(initial[0].id);
+      setStorageReady(true);
+    });
+    return () => { cancelled = true; };
   }, []);
-  useEffect(() => { if (conversations.length) localStorage.setItem("zodi-conversations-v2", JSON.stringify(conversations)); }, [conversations]);
+  useEffect(() => {
+    if (!storageReady || !conversations.length) return;
+    void saveConversationsToStorage(conversations).catch(() => setStatus("Stockage local saturé ou indisponible · exporte tes conversations avant de continuer."));
+  }, [conversations, storageReady]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length, busy]);
 
   const checkForUpdates = useCallback(async (reload = false) => {
