@@ -43,3 +43,5 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .status-success{color:var(--status-success)}.status-warning{color:var(--status-warning)}.status-danger{color:var(--status-danger)}.status-info{color:var(--status-info)}
 @media(max-width:720px){.message-actions{opacity:1}.message-actions button{width:34px;height:34px}.message-body{max-width:calc(100% - 38px)}.message-row.user .message-body{max-width:88%}}
 @media(hover:none){.message-actions{opacity:1}}
+
+.connection-label.success i{background:var(--status-success)}.connection-label.warning i{background:var(--status-warning)}.connection-label.danger i{background:var(--status-danger)}.connection-label.info i{background:var(--status-info)}
