@@ -40,6 +40,7 @@ public sealed class MainWindow : Window
     readonly Button send = new() { Content = "Envoyer  ↗", MinWidth = 112, Height = 46 };
     readonly Button attach = new() { Content = "＋ Photo", MinWidth = 86, Height = 46 };
     readonly List<ChatImage> pendingImages = new();
+    readonly Dictionary<int, string> feedback = new();
     readonly Button update = new() { Content = "Mettre à jour" };
     Conversation? active;
     bool switching;
@@ -144,28 +145,64 @@ public sealed class MainWindow : Window
     {
         messages.Children.Clear(); if (active == null) return;
         title.Text = active.Title;
-        foreach (var message in active.Messages) Bubble(message.Content, message.Role == "user", message.Images);
+        for (var i = 0; i < active.Messages.Count; i++) { var message = active.Messages[i]; Bubble(message.Content, message.Role == "user", message.Images, i); }
     }
-    void Bubble(string value, bool user, List<ChatImage>? images = null)
+    void Bubble(string value, bool user, List<ChatImage>? images = null, int messageIndex = -1)
     {
-        var bubble = new Border
-        {
-            Background = Brush(user ? "#303030" : "#303030"),
-            BorderBrush = user ? Brush("#303030") : Brush("#303030"),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(16),
-            Padding = new Thickness(16, 12),
-            MaxWidth = 720,
-            HorizontalAlignment = user ? HorizontalAlignment.Right : HorizontalAlignment.Left
-        };
         var content = new StackPanel { Spacing = 8 };
         foreach (var image in images ?? new())
         {
             try { var bytes = Convert.FromBase64String(image.DataUrl.Split(',').Last()); using var stream = new MemoryStream(bytes); content.Children.Add(new Image { Source = new Bitmap(stream), MaxWidth = 360, MaxHeight = 240, Stretch = Avalonia.Media.Stretch.Uniform }); } catch { }
         }
-        content.Children.Add(new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap, Foreground = Text, FontSize = 14, LineHeight = 22 });
-        bubble.Child = content;
+        content.Children.Add(new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap, Foreground = Text, FontSize = 14, LineHeight = 22, IsTextSelectionEnabled = true });
+        var bubble = new Border { Background = Brush("#303030"), BorderBrush = Brush("#424242"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(16), Padding = new Thickness(16, 12), MaxWidth = 720, HorizontalAlignment = user ? HorizontalAlignment.Right : HorizontalAlignment.Left, Child = content };
         messages.Children.Add(bubble);
+        if (!user && messageIndex >= 0)
+        {
+            var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, HorizontalAlignment = HorizontalAlignment.Left };
+            Button Action(string label, Action run) { var button = new Button { Content = label, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Muted, Padding = new Thickness(7, 3) }; button.Click += (_, _) => run(); return button; }
+            actions.Children.Add(Action("▢ Copier", () => CopyResponse(value)));
+            actions.Children.Add(Action(feedback.GetValueOrDefault(messageIndex) == "like" ? "👍✓" : "👍", () => { feedback[messageIndex] = feedback.GetValueOrDefault(messageIndex) == "like" ? "" : "like"; if (active != null) Render(); }));
+            actions.Children.Add(Action(feedback.GetValueOrDefault(messageIndex) == "dislike" ? "👎✓" : "👎", () => { feedback[messageIndex] = feedback.GetValueOrDefault(messageIndex) == "dislike" ? "" : "dislike"; if (active != null) Render(); }));
+            actions.Children.Add(Action("↻ Régénérer", () => _ = RegenerateResponse(messageIndex)));
+            actions.Children.Add(Action("↗ Partager", () => CopyResponse(value)));
+            messages.Children.Add(actions);
+        }
+    }
+    async void CopyResponse(string value)
+    {
+        try { await TopLevel.GetTopLevel(this)!.Clipboard!.SetTextAsync(value); status.Text = "Réponse copiée · prête à partager"; }
+        catch { status.Text = "Copie indisponible sur ce bureau"; }
+    }
+    async Task RegenerateResponse(int messageIndex)
+    {
+        if (active == null || !send.IsEnabled || messageIndex < 0 || messageIndex >= active.Messages.Count) return;
+        var conversation = active;
+        var userIndex = conversation.Messages.Take(messageIndex).ToList().FindLastIndex(message => message.Role == "user");
+        if (userIndex < 0) return;
+        var prompt = conversation.Messages[userIndex];
+        var prior = conversation.Messages.Take(userIndex).TakeLast(10).ToArray();
+        conversation.Messages.RemoveRange(userIndex + 1, conversation.Messages.Count - userIndex - 1);
+        send.IsEnabled = false; status.Text = "Régénération de la réponse…"; Render();
+        try
+        {
+            using var response = await Http.PostAsJsonAsync(Api, new { message = prompt.Content, history = prior, images = (prompt.Images ?? new List<ChatImage>()).Select(image => new { dataUrl = image.DataUrl, mimeType = image.MimeType }) });
+            var body = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode) throw new Exception($"HTTP {(int)response.StatusCode}: {body}");
+            using var json = JsonDocument.Parse(body);
+            var answer = json.RootElement.TryGetProperty("reply", out var property) ? property.GetString() : null;
+            if (string.IsNullOrWhiteSpace(answer)) throw new Exception("Réponse vide du serveur.");
+            conversation.Messages.Add(new Message("assistant", answer));
+            if (active == conversation) Render();
+            status.Text = "Réponse régénérée"; Save();
+        }
+        catch (Exception error)
+        {
+            conversation.Messages.Add(new Message("assistant", "Régénération impossible : " + error.Message));
+            if (active == conversation) Render();
+            status.Text = "Échec de la régénération"; Save();
+        }
+        finally { send.IsEnabled = true; }
     }
     async Task<string?> Prompt(string caption, string value)
     {
@@ -214,7 +251,7 @@ public sealed class MainWindow : Window
         var conversation = active; var value = input.Text.Trim(); var images = pendingImages.ToList(); pendingImages.Clear(); input.Text = "";
         var prior = conversation.Messages.TakeLast(10).ToArray(); var latestImageIndex = images.Count == 0 ? Array.FindLastIndex(prior, message => message.Images?.Count > 0) : -1; prior = prior.Select((message, index) => index == latestImageIndex ? message : message with { Images = null }).ToArray(); conversation.Messages.Add(new Message("user", value, images));
         if (conversation.Title == "Nouvelle conversation") conversation.Title = value.Length > 42 ? value[..39] + "…" : value;
-        title.Text = conversation.Title; Refresh(); Bubble(value, true); Save();
+        title.Text = conversation.Title; Refresh(); Bubble(value, true, images, conversation.Messages.Count - 1); Save();
         send.IsEnabled = false; status.Text = "Zodi réfléchit…";
         try
         {
@@ -225,7 +262,7 @@ public sealed class MainWindow : Window
             var answer = json.RootElement.TryGetProperty("reply", out var property) ? property.GetString() : null;
             if (string.IsNullOrWhiteSpace(answer)) throw new Exception("Réponse vide du serveur.");
             conversation.Messages.Add(new Message("assistant", answer));
-            if (active == conversation) Bubble(answer, false);
+            if (active == conversation) Bubble(answer, false, null, conversation.Messages.Count - 1);
             status.Text = "Réponse reçue · Zodi AI"; Save();
         }
         catch (Exception error)
