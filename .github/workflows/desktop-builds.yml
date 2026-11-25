@@ -105,7 +105,14 @@ jobs:
           deb_asset="$(basename "$(find release/linux -maxdepth 1 -name '*.deb' -print -quit)")"
           test -n "$deb_asset"
           version="0.3.$RUN_NUMBER"
-          sha256sum "release/windows/$windows_asset" "release/linux/Zodi-AI-Linux-x64.tar.gz" "release/linux/$deb_asset" > release/SHA256SUMS.txt
+          (
+            cd release/windows
+            sha256sum "$windows_asset"
+          ) > release/SHA256SUMS.txt
+          (
+            cd release/linux
+            sha256sum "Zodi-AI-Linux-x64.tar.gz" "$deb_asset"
+          ) >> release/SHA256SUMS.txt
           cat > release/latest-desktop.json <<EOF
           {
             "schemaVersion": 1,
