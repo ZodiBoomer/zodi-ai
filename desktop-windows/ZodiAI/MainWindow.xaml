@@ -6,22 +6,16 @@
   <Grid.ColumnDefinitions><ColumnDefinition Width="260"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
   <Grid Grid.Column="0" Background="#171717">
    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-   <Grid Margin="12,12,12,18">
-    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-    <TextBlock Text="Zodi AI" FontSize="19" FontWeight="SemiBold" Foreground="#ECECEC" VerticalAlignment="Center" Margin="8,0"/>
-    <TextBlock Grid.Column="1" Text="✳" FontSize="21" Foreground="#3B82F6" VerticalAlignment="Center" Margin="8,0"/>
-   </Grid>
+   <Grid Margin="12,12,12,18"/>
    <Button Grid.Row="1" Content="＋  Nouvelle discussion" HorizontalAlignment="Stretch" Margin="12,0,12,8" Height="42" Background="Transparent" BorderBrush="#393939" Foreground="#ECECEC" Click="NewConversation_Click"/>
    <TextBox x:Name="HistorySearch" Grid.Row="2" Margin="12,4,12,0" Height="34" PlaceholderText="Rechercher dans l’historique…" TextChanged="HistorySearch_TextChanged" Background="#222222" BorderBrush="#393939" Foreground="#ECECEC" Padding="9,6"/>
    <ListView x:Name="ConversationList" Grid.Row="3" Margin="8,8,8,12" SelectionChanged="ConversationList_SelectionChanged" Background="Transparent" BorderThickness="0">
     <ListView.ItemTemplate><DataTemplate><Border Padding="10,9" CornerRadius="8" Background="Transparent"><TextBlock Text="{Binding Title}" Foreground="#D4D4D4" TextTrimming="CharacterEllipsis" FontSize="13"/></Border></DataTemplate></ListView.ItemTemplate>
    </ListView>
-   <Border Grid.Row="4" BorderBrush="#2B2B2B" BorderThickness="0,1,0,0" Padding="16,14">
-    <StackPanel Orientation="Horizontal" Spacing="10"><Border Width="30" Height="30" CornerRadius="15" Background="#1D4ED8"><TextBlock Text="Z" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><StackPanel VerticalAlignment="Center" Spacing="2"><TextBlock Text="Zodi AI" Foreground="#ECECEC" FontSize="12" FontWeight="SemiBold"/><TextBlock Text="Assistant personnel" Foreground="#929292" FontSize="10"/></StackPanel></StackPanel>
-   </Border>
+
   </Grid>
   <Grid Grid.Column="1">
-   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="0"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
    <Border Grid.Row="0" Background="#212121" Padding="20,12">
     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
      <TextBlock x:Name="ConversationTitle" Text="Nouvelle discussion" FontSize="17" FontWeight="SemiBold" Foreground="#ECECEC" VerticalAlignment="Center"/>
