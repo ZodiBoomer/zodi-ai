@@ -10,9 +10,9 @@
             <SolidColorBrush x:Key="LineBrush" Color="#283650"/>
             <SolidColorBrush x:Key="TextBrush" Color="#F2F5FF"/>
             <SolidColorBrush x:Key="MutedBrush" Color="#9BA9C3"/>
-            <SolidColorBrush x:Key="AccentBrush" Color="#7868F6"/>
+            <SolidColorBrush x:Key="AccentBrush" Color="#3B82F6"/>
             <Style TargetType="Button">
-            <Setter Property="Background" Value="#202D47"/>
+            <Setter Property="Background" Value="#263B63"/>
             <Setter Property="Foreground" Value="#E7ECFA"/>
             <Setter Property="BorderBrush" Value="#344563"/>
             <Setter Property="BorderThickness" Value="1"/>
