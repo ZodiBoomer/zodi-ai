@@ -58,6 +58,7 @@ export default function Home() {
       const data = await response.json() as Health;
       const connected = Boolean(data.ok && data.aiConfigured && data.provider && data.provider !== "none");
       setReady(connected);
+      setHealthTone(connected ? "ok" : "warning");
       if (!connected) { setStatus("Aucun fournisseur IA cloud configuré"); return; }
       const provider = data.provider === "openrouter" ? "OpenRouter" : "OpenAI";
       setStatus(provider + " connecté · " + data.model);
@@ -134,11 +135,13 @@ export default function Home() {
       const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text, history: requestHistory, images: images.map(({ dataUrl, mimeType }) => ({ dataUrl, mimeType })) }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Erreur inconnue");
-      updateConversation(id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: data.reply }], updatedAt: Date.now() }));
+      updateConversation(id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: data.reply, choices: Array.isArray(data.choices) ? data.choices.filter((choice: unknown) => typeof choice === "string").slice(0, 4) : [] }], updatedAt: Date.now() }));
+      setHealthTone("ok");
       setReady(true); setStatus((data.provider === "openrouter" ? "OpenRouter" : "OpenAI") + " connecté · modèle " + data.model);
     } catch (error) {
       updateConversation(id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: error instanceof Error ? error.message : "Impossible de contacter les fournisseurs IA." }], updatedAt: Date.now() }));
-      setHealthTone("error");\n      setReady(false); setStatus("Échec de la connexion IA");
+      setHealthTone("error");\n      setHealthTone("error");
+      setReady(false); setStatus("Échec de la connexion IA");
     } finally { setBusy(false); }
   }
 
@@ -181,6 +184,8 @@ export default function Home() {
                 <div className={`message-content ${message.role}`}>
                   {message.images?.length ? <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>{message.images.map((image, imageIndex) => <img key={imageIndex} src={image.dataUrl} alt={image.name || "Image jointe"} style={{ maxWidth: 220, maxHeight: 220, objectFit: "contain", borderRadius: 12 }} />)}</div> : null}
                   {message.content}
+                  {message.role === "assistant" && message.choices?.length ? <div className="quick-replies" aria-label="Suggestions de réponse">{message.choices.map((choice, choiceIndex) => <button type="button" key={choiceIndex} onClick={() => { setInput(choice); document.getElementById("message-input")?.focus(); }} title="Utiliser cette réponse">{choice}</button>)}</div> : null}
+                  {message.role === "assistant" && message.content ? <button className="message-copy" type="button" onClick={() => { void navigator.clipboard?.writeText(message.content).then(() => setStatus("Réponse copiée")).catch(() => setStatus("Copie impossible")); }} aria-label="Copier la réponse" title="Copier la réponse">Copier</button> : null}
                 </div>
               </article>)}
               {busy && <div className="message-row assistant"><div className="assistant-mark">✳</div><div className="thinking">Zodi réfléchit…</div></div>}
