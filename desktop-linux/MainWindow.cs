@@ -204,7 +204,7 @@ public sealed class MainWindow : Window
     {
         if (active == null || (string.IsNullOrWhiteSpace(input.Text) && pendingImages.Count == 0) || !send.IsEnabled) return;
         var conversation = active; var value = input.Text.Trim(); var images = pendingImages.ToList(); pendingImages.Clear(); input.Text = "";
-        var prior = conversation.Messages.ToArray(); conversation.Messages.Add(new Message("user", value, images));
+        var prior = conversation.Messages.TakeLast(10).ToArray(); var latestImageIndex = images.Count == 0 ? Array.FindLastIndex(prior, message => message.Images?.Count > 0) : -1; prior = prior.Select((message, index) => index == latestImageIndex ? message : message with { Images = null }).ToArray(); conversation.Messages.Add(new Message("user", value, images));
         if (conversation.Title == "Nouvelle conversation") conversation.Title = value.Length > 42 ? value[..39] + "…" : value;
         title.Text = conversation.Title; Refresh(); Bubble(value, true); Save();
         send.IsEnabled = false; status.Text = "Zodi réfléchit…";
