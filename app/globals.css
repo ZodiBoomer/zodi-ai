@@ -45,3 +45,43 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 @media(hover:none){.message-actions{opacity:1}}
 
 .connection-label.success i{background:var(--status-success)}.connection-label.warning i{background:var(--status-warning)}.connection-label.danger i{background:var(--status-danger)}.connection-label.info i{background:var(--status-info)}
+
+
+/* ChatGPT-inspired chat surface: transparent assistant replies, blue user bubbles and composer. */
+:root{--chat-blue:#2563eb;--chat-blue-bright:#3b82f6;--chat-blue-soft:rgba(37,99,235,.16);--chat-user-bubble:#263b63;--chat-focus:rgba(59,130,246,.72)}
+.message-row.assistant .message-content.assistant{background:transparent!important;padding:0!important;border-radius:0!important;color:#f1f3f5}
+.message-row.user .message-content.user{background:var(--chat-user-bubble);border:1px solid rgba(96,165,250,.2);color:#f8fafc;border-radius:22px 22px 7px 22px;padding:11px 16px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.chat-composer{background:#292d35;border:1px solid #46536a;border-radius:28px;padding:12px 14px 10px;box-shadow:0 8px 30px rgba(0,0,0,.2);transition:border-color .18s,box-shadow .18s}
+.chat-composer:focus-within{border-color:var(--chat-blue-bright);box-shadow:0 0 0 3px rgba(59,130,246,.13),0 8px 30px rgba(0,0,0,.2)}
+.chat-composer textarea{min-height:34px;max-height:190px;resize:none;overflow-y:auto;color:#f8fafc;padding:7px 5px;font-size:15px;line-height:1.55;caret-color:#60a5fa}
+.chat-composer textarea::placeholder{color:#aeb8c8}
+.composer-actions{gap:8px}
+.composer-actions>span{flex:1}
+.composer-actions button[aria-label="Ajouter des photos"]{width:36px;height:36px;border:1px solid #52617a;border-radius:50%;background:#343e50;color:#dbeafe;font-size:22px;display:grid;place-items:center}
+.composer-actions button[aria-label="Ajouter des photos"]:hover:not(:disabled){background:#40516e;border-color:#6b8dc7}
+.send-button{width:38px;height:38px;border-radius:50%;background:linear-gradient(145deg,#3b82f6,#1d4ed8);color:white;font-size:23px;font-weight:700;box-shadow:0 3px 10px rgba(37,99,235,.35);transition:transform .15s,filter .15s,box-shadow .15s}
+.send-button:hover:not(:disabled){background:linear-gradient(145deg,#60a5fa,#2563eb);color:white;transform:translateY(-1px);box-shadow:0 5px 14px rgba(37,99,235,.45)}
+.send-button:disabled{background:#46536a;color:#a6b1c2;box-shadow:none;opacity:.75}
+.icon-button:active,.message-actions button:active,.send-button:active{transform:scale(.96)}
+@media(max-width:720px){
+  html,body{height:100%;min-height:100%;overflow:hidden}
+  .chatgpt-shell{height:100dvh;min-height:0;height:var(--zodi-visual-height,100dvh);overflow:hidden;overscroll-behavior:none}
+  .main-chat{height:100%;min-height:0;min-height:var(--zodi-visual-height,100dvh);overflow:hidden}
+  .conversation-viewport{min-height:0;overscroll-behavior:contain}
+  .messages-container{padding:18px 14px 12px}
+  .message-stack{gap:22px;padding-top:8px}
+  .message-content{font-size:15px;line-height:1.72}
+  .message-row.user .message-body{max-width:88%}
+  .composer-area{flex:none;width:100%;padding:8px 10px max(10px,env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(33,33,33,.88),#212121 22%)}
+  .chat-composer{border-radius:24px;padding:10px 11px 8px}
+  .chat-composer textarea{font-size:16px;max-height:34dvh;min-height:34px}
+  .composer-actions>span{font-size:10px}
+  .disclaimer{font-size:9px;margin:7px 0 0}
+}
+
+/* Blue is the shared brand accent; green remains reserved for healthy/online status. */
+:root{--accent:#3b82f6}
+.model-selector span,.welcome-mark{color:#60a5fa}
+.assistant-mark{background:#2563eb}
+.profile-avatar{background:#1d4ed8}
+.online-dot,.connection-label.online i{background:#22c55e}

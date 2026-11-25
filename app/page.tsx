@@ -38,6 +38,21 @@ export default function Home() {
     setConversations(initial); setActiveId(initial[0].id);
   }, []);
   useEffect(() => { if (conversations.length) localStorage.setItem("zodi-conversations-v2", JSON.stringify(conversations)); }, [conversations]);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const syncViewport = () => document.documentElement.style.setProperty("--zodi-visual-height", `${Math.round(viewport.height)}px`);
+    syncViewport();
+    viewport.addEventListener("resize", syncViewport);
+    viewport.addEventListener("scroll", syncViewport);
+    window.addEventListener("orientationchange", syncViewport);
+    return () => {
+      viewport.removeEventListener("resize", syncViewport);
+      viewport.removeEventListener("scroll", syncViewport);
+      window.removeEventListener("orientationchange", syncViewport);
+      document.documentElement.style.removeProperty("--zodi-visual-height");
+    };
+  }, []);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length, busy]);
 
   const checkForUpdates = useCallback(async (reload = false) => {
@@ -240,7 +255,7 @@ export default function Home() {
             <label className="sr-only" htmlFor="message-input">Message à Zodi</label>
             <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={(event) => void addImages(event.target.files)} />
             {pendingImages.length > 0 && <div style={{ display: "flex", gap: 8, padding: "8px 12px", flexWrap: "wrap" }}>{pendingImages.map((image, index) => <div key={index} style={{ position: "relative" }}><img src={image.dataUrl} alt={image.name} style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8 }} /><button type="button" aria-label="Retirer l'image" onClick={() => setPendingImages((all) => all.filter((_, i) => i !== index))} style={{ position: "absolute", right: -6, top: -6 }}>×</button></div>)}</div>}
-            <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Écris un message à Zodi" rows={1} aria-label="Message à Zodi" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
+            <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} onInput={(event) => { const field = event.currentTarget; field.style.height = "auto"; field.style.height = `${Math.min(field.scrollHeight, 190)}px`; }} onFocus={(event) => { window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" }), 80); }} placeholder="Écris un message à Zodi" rows={1} aria-label="Message à Zodi" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
             <div className="composer-actions"><span>Entrée pour envoyer · Maj + Entrée pour un saut de ligne</span><button type="button" onClick={() => imageInputRef.current?.click()} disabled={busy || pendingImages.length >= 4} aria-label="Ajouter des photos" title="Ajouter des photos">＋</button><button className="send-button" disabled={busy || (!input.trim() && !pendingImages.length)} type="submit" aria-label="Envoyer le message" title="Envoyer">↑</button></div>
           </form>
           <p className="disclaimer">Zodi AI peut faire des erreurs. Pense à vérifier les informations importantes.</p>
