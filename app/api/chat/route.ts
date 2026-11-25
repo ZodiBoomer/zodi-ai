@@ -424,14 +424,15 @@ function cleanAssistantReply(value: string) {
 }
 
 function extractInteractiveChoices(value: string) {
-  const match = /\\[\\[ZODI_CHOICES\\]\\]([\\s\\S]*?)\\[\\[\\/ZODI_CHOICES\\]\\]/i.exec(value);
-  if (!match) return { reply: value.trim(), choices: [] as string[] };
-  const choices = match[1]
-    .split(/\\r?\\n/)
-    .map((line) => line.replace(/^\\s*(?:[-*•]|\\d+[.)])\\s*/, "").trim())
+  const start = value.indexOf("[[ZODI_CHOICES]]");
+  const end = start >= 0 ? value.indexOf("[[/ZODI_CHOICES]]", start) : -1;
+  if (start < 0 || end < 0) return { reply: value.trim(), choices: [] as string[] };
+  const choices = value.slice(start + "[[ZODI_CHOICES]]".length, end)
+    .split("\n")
+    .map((line) => line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
     .filter((line) => line.length > 0 && line.length <= 100)
     .slice(0, 4);
-  return { reply: value.replace(match[0], "").trim(), choices };
+  return { reply: (value.slice(0, start) + value.slice(end + "[[/ZODI_CHOICES]]".length)).trim(), choices };
 }
 
 function getPublicError(error: unknown) {
@@ -513,9 +514,11 @@ export async function POST(request: Request) {
   for (const provider of providers) {
     try {
       const result = await generateWithProvider(provider, history);
+      const interactive = extractInteractiveChoices(result.reply);
       return NextResponse.json({
         ok: true,
-        reply: cleanAssistantReply(result.reply),
+        reply: cleanAssistantReply(interactive.reply),
+        choices: interactive.choices,
         provider: provider.name,
         model: result.model,
         failoverAvailable: providers.length > 1 || provider.name === "openrouter"
