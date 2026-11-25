@@ -9,7 +9,7 @@
    <Grid Margin="12,12,12,18">
     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
     <TextBlock Text="Zodi AI" FontSize="19" FontWeight="SemiBold" Foreground="#ECECEC" VerticalAlignment="Center" Margin="8,0"/>
-    <Button Grid.Column="1" Content="☰" Width="38" Height="38" Background="Transparent" BorderThickness="0" Foreground="#B4B4B4"/>
+    <TextBlock Grid.Column="1" Text="✳" FontSize="21" Foreground="#10A37F" VerticalAlignment="Center" Margin="8,0"/>
    </Grid>
    <Button Grid.Row="1" Content="＋  Nouvelle discussion" HorizontalAlignment="Stretch" Margin="12,0,12,8" Height="42" Background="Transparent" BorderBrush="#393939" Foreground="#ECECEC" Click="NewConversation_Click"/>
    <ListView x:Name="ConversationList" Grid.Row="2" Margin="8,8,8,12" SelectionChanged="ConversationList_SelectionChanged" Background="Transparent" BorderThickness="0">
