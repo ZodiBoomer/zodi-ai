@@ -40,3 +40,10 @@ npm run build
 ```
 
 Pour le développement local, placer les clés dans `.env.local`, qui ne doit jamais être commitée.
+
+## Mises à jour des applications
+
+- Les clients Windows et Linux vérifient le manifeste stable public au démarrage et via le bouton « Mettre à jour ».
+- Le client Android vérifie le même manifeste au démarrage et via le bouton « Mettre à jour », télécharge l'APK publié et vérifie son empreinte SHA-256.
+- Android conserve la confirmation d'installation imposée par le système ; Zodi AI ne tente pas d'installer un APK silencieusement.
+- Les releases stables et le manifeste central sont publiés dans le dépôt `ZodiBoomer/zodi-ai-releases-publique`.
