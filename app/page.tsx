@@ -23,11 +23,13 @@ export default function Home() {
   const [historyQuery, setHistoryQuery] = useState("");
   const [updateStatus, setUpdateStatus] = useState("Vérifier les mises à jour");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [feedback, setFeedback] = useState<Record<number, "like" | "dislike">>({});
   const checkingUpdateRef = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const active = conversations.find((item) => item.id === activeId);
   const messages = active?.messages ?? [];
   const visibleConversations = conversations.filter((item) => item.title.toLowerCase().includes(historyQuery.trim().toLowerCase()) || item.messages.some((message) => message.content.toLowerCase().includes(historyQuery.trim().toLowerCase())));
+  const statusTone = /échec|impossible|erreur|indisponible/i.test(status) ? "danger" : ready ? "success" : /vérification|recherche/i.test(status) ? "info" : "warning";
 
   useEffect(() => {
     let stored: Conversation[] = [];
@@ -119,6 +121,42 @@ export default function Home() {
     setPendingImages((current) => [...current, ...converted].slice(0, 4));
     if (imageInputRef.current) imageInputRef.current.value = "";
   }
+  async function copyMessage(content: string) {
+    try { await navigator.clipboard.writeText(content); setStatus("Réponse copiée"); }
+    catch { setStatus("Copie impossible depuis ce navigateur"); }
+  }
+  async function shareMessage(content: string) {
+    try {
+      if (navigator.share) await navigator.share({ title: "Réponse de Zodi AI", text: content });
+      else await navigator.clipboard.writeText(content);
+    } catch (error) {
+      if (error instanceof Error && error.name !== "AbortError") setStatus("Partage indisponible");
+    }
+  }
+  async function regenerate(index: number) {
+    if (!active || busy) return;
+    const prior = active.messages.slice(0, index);
+    const lastUser = prior.map((message, i) => message.role === "user" ? i : -1).filter((i) => i >= 0).at(-1);
+    if (lastUser === undefined) return;
+    const history = prior.slice(0, lastUser).slice(-10);
+    const userMessage = prior[lastUser];
+    setBusy(true);
+    updateConversation(active.id, (item) => ({ ...item, messages: item.messages.slice(0, index), updatedAt: Date.now() }));
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMessage.content, history, images: (userMessage.images || []).map(({ dataUrl, mimeType }) => ({ dataUrl, mimeType })) })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Impossible de régénérer la réponse");
+      updateConversation(active.id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: data.reply }], updatedAt: Date.now() }));
+      setFeedback((all) => { const next = { ...all }; delete next[index]; return next; });
+    } catch (error) {
+      updateConversation(active.id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: error instanceof Error ? error.message : "Erreur pendant la régénération." }], updatedAt: Date.now() }));
+    } finally { setBusy(false); }
+  }
+
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = input.trim();
@@ -163,7 +201,7 @@ export default function Home() {
             {!sidebarOpen && <button className="icon-button" type="button" onClick={() => setSidebarOpen(true)} aria-label="Afficher le menu">☰</button>}
             <button className="model-selector" type="button">Zodi <span>AI</span>　⌄</button>
           </div>
-          <div className="topbar-right"><span className={`connection-label ${ready ? "online" : ""}`} title={status}><i />{ready ? "En ligne" : "Connexion…"}</span><button className="icon-button" type="button" onClick={renameActiveChat} disabled={!active || busy} title="Renommer la conversation" aria-label="Renommer la conversation">✎</button><button className="icon-button" type="button" onClick={deleteActiveChat} disabled={!active || busy} title="Supprimer la conversation" aria-label="Supprimer la conversation">⌫</button><button className="icon-button" type="button" onClick={() => void checkForUpdates(true)} disabled={checkingUpdate} title={updateStatus} aria-label={updateStatus}>↻</button></div>
+          <div className="topbar-right"><span className={`connection-label ${statusTone}`} title={status}><i />{ready ? "En ligne" : "Connexion…"}</span><button className="icon-button" type="button" onClick={renameActiveChat} disabled={!active || busy} title="Renommer la conversation" aria-label="Renommer la conversation">✎</button><button className="icon-button" type="button" onClick={deleteActiveChat} disabled={!active || busy} title="Supprimer la conversation" aria-label="Supprimer la conversation">⌫</button><button className="icon-button" type="button" onClick={() => void checkForUpdates(true)} disabled={checkingUpdate} title={updateStatus} aria-label={updateStatus}>↻</button></div>
         </header>
         <div className="conversation-viewport">
           <div className={`messages-container ${messages.length <= 1 ? "welcome-state" : ""}`}>
@@ -178,9 +216,18 @@ export default function Home() {
             </div> : <div className="message-stack">
               {messages.map((message, index) => <article className={`message-row ${message.role}`} key={index}>
                 {message.role === "assistant" && <div className="assistant-mark">✳</div>}
-                <div className={`message-content ${message.role}`}>
-                  {message.images?.length ? <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>{message.images.map((image, imageIndex) => <img key={imageIndex} src={image.dataUrl} alt={image.name || "Image jointe"} style={{ maxWidth: 220, maxHeight: 220, objectFit: "contain", borderRadius: 12 }} />)}</div> : null}
-                  {message.content}
+                <div className="message-body">
+                  <div className={`message-content ${message.role}`}>
+                    {message.images?.length ? <div className="message-images">{message.images.map((image, imageIndex) => <img key={imageIndex} src={image.dataUrl} alt={image.name || "Image jointe"} />)}</div> : null}
+                    {message.content}
+                  </div>
+                  {message.role === "assistant" && index > 0 && <div className="message-actions" aria-label="Actions sur la réponse">
+                    <button type="button" onClick={() => void copyMessage(message.content)} title="Copier la réponse" aria-label="Copier la réponse">▢</button>
+                    <button type="button" className={feedback[index] === "like" ? "selected" : ""} onClick={() => setFeedback((all) => ({ ...all, [index]: all[index] === "like" ? undefined as never : "like" }))} title="J'aime" aria-label="J'aime">👍</button>
+                    <button type="button" className={feedback[index] === "dislike" ? "selected" : ""} onClick={() => setFeedback((all) => ({ ...all, [index]: all[index] === "dislike" ? undefined as never : "dislike" }))} title="Je n'aime pas" aria-label="Je n'aime pas">👎</button>
+                    <button type="button" onClick={() => void regenerate(index)} disabled={busy} title="Régénérer la réponse" aria-label="Régénérer la réponse">↻</button>
+                    <button type="button" onClick={() => void shareMessage(message.content)} title="Partager la réponse" aria-label="Partager la réponse">↗</button>
+                  </div>}
                 </div>
               </article>)}
               {busy && <div className="message-row assistant"><div className="assistant-mark">✳</div><div className="thinking">Zodi réfléchit…</div></div>}
