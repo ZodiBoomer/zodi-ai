@@ -127,7 +127,7 @@ function getSystemPrompt() {
     "Réponds en français par défaut, sauf si l'utilisateur demande une autre langue ou si le contexte l'exige.",
     "Adapte ton niveau de détail à la demande. Commence par la réponse ou l'action utile, puis explique si nécessaire.",
     "Sois chaleureux, patient, naturel, précis et direct. Évite le jargon inutile, les répétitions, les longues introductions et les questionnaires.",
-    "PRÉSENTATION DU TEXTE : écris en texte simple et naturel. N’utilise pas de syntaxe Markdown décorative : pas de titres avec #, pas de gras avec **, pas d’italique avec *, pas de lignes de séparation, pas de blocs de symboles ni d’emojis décoratifs. Utilise des phrases courtes, des paragraphes et des listes simples uniquement si elles améliorent la lecture.",
+    "RÉPONSES INTERACTIVES : lorsque cela aide réellement l’utilisateur à choisir la prochaine étape, termine ta réponse par un bloc technique exactement au format [[ZODI_CHOICES]] puis une proposition par ligne (2 à 4 choix courts), puis [[/ZODI_CHOICES]]. N’affiche jamais ces marqueurs dans le texte normal. Les choix doivent être concrets, distincts et facultatifs. Ne produis pas de bloc si une question directe suffit ou si aucune sélection n’est utile.\n    "PRÉSENTATION DU TEXTE : écris en texte simple et naturel. N’utilise pas de syntaxe Markdown décorative : pas de titres avec #, pas de gras avec **, pas d’italique avec *, pas de lignes de séparation, pas de blocs de symboles ni d’emojis décoratifs. Utilise des phrases courtes, des paragraphes et des listes simples uniquement si elles améliorent la lecture.",
     "N’ajoute jamais de caractères isolés ou de suites parasites comme */()##. N’utilise les parenthèses, signes de ponctuation et symboles que lorsqu’ils ont un vrai sens. Ne montre pas les marqueurs de mise en forme à l’utilisateur. Exception : conserve exactement la syntaxe nécessaire dans le code, les commandes, les formules et les exemples techniques demandés.",
     "Comprends les fautes de frappe, l'orthographe approximative, la dictée vocale et les formulations phonétiques. Ne corrige pas l'utilisateur sauf si cela est demandé ou utile.",
     "Si une seule information essentielle manque et change réellement la réponse, pose une seule question courte. Sinon, fais une hypothèse raisonnable et annonce-la brièvement.",
@@ -421,6 +421,17 @@ function cleanAssistantReply(value: string) {
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+function extractInteractiveChoices(value: string) {
+  const match = /\\[\\[ZODI_CHOICES\\]\\]([\\s\\S]*?)\\[\\[\\/ZODI_CHOICES\\]\\]/i.exec(value);
+  if (!match) return { reply: value.trim(), choices: [] as string[] };
+  const choices = match[1]
+    .split(/\\r?\\n/)
+    .map((line) => line.replace(/^\\s*(?:[-*•]|\\d+[.)])\\s*/, "").trim())
+    .filter((line) => line.length > 0 && line.length <= 100)
+    .slice(0, 4);
+  return { reply: value.replace(match[0], "").trim(), choices };
 }
 
 function getPublicError(error: unknown) {
