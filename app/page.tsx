@@ -141,7 +141,7 @@ export default function Home() {
       setReady(true); setStatus((data.provider === "openrouter" ? "OpenRouter" : "OpenAI") + " connecté · modèle " + data.model);
     } catch (error) {
       updateConversation(id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: error instanceof Error ? error.message : "Impossible de contacter les fournisseurs IA." }], updatedAt: Date.now() }));
-      setHealthTone("error");\n      setHealthTone("error");
+      setHealthTone("error");
       setReady(false); setStatus("Échec de la connexion IA");
     } finally { setBusy(false); }
   }
