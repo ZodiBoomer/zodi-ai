@@ -125,11 +125,25 @@ jobs:
           }
           EOF
           tag="desktop-v$version"
-          gh release create "$tag" \
-            "release/windows/$windows_asset" \
-            "release/linux/Zodi-AI-Linux-x64.tar.gz" \
-            "release/linux/$deb_asset" \
-            release/SHA256SUMS.txt release/latest-desktop.json \
-            --repo ZodiBoomer/zodi-ai-releases-publique \
-            --title "Zodi AI Desktop $version" \
-            --notes "Windows and Linux binaries built from commit $COMMIT_SHA."
+          release_repo="ZodiBoomer/zodi-ai-releases-publique"
+          assets=(
+            "release/windows/$windows_asset"
+            "release/linux/Zodi-AI-Linux-x64.tar.gz"
+            "release/linux/$deb_asset"
+            release/SHA256SUMS.txt
+            release/latest-desktop.json
+          )
+
+          if gh release view "$tag" --repo "$release_repo" >/dev/null 2>&1; then
+            echo "Release $tag already exists; replacing its assets."
+            gh release upload "$tag" "${assets[@]}" --clobber --repo "$release_repo"
+            gh release edit "$tag" \
+              --title "Zodi AI Desktop $version" \
+              --notes "Windows and Linux binaries built from commit $COMMIT_SHA." \
+              --repo "$release_repo"
+          else
+            gh release create "$tag" "${assets[@]}" \
+              --repo "$release_repo" \
+              --title "Zodi AI Desktop $version" \
+              --notes "Windows and Linux binaries built from commit $COMMIT_SHA."
+          fi
