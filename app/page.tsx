@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 type ImageAttachment = { dataUrl: string; mimeType: "image/jpeg" | "image/png" | "image/webp"; name: string };
-type Message = { role: "user" | "assistant"; content: string; images?: ImageAttachment[] };
+type Message = { role: "user" | "assistant"; content: string; images?: ImageAttachment[]; choices?: string[] };
 type Conversation = { id: string; title: string; messages: Message[]; updatedAt: number };
 type Health = { ok?: boolean; aiConfigured?: boolean; provider?: string; providers?: string[]; model?: string; modelFallbacks?: string[] };
 const BUILD_ID = process.env.NEXT_PUBLIC_ZODI_BUILD_ID ?? "local";
@@ -17,7 +17,7 @@ export default function Home() {
   const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState("Connexion au service…");
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(false);\n  const [healthTone, setHealthTone] = useState<"checking" | "ok" | "warning" | "error">("checking");
   const [busy, setBusy] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [historyQuery, setHistoryQuery] = useState("");
@@ -61,7 +61,7 @@ export default function Home() {
       if (!connected) { setStatus("Aucun fournisseur IA cloud configuré"); return; }
       const provider = data.provider === "openrouter" ? "OpenRouter" : "OpenAI";
       setStatus(provider + " connecté · " + data.model);
-    }).catch(() => { setReady(false); setStatus("Impossible de vérifier la connexion"); });
+    }).catch(() => { setReady(false); setHealthTone("error"); setStatus("Impossible de vérifier la connexion"); });
     void checkForUpdates(false);
     const timer = window.setInterval(() => void checkForUpdates(false), 300000);
     return () => window.clearInterval(timer);
@@ -138,7 +138,7 @@ export default function Home() {
       setReady(true); setStatus((data.provider === "openrouter" ? "OpenRouter" : "OpenAI") + " connecté · modèle " + data.model);
     } catch (error) {
       updateConversation(id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: error instanceof Error ? error.message : "Impossible de contacter les fournisseurs IA." }], updatedAt: Date.now() }));
-      setReady(false); setStatus("Échec de la connexion IA");
+      setHealthTone("error");\n      setReady(false); setStatus("Échec de la connexion IA");
     } finally { setBusy(false); }
   }
 
@@ -163,7 +163,7 @@ export default function Home() {
             {!sidebarOpen && <button className="icon-button" type="button" onClick={() => setSidebarOpen(true)} aria-label="Afficher le menu">☰</button>}
             <button className="model-selector" type="button">Zodi <span>AI</span>　⌄</button>
           </div>
-          <div className="topbar-right"><span className={`connection-label ${ready ? "online" : ""}`} title={status}><i />{ready ? "En ligne" : "Connexion…"}</span><button className="icon-button" type="button" onClick={renameActiveChat} disabled={!active || busy} title="Renommer la conversation" aria-label="Renommer la conversation">✎</button><button className="icon-button" type="button" onClick={deleteActiveChat} disabled={!active || busy} title="Supprimer la conversation" aria-label="Supprimer la conversation">⌫</button><button className="icon-button" type="button" onClick={() => void checkForUpdates(true)} disabled={checkingUpdate} title={updateStatus} aria-label={updateStatus}>↻</button></div>
+          <div className="topbar-right"><span className={`connection-label tone-${healthTone}`} title={status}><i />{healthTone === "ok" ? "Opérationnel" : healthTone === "warning" ? "Attention" : healthTone === "error" ? "Problème" : "Vérification…"}</span><button className="icon-button" type="button" onClick={renameActiveChat} disabled={!active || busy} title="Renommer la conversation" aria-label="Renommer la conversation">✎</button><button className="icon-button" type="button" onClick={deleteActiveChat} disabled={!active || busy} title="Supprimer la conversation" aria-label="Supprimer la conversation">⌫</button><button className="icon-button" type="button" onClick={() => void checkForUpdates(true)} disabled={checkingUpdate} title={updateStatus} aria-label={updateStatus}>↻</button></div>
         </header>
         <div className="conversation-viewport">
           <div className={`messages-container ${messages.length <= 1 ? "welcome-state" : ""}`}>
