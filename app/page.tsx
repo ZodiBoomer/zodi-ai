@@ -17,7 +17,8 @@ export default function Home() {
   const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState("Connexion au service…");
-  const [ready, setReady] = useState(false);\n  const [healthTone, setHealthTone] = useState<"checking" | "ok" | "warning" | "error">("checking");
+  const [ready, setReady] = useState(false);
+  const [healthTone, setHealthTone] = useState<"checking" | "ok" | "warning" | "error">("checking");
   const [busy, setBusy] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [historyQuery, setHistoryQuery] = useState("");
