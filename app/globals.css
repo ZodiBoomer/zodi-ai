@@ -217,3 +217,10 @@ button{transition:background .16s ease,border-color .16s ease,color .16s ease,tr
   .message-images{max-width:100%}
   .message-images img{max-width:min(100%,320px);max-height:340px}
 }
+
+
+/* Mobile edge gestures: preserve vertical scrolling and native form interactions. */
+@media(max-width:720px){
+  .chatgpt-shell{touch-action:pan-y}
+  .sidebar{touch-action:pan-y;will-change:transform}
+}
