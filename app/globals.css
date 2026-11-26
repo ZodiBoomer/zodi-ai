@@ -278,3 +278,14 @@ button{transition:background .16s ease,border-color .16s ease,color .16s ease,tr
  .composer-actions .attach-plus{width:38px;height:38px}
  .attach-menu{width:min(250px,calc(100vw - 40px))}
 }
+
+
+/* Lightweight, honest activity indicator: operational progress, not private reasoning. */
+.thinking-panel{display:flex;align-items:center;gap:11px;padding:9px 12px;border:1px solid #383838;border-radius:14px;background:rgba(255,255,255,.025);width:max-content;max-width:100%}
+.thinking-orb{width:9px;height:9px;flex:none;border-radius:50%;background:#10a37f;box-shadow:0 0 0 4px rgba(16,163,127,.13);animation:zodi-pulse 1.5s ease-in-out infinite}
+.thinking-copy{display:flex;flex-direction:column;gap:2px;min-width:0}
+.thinking-copy strong{font-size:12px;font-weight:600;color:#e5e5e5}
+.thinking-copy span{font-size:11px;color:#929292}
+.thinking-panel time{margin-left:7px;color:#858585;font-size:11px;font-variant-numeric:tabular-nums}
+@keyframes zodi-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.82)}}
+@media(prefers-reduced-motion:reduce){.thinking-orb{animation:none}}
