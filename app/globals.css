@@ -843,3 +843,20 @@ body{min-height:0}
     gap:5px;
   }
 }
+
+
+/* Compact the four welcome suggestions on a new chat — 2026-11-27 */
+@media(max-width:720px){
+  .welcome-panel .suggestion-grid{gap:7px}
+  .welcome-panel .suggestion-grid button{
+    min-height:56px;
+    padding:9px 9px;
+    gap:4px;
+  }
+  .welcome-panel .suggestion-grid strong{font-size:11.5px;line-height:1.25}
+  .welcome-panel .suggestion-grid span{font-size:10px;line-height:1.3}
+}
+@media(max-width:380px){
+  .welcome-panel .suggestion-grid{gap:6px}
+  .welcome-panel .suggestion-grid button{min-height:48px;padding:8px}
+}
