@@ -392,52 +392,74 @@ ${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de 
             video.muted = false;
             video.volume = 0;
             const stream = captureStream.call(video);
-            const audioTracks = stream.getAudioTracks();
-            if (audioTracks.length) {
-              const audioStream = new MediaStream(audioTracks);
-              const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-                ? "audio/webm;codecs=opus"
-                : MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
-              if (!mimeType) throw new Error("Ce navigateur ne sait pas encoder la piste audio en WebM.");
-              const recorder = new MediaRecorder(audioStream, { mimeType, audioBitsPerSecond: 64_000 });
-              const chunks: BlobPart[] = [];
-              recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
-              const stopped = new Promise<void>((resolve) => { recorder.onstop = () => resolve(); });
-              recorder.start(1000);
-              const audioDuration = Math.min(video.duration, 180);
-              await video.play();
-              await new Promise<void>((resolve, reject) => {
-                let finished = false;
-                const finish = () => {
-                  if (finished) return;
-                  finished = true;
-                  window.clearTimeout(limit);
-                  video.removeEventListener("ended", finish);
-                  video.pause();
+            let recorder: MediaRecorder | undefined;
+            try {
+              const audioTracks = stream.getAudioTracks();
+              if (audioTracks.length) {
+                const audioStream = new MediaStream(audioTracks);
+                const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+                  ? "audio/webm;codecs=opus"
+                  : MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+                if (!mimeType) throw new Error("Ce navigateur ne sait pas encoder la piste audio en WebM.");
+                recorder = new MediaRecorder(audioStream, { mimeType, audioBitsPerSecond: 64_000 });
+                const chunks: BlobPart[] = [];
+                recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+                const stopped = new Promise<void>((resolve) => { recorder!.addEventListener("stop", () => resolve(), { once: true }); });
+                recorder.start(1000);
+                const audioDuration = Math.min(video.duration, 180);
+                try {
+                  await video.play();
+                  await new Promise<void>((resolve, reject) => {
+                    let finished = false;
+                    let limit: number | undefined;
+                    const cleanup = () => {
+                      if (limit !== undefined) window.clearTimeout(limit);
+                      video.removeEventListener("ended", finish);
+                      video.removeEventListener("error", fail);
+                    };
+                    const finish = () => {
+                      if (finished) return;
+                      finished = true;
+                      cleanup();
+                      video.pause();
+                      if (recorder && recorder.state !== "inactive") recorder.stop();
+                      resolve();
+                    };
+                    const fail = () => {
+                      if (finished) return;
+                      finished = true;
+                      cleanup();
+                      reject(new Error("Lecture de la piste audio impossible."));
+                    };
+                    limit = window.setTimeout(finish, audioDuration * 1000 + 500);
+                    video.addEventListener("ended", finish, { once: true });
+                    video.addEventListener("error", fail, { once: true });
+                  });
+                } catch (error) {
                   if (recorder.state !== "inactive") recorder.stop();
-                  resolve();
-                };
-                const limit = window.setTimeout(finish, audioDuration * 1000 + 500);
-                video.addEventListener("ended", finish, { once: true });
-                video.addEventListener("error", () => reject(new Error("Lecture de la piste audio impossible.")), { once: true });
-              });
-              await stopped;
-              const audioBlob = new Blob(chunks, { type: mimeType });
-              if (audioBlob.size > 4 * 1024 * 1024) throw new Error("La piste audio extraite dépasse 4 Mo.");
-              if (audioBlob.size) {
-                const audioFile = new File([audioBlob], file.name.replace(/\.[^.]+$/, "") + ".audio.webm", { type: mimeType });
-                const form = new FormData();
-                form.append("file", audioFile, audioFile.name);
-                const response = await fetch("/api/files/extract", { method: "POST", body: form });
-                const data = await response.json() as { ok?: boolean; text?: string; error?: string };
-                if (!response.ok || !data.ok || !data.text) throw new Error(data.error || "Transcription audio vidéo impossible.");
-                videoNotes.push(`[Transcription audio de ${file.name}${video.duration > 180 ? " — premières 3 minutes seulement" : ""}]
+                  await stopped;
+                  throw error;
+                }
+                await stopped;
+                const audioBlob = new Blob(chunks, { type: mimeType });
+                if (audioBlob.size > 4 * 1024 * 1024) throw new Error("La piste audio extraite dépasse 4 Mo.");
+                if (audioBlob.size) {
+                  const audioFile = new File([audioBlob], file.name.replace(/\.[^.]+$/, "") + ".audio.webm", { type: mimeType });
+                  const form = new FormData();
+                  form.append("file", audioFile, audioFile.name);
+                  const response = await fetch("/api/files/extract", { method: "POST", body: form });
+                  const data = await response.json() as { ok?: boolean; text?: string; error?: string };
+                  if (!response.ok || !data.ok || !data.text) throw new Error(data.error || "Transcription audio vidéo impossible.");
+                  videoNotes.push(`[Transcription audio de ${file.name}${video.duration > 180 ? " — premières 3 minutes seulement" : ""}]
 ${data.text}`);
+                }
+              } else {
+                videoNotes.push(`[Aucune piste audio détectée dans ${file.name}]`);
               }
-            } else {
-              videoNotes.push(`[Aucune piste audio détectée dans ${file.name}]`);
+            } finally {
+              if (recorder && recorder.state !== "inactive") recorder.stop();
+              stream.getTracks().forEach((track) => track.stop());
             }
-            stream.getTracks().forEach((track) => track.stop());
           } catch (error) {
             videoNotes.push(`[Audio de ${file.name} non transcrit : ${error instanceof Error ? error.message : "indisponible"}]`);
           }
