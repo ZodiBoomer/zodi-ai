@@ -414,7 +414,7 @@ function getPublicError(error: unknown) {
     return "Aucune clé API cloud valide n'est configurée dans Vercel.";
   }
   if (message.includes("PROVIDER_HTTP_401")) {
-    return "Le fournisseur IA a refusé sa clé API. Vérifie la clé configurée dans Vercel.";
+    return "La clé OpenAI (OPENAI_API_KEY) utilisée par cet environnement Vercel a été refusée (401 invalid_api_key). Elle est invalide, révoquée ou ne correspond pas au fournisseur. Vérifie la variable OPENAI_API_KEY dans les paramètres Vercel de l’environnement Preview, puis redéploie la Preview. Si tu utilises OpenRouter, configure plutôt OPENROUTER_API_KEY.";
   }
   if (isOpenRouterInFlightBudgetError(error)) {
     return "OpenRouter a bloqué la requête car son coût estimé dépasse le budget disponible pour les requêtes en cours. Zodi a réduit automatiquement la limite de génération et réessayé. Si le blocage persiste, attends la fin des requêtes en cours ou ajoute des crédits.";
