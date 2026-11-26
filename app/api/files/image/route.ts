@@ -4,7 +4,7 @@ import sharp from "sharp";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 
 export async function POST(request: Request) {
   try {
@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const file = form.get("file");
     if (!(file instanceof File)) return NextResponse.json({ error: "Aucune image reçue." }, { status: 400 });
     if (!file.type.startsWith("image/") || !file.size || file.size > MAX_IMAGE_BYTES) {
-      return NextResponse.json({ error: "Choisis une image de 12 Mo maximum." }, { status: 413 });
+      return NextResponse.json({ error: "Choisis une image de 4 Mo maximum." }, { status: 413 });
     }
     const input = Buffer.from(await file.arrayBuffer());
     const output = await sharp(input, { limitInputPixels: 40_000_000 })
