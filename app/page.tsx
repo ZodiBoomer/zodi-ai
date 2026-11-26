@@ -96,6 +96,12 @@ export default function Home() {
   const [status, setStatus] = useState("Connexion au service…");
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [thinkingSeconds, setThinkingSeconds] = useState(0);
+  useEffect(() => {
+    if (!busy) { setThinkingSeconds(0); return; }
+    const timer = window.setInterval(() => setThinkingSeconds((seconds) => seconds + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [busy]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [historyQuery, setHistoryQuery] = useState("");
   const [updateStatus, setUpdateStatus] = useState("Vérifier les mises à jour");
@@ -375,7 +381,7 @@ export default function Home() {
                   </div>}
                 </div>
               </article>)}
-              {busy && <div className="message-row assistant"><div className="thinking">Zodi réfléchit…</div></div>}
+              {busy && <div className="message-row assistant"><div className="thinking-panel" role="status" aria-live="polite"><span className="thinking-orb" /><div className="thinking-copy"><strong>Zodi réfléchit…</strong><span>{thinkingSeconds < 4 ? "Analyse de ta demande" : thinkingSeconds < 12 ? "Préparation de la réponse" : "Finalisation de la réponse"}</span></div><time>{thinkingSeconds}s</time></div></div>}
               <div ref={chatEndRef} />
             </div>}
           </div>
@@ -387,7 +393,7 @@ export default function Home() {
             <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={fileInputRef} type="file" accept=".txt,.md,.csv,.json,.log,text/plain,text/markdown,text/csv,application/json" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
             {pendingImages.length > 0 && <div className="composer-attachments">{pendingImages.map((image, index) => <div className="composer-attachment" key={index}><img src={image.dataUrl} alt={image.name} /><button type="button" aria-label="Retirer l'image" onClick={() => setPendingImages((all) => all.filter((_, i) => i !== index))}>×</button></div>)}</div>}
-            <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} onInput={(event) => { const field = event.currentTarget; field.style.height = "auto"; field.style.height = `${Math.min(field.scrollHeight, 220)}px`; }} onFocus={(event) => { window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" }), 80); }} placeholder="Écris un message à Zodi" rows={1} aria-label="Message à Zodi" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
+            <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} onInput={(event) => { const field = event.currentTarget; field.style.height = "auto"; field.style.height = `${Math.min(field.scrollHeight, 220)}px`; }} onFocus={(event) => { window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" }), 80); }} placeholder="Écris un message à Zodi" rows={1} enterKeyHint="enter" aria-label="Message à Zodi" onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
             <div className="composer-actions">
               <div className="attach-menu-wrap" ref={attachMenuRef}>
                 <button className="attach-plus" type="button" onClick={() => setAttachMenuOpen((open) => !open)} disabled={busy} aria-label="Ajouter des pièces jointes" aria-expanded={attachMenuOpen} title="Ajouter"><Icon name="plus" size={24} /></button>
