@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "node scripts/copy-libarchive-worker.mjs"
   },
   "dependencies": {
     "ai": "7.0.179",
@@ -18,7 +19,8 @@
     "@mdgate/ppt": "^0.6.25",
     "hucre": "^1.0.0",
     "officeparser": "^8.9.0",
-    "word-extractor": "^1.0.4"
+    "word-extractor": "^1.0.4",
+    "libarchive.js": "^2.0.2"
   },
   "devDependencies": {
     "@types/node": "^22.18.6",
