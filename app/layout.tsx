@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Zodi AI",
+  title: "ZODIX",
   description: "Le noyau de ton assistant personnel."
 };
 

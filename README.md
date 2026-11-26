@@ -1,6 +1,6 @@
-# Zodi AI Core
+# ZODIX Core
 
-Noyau conversationnel de Zodi AI, construit avec Next.js et des fournisseurs IA cloud.
+Noyau conversationnel de ZODIX, construit avec Next.js et des fournisseurs IA cloud.
 
 ## Fiabilité et routage
 
@@ -45,5 +45,5 @@ Pour le développement local, placer les clés dans `.env.local`, qui ne doit ja
 
 - Les clients Windows et Linux vérifient le manifeste stable public au démarrage et via le bouton « Mettre à jour ».
 - Le client Android vérifie le même manifeste au démarrage et via le bouton « Mettre à jour », télécharge l'APK publié et vérifie son empreinte SHA-256.
-- Android conserve la confirmation d'installation imposée par le système ; Zodi AI ne tente pas d'installer un APK silencieusement.
+- Android conserve la confirmation d'installation imposée par le système ; ZODIX ne tente pas d'installer un APK silencieusement.
 - Les releases stables et le manifeste central sont publiés dans le dépôt `ZodiBoomer/zodi-ai-releases-publique`.

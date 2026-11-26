@@ -25,7 +25,7 @@ public sealed class MainWindow : Window
 
     public MainWindow()
     {
-        Title = "Zodi AI";
+        Title = "ZODIX";
         Width = 1180;
         Height = 780;
         MinWidth = 720;

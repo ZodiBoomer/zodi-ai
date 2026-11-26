@@ -3,7 +3,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Microsoft.UI.Xaml.Controls"
-    Title="Zodi AI">
+    Title="ZODIX">
     <Grid Background="#151515">
         <controls:WebView2
             x:Name="AppWebView"
@@ -12,7 +12,7 @@
         <TextBlock
             x:Name="FallbackText"
             Visibility="Collapsed"
-            Text="Impossible de charger Zodi AI. Vérifie ta connexion Internet et le runtime Microsoft Edge WebView2."
+            Text="Impossible de charger ZODIX. Vérifie ta connexion Internet et le runtime Microsoft Edge WebView2."
             TextWrapping="Wrap"
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
