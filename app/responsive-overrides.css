@@ -36,3 +36,19 @@ html, body { width:100%; min-width:0; min-height:100%; overflow:hidden; }
 /* Retire le pictogramme carré et le libellé ZODIX du bandeau supérieur Web. */
 .chat-topbar .topbar-brand { display:none !important; }
 .chat-topbar .topbar-brand::before { content:none !important; display:none !important; }
+
+/* Conversation history: per-item delete action, revealed on hover or swipe. */
+.conversation-item-wrap{display:flex;align-items:center;gap:3px;min-width:0;width:100%;border-radius:9px;touch-action:pan-y}
+.conversation-item-wrap .conversation-item{flex:1 1 auto;width:auto;min-width:0}
+.conversation-delete-button{width:30px;height:30px;min-width:30px;flex:0 0 30px;display:grid;place-items:center;border:0;border-radius:8px;background:transparent;color:#929292;opacity:0;pointer-events:none;transition:opacity .15s ease,background .15s ease,color .15s ease}
+.conversation-item-wrap:hover .conversation-delete-button,.conversation-item-wrap:focus-within .conversation-delete-button,.conversation-item-wrap.delete-revealed .conversation-delete-button{opacity:1;pointer-events:auto}
+.conversation-delete-button:hover{background:rgba(239,68,68,.14);color:#f87171}
+.conversation-delete-button:disabled{opacity:.3;pointer-events:none}
+@media(max-width:720px){
+  .conversation-delete-button{opacity:0;pointer-events:none}
+  .conversation-item-wrap.delete-revealed .conversation-delete-button{opacity:1;pointer-events:auto;background:rgba(239,68,68,.12);color:#f87171}
+}
+@media(hover:none){
+  .conversation-delete-button{opacity:0;pointer-events:none}
+  .conversation-item-wrap.delete-revealed .conversation-delete-button{opacity:1;pointer-events:auto}
+}
