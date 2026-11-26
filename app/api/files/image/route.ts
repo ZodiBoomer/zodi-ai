@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     const form = await request.formData();
     const file = form.get("file");
     if (!(file instanceof File)) return NextResponse.json({ error: "Aucune image reçue." }, { status: 400 });
-    if (!file.type.startsWith("image/") || !file.size || file.size > MAX_IMAGE_BYTES) {
+    const imageName = /\\.(jpe?g|png|webp|heic|heif|avif|gif|bmp|tiff?)$/i.test(file.name);\n    if ((!file.type.startsWith("image/") && !imageName) || !file.size || file.size > MAX_IMAGE_BYTES) {
       return NextResponse.json({ error: "Choisis une image de 4 Mo maximum." }, { status: 413 });
     }
     const input = Buffer.from(await file.arrayBuffer());
