@@ -24,7 +24,7 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         Title = "Zodi AI";
-        Loaded += MainWindow_Loaded;
+        AppWebView.Loaded += MainWindow_Loaded;
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -64,7 +64,7 @@ public sealed partial class MainWindow : Window
 
     private static async Task OpenExternalAsync(Uri uri)
     {
-        if (uri.Scheme is Uri.UriSchemeHttps or Uri.UriSchemeHttp or Uri.UriSchemeMailto or "tel")
+        if (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeMailto || uri.Scheme == "tel")
         {
             try { await Launcher.LaunchUriAsync(uri); } catch { }
         }
