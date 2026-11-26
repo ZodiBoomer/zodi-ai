@@ -12,7 +12,7 @@ const welcome = (): Message[] => [{ role: "assistant", content: "Salut ! Je suis
 const createConversation = (): Conversation => ({ id: crypto.randomUUID(), title: "Nouvelle discussion", messages: welcome(), updatedAt: Date.now() });
 
 
-type IconName = "menu" | "plus" | "edit" | "trash" | "refresh" | "copy" | "share" | "image" | "send" | "sparkles";
+type IconName = "menu" | "plus" | "edit" | "trash" | "refresh" | "copy" | "share" | "image" | "send" | "sparkles" | "message-square";
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   const paths: Record<IconName, ReactNode> = {
     menu: <path d="M4 6h16M4 12h16M4 18h16" />,
@@ -24,7 +24,8 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
     share: <><path d="M12 16V4M7 9l5-5 5 5" /><path d="M5 13v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6" /></>,
     image: <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8.5" cy="9" r="1.5" /><path d="m21 15-5-5L5 20" /></>,
     send: <><path d="m5 12 14-7-4 14-3-6-7-1Z" /><path d="m12 13 7-8" /></>,
-    sparkles: <><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" /><path d="m19 14 .9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14Z" /></>
+    sparkles: <><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" /><path d="m19 14 .9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14Z" /></>,
+    "message-square": <><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l1.5-3A7.5 7.5 0 1 1 20 11.5Z" /></>
   };
   return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
 }
@@ -273,7 +274,7 @@ export default function Home() {
         <button className="new-chat-button" type="button" onClick={startNewChat}><Icon name="plus" size={16} /> Nouvelle discussion</button>
         <input className="history-search" type="search" value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="Rechercher une conversation…" aria-label="Rechercher dans l'historique" />
         <nav className="conversation-list" aria-label="Historique des conversations">
-          {visibleConversations.length ? visibleConversations.map((item) => <button key={item.id} type="button" className={`conversation-item ${item.id === activeId ? "active" : ""}`} onClick={() => setActiveId(item.id)} title={item.title}><span>◌</span><span className="conversation-title">{item.title}</span></button>) : <p className="history-empty">Aucune conversation trouvée.</p>}
+          {visibleConversations.length ? visibleConversations.map((item) => <button key={item.id} type="button" className={`conversation-item ${item.id === activeId ? "active" : ""}`} onClick={() => setActiveId(item.id)} title={item.title}><Icon name="message-square" size={15} /><span className="conversation-title">{item.title}</span></button>) : <p className="history-empty">Aucune conversation trouvée.</p>}
         </nav>
         
       </aside>
