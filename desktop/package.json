@@ -1,0 +1,74 @@
+{
+  "name": "zodi-ai-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Application de bureau Zodi AI pour Windows et Linux",
+  "main": "main.cjs",
+  "author": "ZodiBoomer",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ZodiBoomer/zodi-ai.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "check": "node --check main.cjs",
+    "build:win": "electron-builder --win nsis --publish never",
+    "build:linux": "electron-builder --linux AppImage deb rpm --publish never",
+    "release:win": "electron-builder --win nsis --publish always",
+    "release:linux": "electron-builder --linux AppImage deb rpm --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "6.6.2"
+  },
+  "devDependencies": {
+    "electron": "45.4.1",
+    "electron-builder": "26.0.12"
+  },
+  "build": {
+    "appId": "fr.zodi.ai.desktop",
+    "productName": "Zodi AI",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ZodiBoomer",
+        "repo": "zodi-ai",
+        "releaseType": "draft"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Zodi-AI-${version}-Windows-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Zodi AI"
+    },
+    "linux": {
+      "category": "Utility",
+      "synopsis": "Assistant IA personnel",
+      "description": "Application de bureau Zodi AI connectée au service cloud.",
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ],
+      "artifactName": "Zodi-AI-${version}-Linux-${arch}.${ext}"
+    }
+  }
+}

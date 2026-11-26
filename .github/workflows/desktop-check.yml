@@ -1,0 +1,43 @@
+name: Desktop package check
+
+on:
+  pull_request:
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-check.yml"
+      - ".github/workflows/desktop-release.yml"
+  push:
+    branches:
+      - main
+      - feat/desktop-app-auto-updates
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-check.yml"
+      - ".github/workflows/desktop-release.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm install --no-audit --no-fund
+
+      - name: Check Electron main process syntax
+        working-directory: desktop
+        run: npm run check
+
+      - name: Build Linux directory package
+        working-directory: desktop
+        run: npx electron-builder --linux dir --publish never
