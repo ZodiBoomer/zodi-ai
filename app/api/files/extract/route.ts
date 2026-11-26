@@ -12,7 +12,7 @@ const MAX_EXTRACTED_CHARS = 120_000;
 const TEXT_EXTENSIONS = new Set([
   "txt","md","markdown","csv","tsv","json","xml","html","htm","css","js","jsx","ts","tsx",
   "py","java","c","cpp","h","hpp","cs","go","rs","php","rb","swift","kt","sql","yaml","yml",
-  "toml","ini","conf","log","sh","bash","bat","ps1","env","svg"
+  "toml","ini","conf","log","sh","bash","bat","ps1","env","svg","tex"
 ]);
 
 function extension(name: string) {
@@ -38,6 +38,15 @@ async function extractZipText(buffer: Buffer, ext: string) {
   const parts: string[] = [];
   let total = 0;
 
+  if (ext === "epub") {
+    for (const entry of files.filter((item) => /\\.(xhtml|html|htm)$/i.test(item.name)).sort((a,b)=>a.name.localeCompare(b.name))) {
+      const markup = await entry.async("text");
+      parts.push(decodeXml(markup));
+      if (parts.join("\\n").length > MAX_EXTRACTED_CHARS) break;
+    }
+    if (!parts.length) throw new Error("Aucun texte HTML n’a été trouvé dans cet EPUB.");
+    return parts.join("\\n\\n");
+  }
   if (["docx"].includes(ext)) {
     const result = await mammoth.extractRawText({ buffer });
     return result.value;
@@ -137,6 +146,12 @@ export async function POST(request: Request) {
       kind = "transcription audio";
     } else if (["mp4","mov","webm","avi","mkv","mpeg","mpg"].includes(ext) || file.type.startsWith("video/")) {
       throw new Error("Pour une vidéo, ZODIX doit encore extraire les images et la piste audio séparément. Ce lecteur vidéo sera ajouté dans une prochaine étape.");
+    } else if (ext === "rtf") {
+      const raw = await file.text();
+      extracted = raw.replace(/\\\\'[0-9a-f]{2}/gi, (match) => String.fromCharCode(parseInt(match.slice(2), 16)))
+        .replace(/\\\\par[d]?\\b/g, "\\n").replace(/\\\\'[0-9a-f]{2}/gi, "")
+        .replace(/\\\\[a-z]+-?\\d* ?/gi, "").replace(/[{}]/g, "").replace(/\\s+/g, " ").trim();
+      kind = "RTF";
     } else if (["doc","ppt","rar","7z","exe","apk","iso","dmg","bin"].includes(ext)) {
       throw new Error("Ce format binaire n’est pas encore pris en charge par le lecteur intégré.");
     } else {
