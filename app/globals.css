@@ -265,7 +265,7 @@ button{transition:background .16s ease,border-color .16s ease,color .16s ease,tr
 .attach-menu-wrap{position:relative;display:flex;align-items:center}
 .composer-actions .attach-plus{display:flex;width:36px;height:36px;align-items:center;justify-content:center;border:0;border-radius:50%;background:transparent;color:#d4d4d4}
 .composer-actions .attach-plus:hover:not(:disabled){background:#414141;color:#fff}
-.attach-menu{position:absolute;z-index:30;left:0;bottom:calc(100% + 12px);width:220px;padding:8px;border:1px solid #444;border-radius:18px;background:#303030;box-shadow:0 12px 36px rgba(0,0,0,.4)}
+.attach-menu{position:absolute;z-index:30;left:0;bottom:calc(100% + 12px);width:220px;padding:8px;border:1px solid #444;border-radius:18px;background:#303030;box-shadow:0 12px 36px rgba(0,0,0,.4)}max-height: min(65vh, 420px);overflow-y: auto;overscroll-behavior: contain;
 .attach-menu button{display:flex;align-items:center;gap:12px;width:100%;padding:11px 10px;border:0;border-radius:12px;background:transparent;color:#f4f4f4;text-align:left;font-size:14px}
 .attach-menu button:hover{background:#414141}
 .attach-menu-icon{display:flex;align-items:center;justify-content:center;width:34px;height:34px;flex:none;border-radius:50%;background:#414141;color:#eee;font-size:20px}
