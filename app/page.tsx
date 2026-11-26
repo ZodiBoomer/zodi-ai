@@ -157,7 +157,11 @@ export default function Home() {
 
   function startNewChat() {
     const item = createConversation();
-    setConversations((all) => [item, ...all]); setActiveId(item.id); setInput("");
+    setConversations((all) => [item, ...all]);
+    setActiveId(item.id);
+    setInput("");
+    setPendingImages([]);
+    if (window.matchMedia("(max-width: 720px)").matches) setSidebarOpen(false);
   }
   function updateConversation(id: string, transform: (item: Conversation) => Conversation) {
     setConversations((all) => all.map((item) => item.id === id ? transform(item) : item).sort((a, b) => b.updatedAt - a.updatedAt));
@@ -242,9 +246,9 @@ export default function Home() {
     } finally { setBusy(false); }
   }
 
-  async function send(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const text = input.trim();
+  async function send(event?: FormEvent<HTMLFormElement>, suggestedText?: string) {
+    event?.preventDefault();
+    const text = (suggestedText ?? input).trim();
     if ((!text && !pendingImages.length) || busy || !active) return;
     const images = pendingImages;
     const id = active.id, history = active.messages.slice(-10);
@@ -298,6 +302,7 @@ export default function Home() {
         </nav>
         
       </aside>
+      {sidebarOpen && <button className="sidebar-backdrop" type="button" aria-label="Revenir à la discussion" onClick={() => setSidebarOpen(false)} />}
       <section className="main-chat">
         <header className="chat-topbar">
           <div className="topbar-left">
@@ -310,10 +315,10 @@ export default function Home() {
             {messages.length <= 1 ? <div className="welcome-panel">
               <h1>Que puis-je faire pour toi ?</h1><p>Pose une question, partage une idée ou lance un projet.</p>
               <div className="suggestion-grid">
-                <button type="button" onClick={() => setInput("Aide-moi à organiser ma journée")}><strong>Organiser ma journée</strong><span>Planifier et prioriser mes tâches</span></button>
-                <button type="button" onClick={() => setInput("Explique-moi un sujet simplement")}><strong>Apprendre quelque chose</strong><span>Comprendre un sujet étape par étape</span></button>
-                <button type="button" onClick={() => setInput("Aide-moi à écrire un texte")}><strong>Écrire un texte</strong><span>Rédiger, corriger ou reformuler</span></button>
-                <button type="button" onClick={() => setInput("Aide-moi sur mon projet")}><strong>Faire avancer un projet</strong><span>Réfléchir et passer à l&apos;action</span></button>
+                <button type="button" disabled={busy} onClick={() => void send(undefined, "Aide-moi à organiser ma journée")}><strong>Organiser ma journée</strong><span>Planifier et prioriser mes tâches</span></button>
+                <button type="button" disabled={busy} onClick={() => void send(undefined, "Explique-moi un sujet simplement")}><strong>Apprendre quelque chose</strong><span>Comprendre un sujet étape par étape</span></button>
+                <button type="button" disabled={busy} onClick={() => void send(undefined, "Aide-moi à écrire un texte")}><strong>Écrire un texte</strong><span>Rédiger, corriger ou reformuler</span></button>
+                <button type="button" disabled={busy} onClick={() => void send(undefined, "Aide-moi sur mon projet")}><strong>Faire avancer un projet</strong><span>Réfléchir et passer à l&apos;action</span></button>
               </div>
             </div> : <div className="message-stack">
               {messages.map((message, index) => <article className={`message-row ${message.role}`} key={index}>
