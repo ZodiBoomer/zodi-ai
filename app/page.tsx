@@ -279,8 +279,8 @@ export default function Home() {
     const selected = Array.from(files);
     const parts: string[] = [];
     for (const file of selected) {
-      if (file.size > 12 * 1024 * 1024) {
-        setStatus(`Le fichier ${file.name} dépasse la limite de 12 Mo.`);
+      if (file.size > 4 * 1024 * 1024) {
+        setStatus(`Le fichier ${file.name} dépasse la limite de 4 Mo.`);
         continue;
       }
       try {
@@ -594,7 +594,7 @@ ${data.text}${data.truncated ? "
             <label className="sr-only" htmlFor="message-input">Message à ZODIX</label>
             <input ref={imageInputRef} type="file" accept="image/*,.heic,.heif,.avif,.tif,.tiff,.bmp,.gif" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={cameraInputRef} type="file" accept="image/*,.heic,.heif,.avif" capture="environment" hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
-            <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.odt,.xls,.xlsx,.ods,.ppt,.pptx,.odp,.txt,.md,.csv,.log,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.docm,.odt,.xls,.xlsx,.xlsm,.xlsb,.xltx,.ods,.ppt,.pptx,.pptm,.ppsx,.odp,.txt,.md,.csv,.log,.rtf,.epub,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "audio"); }} />
             <input ref={videoInputRef} type="file" accept="video/*,.mp4,.mov,.webm" multiple hidden onChange={(event) => { void addVideoFiles(event.target.files); }} />
             <input ref={otherInputRef} type="file" accept=".zip,.7z,.rar,.json,.xml,.js,.ts,.tsx,.py,.java,.c,.cpp,.h,.sql,.yaml,.yml,.toml,.ini,.sh,.bat,.ps1,.bin,.exe,.apk,.dmg,.iso" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "other"); }} />
