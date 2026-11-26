@@ -223,7 +223,8 @@ function buildResponsesInput(history: ChatMessage[]) {
 async function postJson(
   config: ProviderConfig,
   route: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  signal?: AbortSignal
 ): Promise<ProviderResponse> {
   const headers: Record<string, string> = {
     Authorization: "Bearer " + config.apiKey,
@@ -245,7 +246,7 @@ async function postJson(
     method: "POST",
     headers,
     body: JSON.stringify(requestPayload),
-    signal: AbortSignal.timeout(timeoutMs),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
     cache: "no-store"
   });
 
@@ -302,7 +303,7 @@ function shouldTryChatCompletions(error: unknown) {
     message.includes("PROVIDER_HTTP_405");
 }
 
-async function generateWithProvider(config: ProviderConfig, history: ChatMessage[]) {
+async function generateWithProvider(config: ProviderConfig, history: ChatMessage[], signal?: AbortSignal) {
   const system = getSystemPrompt();
   const messages = [
     { role: "system" as const, content: system },
@@ -330,7 +331,7 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
             max_completion_tokens: 2048,
             provider: { allow_fallbacks: true },
             __timeoutMs: OPENROUTER_TIMEOUT_MS
-          });
+          }, signal);
         } catch (error) {
           if (!isOpenRouterInFlightBudgetError(error)) throw error;
           console.warn("Zodi AI OpenRouter in-flight budget reached; retrying with a smaller output budget.", {
@@ -356,6 +357,7 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
             .choices?.[0]?.finish_reason || "unknown"
         });
       } catch (error) {
+        if (signal?.aborted) throw error;
         lastError = error;
         console.error("Zodi AI model attempt failed; trying the next cloud model.", {
           provider: config.name,
@@ -382,7 +384,7 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
       instructions: system,
       input: buildResponsesInput(history),
       max_output_tokens: 4096
-    });
+    }, signal);
     const reply = extractResponsesText(response);
     if (reply) return { reply, model: response.model || config.model };
     throw new Error("EMPTY_PROVIDER_RESPONSE");
@@ -398,7 +400,7 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
     model: config.model,
     messages,
     max_completion_tokens: 4096
-  });
+  }, signal);
   const reply = extractChatText(response);
   if (!reply) throw new Error("EMPTY_PROVIDER_RESPONSE");
   return { reply, model: response.model || config.model };
@@ -486,7 +488,7 @@ export async function POST(request: Request) {
   let lastError: unknown;
   for (const provider of providers) {
     try {
-      const result = await generateWithProvider(provider, history);
+      const result = await generateWithProvider(provider, history, request.signal);
       return NextResponse.json({
         ok: true,
         reply: cleanAssistantReply(result.reply),
@@ -495,6 +497,7 @@ export async function POST(request: Request) {
         failoverAvailable: providers.length > 1 || provider.name === "openrouter"
       });
     } catch (error) {
+      if (request.signal.aborted) return new Response(null, { status: 204 });
       lastError = error;
       console.error("Zodi AI cloud provider attempt failed:", {
         provider: provider.name,
