@@ -303,7 +303,7 @@ ${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de 
       try {
         setStatus(`Lecture de ${file.name}…`);
         if (archiveExtensions.test(file.name)) {
-          const { Archive } = await import("libarchive.js/main.js");
+          const { Archive } = await import("libarchive.js");
           Archive.init({ workerUrl: "/libarchive-worker.js" });
           const archive = await Archive.open(file);
           try {
