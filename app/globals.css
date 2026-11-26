@@ -335,3 +335,79 @@ button{transition:background .16s ease,border-color .16s ease,color .16s ease,tr
  .interactive-choice-list input{width:19px;height:19px}
  .status-card{padding:10px 11px;border-radius:11px}
 }
+
+
+/* Composer placement: centered, anchored to the bottom, like ChatGPT's message box. */
+.main-chat{min-height:0}
+.composer-area{
+  position:sticky;
+  bottom:0;
+  z-index:3;
+  flex:none;
+  width:100%;
+  max-width:100%;
+  padding:12px 20px max(16px,env(safe-area-inset-bottom));
+  background:linear-gradient(180deg,rgba(33,33,33,0),#212121 24%);
+}
+.chat-composer{
+  width:min(100%,768px);
+  margin:0 auto;
+  min-height:64px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:auto 38px;
+  gap:5px;
+  padding:10px 12px 9px;
+  border:1px solid #4a4a4a;
+  border-radius:26px;
+  background:#303030;
+  box-shadow:0 2px 12px rgba(0,0,0,.12);
+}
+.chat-composer textarea{
+  grid-row:1;
+  width:100%;
+  min-height:32px;
+  max-height:180px;
+  padding:4px 5px;
+  margin:0;
+  resize:none;
+  font-size:15px;
+  line-height:1.5;
+}
+.composer-actions{
+  grid-row:2;
+  width:100%;
+  min-height:36px;
+  margin:0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.composer-actions .attach-menu-wrap{align-self:center}
+.composer-actions .attach-plus{
+  width:36px;height:36px;
+  display:grid;place-items:center;
+  border:0;border-radius:50%;
+  background:transparent;color:#d4d4d4;
+}
+.composer-actions .attach-plus:hover:not(:disabled){background:#414141;color:#fff}
+.send-button{width:36px;height:36px;min-width:36px}
+@media(max-width:720px){
+  .composer-area{
+    position:sticky;
+    bottom:0;
+    width:100%;
+    padding:9px 12px max(12px,env(safe-area-inset-bottom));
+    background:linear-gradient(180deg,rgba(33,33,33,0),rgba(33,33,33,.96) 18%,#212121 45%);
+  }
+  .chat-composer{
+    width:100%;
+    min-height:62px;
+    grid-template-rows:auto 38px;
+    padding:9px 11px 8px;
+    border-radius:25px;
+  }
+  .chat-composer textarea{font-size:16px;min-height:32px;max-height:34dvh}
+  .composer-actions .attach-plus{width:38px;height:38px}
+  .send-button{width:36px;height:36px;min-width:36px}
+}
