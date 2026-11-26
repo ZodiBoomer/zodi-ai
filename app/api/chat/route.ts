@@ -345,7 +345,7 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
             max_completion_tokens: 768,
             provider: { allow_fallbacks: true },
             __timeoutMs: OPENROUTER_TIMEOUT_MS
-          });
+          }, signal);
         }
         const reply = extractChatText(response);
         if (reply) return { reply, model: response.model || model };
