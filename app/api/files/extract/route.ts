@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
-const MAX_EXTRACTED_CHARS = 120_000;
+const MAX_EXTRACTED_CHARS = 32_000;
 const TEXT_EXTENSIONS = new Set([
   "txt","md","markdown","csv","tsv","json","xml","html","htm","css","js","jsx","ts","tsx",
   "py","java","c","cpp","h","hpp","cs","go","rs","php","rb","swift","kt","sql","yaml","yml",
