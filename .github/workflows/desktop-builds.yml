@@ -2,7 +2,7 @@ name: Zodi AI Desktop Builds
 on:
   workflow_dispatch:
   push:
-    branches: [main, feat/desktop-multi-conversations]
+    branches: [main, feat/desktop-multi-conversations, feat/shared-webview-ui]
   pull_request:
     branches: [main]
     paths:
@@ -58,7 +58,7 @@ jobs:
           mkdir -p package/DEBIAN package/usr/bin package/usr/share/applications
           cp publish/linux/zodi-ai package/usr/bin/zodi-ai
           chmod 755 package/usr/bin/zodi-ai
-          printf 'Package: zodi-ai\nVersion: %s\nSection: utils\nPriority: optional\nArchitecture: amd64\nMaintainer: ZodiBoomer\nDescription: Zodi AI desktop assistant\n' "$ZODI_VERSION" > package/DEBIAN/control
+          printf 'Package: zodi-ai\nVersion: %s\nSection: utils\nPriority: optional\nArchitecture: amd64\nDepends: libgtk-3-0, libwebkit2gtk-4.1-0\nMaintainer: ZodiBoomer\nDescription: Zodi AI desktop assistant\n' "$ZODI_VERSION" > package/DEBIAN/control
           printf '[Desktop Entry]\nName=Zodi AI\nComment=Assistant personnel Zodi AI\nExec=zodi-ai\nTerminal=false\nType=Application\nCategories=Utility;\n' > package/usr/share/applications/zodi-ai.desktop
           dpkg-deb --build package "release/zodi-ai_${ZODI_VERSION}_amd64.deb"
       - uses: actions/upload-artifact@v4
