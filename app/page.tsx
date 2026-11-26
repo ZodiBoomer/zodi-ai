@@ -269,20 +269,24 @@ export default function Home() {
     if (lastUser === undefined) return;
     const history = prior.slice(0, lastUser).slice(-10);
     const userMessage = prior[lastUser];
-    setBusy(true);
+    setBusy(true); setActivityOpen(false); setActivitySteps(["Régénération demandée", "Demande transmise au fournisseur IA"]);
+    const controller = new AbortController(); requestControllerRef.current = controller;
     updateConversation(active.id, (item) => ({ ...item, messages: item.messages.slice(0, index), updatedAt: Date.now() }));
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({ message: userMessage.content, history, images: (userMessage.images || []).map(({ dataUrl, mimeType }) => ({ dataUrl, mimeType })) })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Impossible de régénérer la réponse");
       updateConversation(active.id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: data.reply }], updatedAt: Date.now() }));
+      setActivitySteps((steps) => [...steps, `Réponse régénérée · ${data.provider === "openrouter" ? "OpenRouter" : "OpenAI"} · ${data.model}`]);
     } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
       updateConversation(active.id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: error instanceof Error ? error.message : "Erreur pendant la régénération." }], updatedAt: Date.now() }));
-    } finally { setBusy(false); }
+    } finally { if (requestControllerRef.current === controller) requestControllerRef.current = null; setBusy(false); }
   }
 
   function stopGeneration() {
