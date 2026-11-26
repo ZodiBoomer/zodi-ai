@@ -19,6 +19,7 @@ ArchitecturesAllowed=x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\ZodiAI\Assets\zodix-logo.ico
 PrivilegesRequired=admin
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
