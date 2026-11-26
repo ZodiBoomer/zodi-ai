@@ -411,3 +411,91 @@ button{transition:background .16s ease,border-color .16s ease,color .16s ease,tr
   .composer-actions .attach-plus{width:38px;height:38px}
   .send-button{width:36px;height:36px;min-width:36px}
 }
+
+
+/* Message composer row: attachment + | expanding text field | send, matching the reference screenshot. */
+.chat-composer{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  gap:7px;
+  padding:9px 10px;
+}
+.chat-composer .composer-actions{
+  display:flex;
+  flex-direction:row;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:8px;
+  width:100%;
+  min-width:0;
+  min-height:38px;
+  margin:0;
+}
+.chat-composer .composer-actions .attach-menu-wrap{
+  flex:0 0 38px;
+  width:38px;
+  align-self:flex-end;
+}
+.chat-composer .composer-actions .attach-plus{
+  width:38px;
+  height:38px;
+}
+.chat-composer textarea#message-input{
+  display:block;
+  flex:1 1 auto;
+  width:0;
+  min-width:0;
+  min-height:38px;
+  max-height:220px;
+  height:38px;
+  align-self:stretch;
+  margin:0;
+  padding:8px 2px 6px;
+  resize:none;
+  overflow-y:auto;
+  font-size:16px;
+  line-height:1.45;
+}
+.chat-composer .composer-actions .send-button{
+  flex:0 0 38px;
+  width:38px;
+  height:38px;
+  min-width:38px;
+  align-self:flex-end;
+}
+@media(max-width:720px){
+  .composer-area{
+    padding:7px 10px max(10px,env(safe-area-inset-bottom));
+  }
+  .chat-composer{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    padding:8px 9px;
+    border-radius:25px;
+  }
+  .chat-composer .composer-actions{
+    gap:7px;
+    min-height:40px;
+  }
+  .chat-composer .composer-actions .attach-menu-wrap,
+  .chat-composer .composer-actions .attach-plus{
+    flex-basis:38px;
+    width:38px;
+    height:38px;
+  }
+  .chat-composer textarea#message-input{
+    min-height:38px;
+    max-height:34dvh;
+    height:38px;
+    padding:8px 1px 6px;
+    font-size:16px;
+  }
+  .chat-composer .composer-actions .send-button{
+    flex-basis:38px;
+    width:38px;
+    height:38px;
+    min-width:38px;
+  }
+}
