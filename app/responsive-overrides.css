@@ -1,0 +1,87 @@
+/* ZODIX responsive safety pass.
+   * Keep the shared chat below OS status bars and inside compact viewports. */
+.chatgpt-shell {
+  height: 100vh;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.main-chat {
+  height: 100%;
+  min-height: 0;
+}
+
+@media (max-width: 720px) {
+  .chatgpt-shell {
+    height: var(--zodi-visual-height, 100dvh);
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .main-chat {
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .chat-topbar {
+    min-width: 0;
+    gap: 2px;
+    padding-inline: 5px;
+  }
+
+  .topbar-left,
+  .topbar-right {
+    min-width: 0;
+    gap: 1px;
+  }
+
+  .topbar-brand {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar-right .icon-button,
+  .topbar-left .icon-button {
+    width: 32px;
+    min-width: 32px;
+    flex: 0 0 32px;
+  }
+
+  .update-button {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    padding: 0;
+    gap: 0;
+    flex: 0 0 34px;
+  }
+
+  .update-button span {
+    display: none;
+  }
+}
+
+/* Long unbroken content must never push the chat outside its viewport. */
+.message-content,
+.rich-content,
+.message-body,
+.message-row,
+.message-entry {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.rich-content img,
+.message-images img {
+  max-width: 100%;
+  height: auto;
+}
+
+.rich-content table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
