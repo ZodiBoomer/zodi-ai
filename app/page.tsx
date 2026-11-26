@@ -249,7 +249,7 @@ export default function Home() {
   }
   async function addImages(files: FileList | null) {
     if (!files) return;
-    const selected = Array.from(files).filter((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type));
+    const selected = Array.from(files).filter((file) => file.type.startsWith("image/") && ["image/jpeg", "image/png", "image/webp"].includes(file.type));
     if (selected.length !== files.length) setStatus("Formats acceptés : JPG, PNG et WEBP.");
     if (pendingImages.length + selected.length > 4) { setStatus("Tu peux joindre 4 images maximum."); return; }
     const converted: ImageAttachment[] = [];
@@ -280,7 +280,9 @@ export default function Home() {
   }
   async function addTextFiles(files: FileList | null) {
     if (!files) return;
-    const accepted = Array.from(files);
+    // Le sélecteur « Fichiers » ne doit jamais accepter une photo, même si le navigateur ignore l'attribut accept.
+    const accepted = Array.from(files).filter((file) => !file.type.startsWith("image/") && !/\.(jpe?g|png|gif|webp|heic|heif|avif|bmp|tiff?)$/i.test(file.name));
+    if (accepted.length !== files.length) setStatus("Pour ajouter une photo, utilise le bouton Photos.");
     const parts: string[] = [];
     for (const file of accepted) {
       if (!/\.(txt|md|csv|json|log)$/i.test(file.name) && !["text/plain","text/markdown","text/csv","application/json"].includes(file.type)) {
@@ -518,9 +520,9 @@ export default function Home() {
         <div className="composer-area">
           <form className="chat-composer" onSubmit={send}>
             <label className="sr-only" htmlFor="message-input">Message à ZODIX</label>
-            <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={imageInputRef} type="file" accept="image/*" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
-            <input ref={fileInputRef} type="file" accept=".txt,.md,.csv,.json,.log,text/plain,text/markdown,text/csv,application/json" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.md,.csv,.json,.xml,.log,.xls,.xlsx,.ods,.ppt,.pptx,.odp,.mp3,.wav,.m4a,.aac,.ogg,.flac,.mp4,.mov,.webm,.zip,.rar,.7z,.js,.ts,.tsx,.jsx,.py,.html,.css,.sql,.yaml,.yml,.toml,.ini,.cfg,.exe,.msi,.apk,.deb,.tar,.gz,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv,application/json,audio/*,video/*,application/zip" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
             {pendingImages.length > 0 && <div className="composer-attachments">{pendingImages.map((image, index) => <div className="composer-attachment" key={index}><img src={image.dataUrl} alt={image.name} /><button type="button" aria-label="Retirer l'image" onClick={() => setPendingImages((all) => all.filter((_, i) => i !== index))}>×</button></div>)}</div>}
             <div className="composer-actions">
               <div className="attach-menu-wrap" ref={attachMenuRef}>
