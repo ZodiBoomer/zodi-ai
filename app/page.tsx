@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 type ImageAttachment = { dataUrl: string; mimeType: "image/jpeg" | "image/png" | "image/webp"; name: string };
@@ -47,13 +47,14 @@ function inlineMarkdown(text: string): ReactNode[] {
 }
 
 function InteractiveTaskList({ items, mode = "multiple" }: { items: string[]; mode?: "multiple" | "single" }) {
+  const groupId = useId();
   const [selected, setSelected] = useState<boolean[]>(() => items.map(() => false));
   return <ul className={`interactive-choice-list ${mode === "single" ? "single-choice-list" : ""}`}>
     {items.map((item, index) => <li key={index}>
       <label>
         <input
           type={mode === "single" ? "radio" : "checkbox"}
-          name={mode === "single" ? `zodi-choice-${items.join("|")}` : undefined}
+          name={mode === "single" ? groupId : undefined}
           checked={selected[index]}
           onChange={() => setSelected((current) => mode === "single" ? current.map((_, i) => i === index) : current.map((value, i) => i === index ? !value : value))}
         />
