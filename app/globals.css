@@ -693,3 +693,144 @@ body{min-height:0}
 .update-button:hover:not(:disabled){background:linear-gradient(135deg,rgba(37,99,235,.34),rgba(37,99,235,.16));border-color:#60a5fa;color:#fff}
 .update-button:disabled{opacity:.65;cursor:wait}
 @media(max-width:380px){.update-button{gap:5px;padding:0 7px;font-size:11px;min-height:32px}.update-button svg{width:14px;height:14px}}
+
+
+/* ZODIX adaptive readability system — shared WebView UI for Web, Android, Windows and Linux. */
+:root{
+  --zodix-font-body:16px;
+  --zodix-font-message:16px;
+  --zodix-font-control:14px;
+  --zodix-control-height:44px;
+  --zodix-icon-size:22px;
+}
+html{font-size:16px}
+body{font-size:var(--zodix-font-body);line-height:1.55}
+button,input,textarea,select{font-size:inherit}
+.icon-button{
+  width:var(--zodix-control-height);
+  height:var(--zodix-control-height);
+  min-width:var(--zodix-control-height);
+  min-height:var(--zodix-control-height);
+}
+.icon-button svg{width:var(--zodix-icon-size);height:var(--zodix-icon-size)}
+.new-chat-button{min-height:48px;height:auto;padding-block:10px;font-size:15px}
+.history-label{font-size:13px;margin-top:24px}
+.conversation-item{min-height:46px;padding:10px 11px;font-size:14px;line-height:1.4}
+.conversation-item>span:first-child{font-size:19px}
+.history-search{height:44px;font-size:14px;padding-inline:12px}
+.history-empty{font-size:13px}
+.profile-avatar{width:36px;height:36px;font-size:15px}
+.profile-copy strong{font-size:14px}
+.profile-copy span{font-size:12px}
+.model-selector{font-size:17px}
+.connection-label{font-size:13px}
+.welcome-mark{font-size:40px}
+.welcome-panel h1{font-size:clamp(28px,2.8vw,36px);line-height:1.2}
+.welcome-panel>p{font-size:16px;line-height:1.6}
+.suggestion-grid button{min-height:88px;padding:17px 18px}
+.suggestion-grid strong{font-size:15px;line-height:1.35}
+.suggestion-grid span{font-size:13px;line-height:1.45}
+.message-content{font-size:var(--zodix-font-message);line-height:1.75}
+.rich-content{font-size:16px;line-height:1.8}
+.rich-content h2{font-size:clamp(22px,2vw,25px)}
+.rich-content h3{font-size:20px}
+.rich-content h4{font-size:18px}
+.rich-content li{margin-block:7px}
+.assistant-mark{width:32px;height:32px;font-size:19px}
+.message-actions{gap:5px}
+.message-actions button{width:40px;height:40px;min-width:40px;border-radius:10px}
+.chat-topbar{min-height:60px}
+.update-button{min-height:44px;padding-inline:14px;font-size:14px;border-radius:11px}
+.chat-composer{padding:14px 16px 12px}
+.chat-composer textarea,
+.chat-composer textarea#message-input{font-size:17px;line-height:1.55;min-height:42px}
+.chat-composer .composer-actions button[aria-label="Ajouter des photos"]{width:44px;height:44px;font-size:25px}
+.send-button{width:44px;height:44px;font-size:25px}
+.composer-actions>span{font-size:12px}
+.disclaimer{font-size:12px;line-height:1.45}
+.user-message-context-menu button{min-height:50px;font-size:16px}
+.user-message-menu-date{font-size:14px}
+.attach-menu-wrap button,.attach-menu button,.attach-menu-item,.attach-option{
+  min-height:44px;
+  font-size:14px;
+}
+input,textarea,select{font-size:16px}
+button:focus-visible,textarea:focus-visible,input:focus-visible,select:focus-visible{
+  outline-width:3px;
+  outline-offset:3px;
+}
+
+@media (min-width:721px) and (max-width:1100px){
+  :root{--zodix-font-body:16px;--zodix-font-message:16px;--zodix-control-height:44px}
+  .sidebar{padding:12px}
+  .conversation-item{font-size:14px}
+  .messages-container{padding-inline:clamp(20px,3vw,32px)}
+}
+
+@media(max-width:720px){
+  :root{--zodix-font-body:17px;--zodix-font-message:17px;--zodix-control-height:46px;--zodix-icon-size:23px}
+  body{font-size:17px}
+  .chat-topbar{height:58px;flex-basis:58px;padding-inline:10px}
+  .topbar-left,.topbar-right{gap:5px}
+  .topbar-right .icon-button,.topbar-left .icon-button{
+    width:44px;height:44px;min-width:44px;min-height:44px
+  }
+  .topbar-brand{font-size:17px}
+  .model-selector{font-size:17px;padding:9px 8px}
+  .messages-container{padding:20px 16px 15px}
+  .welcome-panel h1{font-size:clamp(26px,7vw,32px);line-height:1.2}
+  .welcome-panel>p{font-size:15px;line-height:1.55;margin-bottom:20px}
+  .suggestion-grid{gap:10px}
+  .suggestion-grid button{min-height:76px;padding:13px 12px}
+  .suggestion-grid strong{font-size:14px}
+  .suggestion-grid span{font-size:13px}
+  .message-stack{gap:24px}
+  .message-row{gap:10px}
+  .assistant-mark{width:32px;height:32px;font-size:19px}
+  .message-content{font-size:17px;line-height:1.75}
+  .rich-content{font-size:17px;line-height:1.75}
+  .rich-content h2{font-size:22px}
+  .rich-content h3{font-size:19px}
+  .rich-content h4{font-size:17px}
+  .rich-content pre{font-size:14px;line-height:1.6}
+  .message-actions button{width:40px;height:40px;min-width:40px}
+  .composer-area{padding:9px 12px max(11px,env(safe-area-inset-bottom))}
+  .chat-composer{padding:11px 12px 9px;border-radius:25px}
+  .chat-composer textarea,.chat-composer textarea#message-input{
+    min-height:44px;font-size:17px;line-height:1.5;padding:9px 3px 7px
+  }
+  .chat-composer .composer-actions{min-height:46px;gap:8px}
+  .chat-composer .composer-actions .attach-menu-wrap,
+  .chat-composer .composer-actions .attach-plus{flex-basis:44px;width:44px;height:44px}
+  .chat-composer .composer-actions button[aria-label="Ajouter des photos"]{width:44px;height:44px}
+  .chat-composer .composer-actions .send-button{flex-basis:44px;width:44px;height:44px;min-width:44px}
+  .composer-actions>span{font-size:11px}
+  .disclaimer{font-size:11px;line-height:1.4}
+  .sidebar{width:min(88vw,340px);max-width:calc(100vw - 40px);padding:12px}
+  .sidebar-top{margin-bottom:20px}
+  .new-chat-button{min-height:50px;font-size:16px}
+  .history-label{font-size:14px}
+  .conversation-item{min-height:48px;font-size:15px;padding:11px 12px}
+  .history-search{height:46px;font-size:15px}
+  .profile-copy strong{font-size:15px}
+  .profile-copy span{font-size:13px}
+  .update-button{min-height:44px;padding-inline:10px;font-size:13px;gap:6px}
+  .user-message-context-menu button{min-height:52px;font-size:16px}
+}
+@media(max-width:380px){
+  .chat-topbar{padding-inline:6px}
+  .topbar-left,.topbar-right{gap:2px}
+  .topbar-right .icon-button,.topbar-left .icon-button{width:42px;height:42px;min-width:42px}
+  .update-button{min-height:42px;font-size:12px;padding-inline:8px}
+  .messages-container{padding-inline:12px}
+  .suggestion-grid{grid-template-columns:1fr}
+  .suggestion-grid button{min-height:64px}
+  .composer-area{padding-inline:8px}
+}
+@media(max-height:520px) and (max-width:900px){
+  /* Preserve readable type in landscape; only reduce surrounding spacing. */
+  .chat-topbar{height:48px;flex-basis:48px}
+  .messages-container{padding-top:9px;padding-bottom:7px}
+  .message-stack{gap:15px}
+  .composer-area{padding-top:4px;padding-bottom:max(5px,env(safe-area-inset-bottom))}
+}
