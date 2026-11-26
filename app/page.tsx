@@ -121,6 +121,9 @@ export default function Home() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const otherInputRef = useRef<HTMLInputElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [status, setStatus] = useState("Connexion au service…");
@@ -278,6 +281,18 @@ export default function Home() {
     setPendingImages((current) => [...current, ...converted].slice(0, 4));
     if (imageInputRef.current) imageInputRef.current.value = "";
   }
+  function reportSelectedMedia(files: FileList | null, kind: "audio" | "video" | "other") {
+    if (!files?.length) return;
+    const selected = Array.from(files);
+    const label = kind === "audio" ? "audio" : kind === "video" ? "vidéo" : "autre";
+    const names = selected.map((file) => `${file.name} (${Math.round(file.size / 1024)} Ko)`).join(", ");
+    setStatus(`${selected.length} fichier(s) ${label} sélectionné(s) : ${names}. Le transfert de ce type vers l’IA n’est pas encore pris en charge.`);
+    if (kind === "audio" && audioInputRef.current) audioInputRef.current.value = "";
+    if (kind === "video" && videoInputRef.current) videoInputRef.current.value = "";
+    if (kind === "other" && otherInputRef.current) otherInputRef.current.value = "";
+    setAttachMenuOpen(false);
+  }
+
   async function addTextFiles(files: FileList | null) {
     if (!files) return;
     const accepted = Array.from(files);
@@ -520,15 +535,21 @@ export default function Home() {
             <label className="sr-only" htmlFor="message-input">Message à ZODIX</label>
             <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
-            <input ref={fileInputRef} type="file" accept=".txt,.md,.csv,.json,.log,text/plain,text/markdown,text/csv,application/json" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.odt,.xls,.xlsx,.ods,.ppt,.pptx,.odp,.txt,.md,.csv,.log,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac" multiple hidden onChange={(event) => reportSelectedMedia(event.target.files, "audio")} />
+            <input ref={videoInputRef} type="file" accept="video/*,.mp4,.mov,.webm" multiple hidden onChange={(event) => reportSelectedMedia(event.target.files, "video")} />
+            <input ref={otherInputRef} type="file" accept=".zip,.7z,.rar,.json,.xml,.js,.ts,.tsx,.py,.java,.c,.cpp,.h,.sql,.yaml,.yml,.toml,.ini,.sh,.bat,.ps1,.bin,.exe,.apk,.dmg,.iso" multiple hidden onChange={(event) => reportSelectedMedia(event.target.files, "other")} />
             {pendingImages.length > 0 && <div className="composer-attachments">{pendingImages.map((image, index) => <div className="composer-attachment" key={index}><img src={image.dataUrl} alt={image.name} /><button type="button" aria-label="Retirer l'image" onClick={() => setPendingImages((all) => all.filter((_, i) => i !== index))}>×</button></div>)}</div>}
             <div className="composer-actions">
               <div className="attach-menu-wrap" ref={attachMenuRef}>
                 <button className="attach-plus" type="button" onClick={() => setAttachMenuOpen((open) => !open)} disabled={busy} aria-label="Ajouter des pièces jointes" aria-expanded={attachMenuOpen} title="Ajouter"><Icon name="plus" size={24} /></button>
                 {attachMenuOpen && <div className="attach-menu" role="menu">
                   <button type="button" role="menuitem" onClick={() => cameraInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="camera" /></span> Appareil photo</button>
-                  <button type="button" role="menuitem" onClick={() => imageInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="image" /></span> Photos</button>
-                  <button type="button" role="menuitem" onClick={() => fileInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="file-text" /></span> Fichiers</button>
+                  <button type="button" role="menuitem" onClick={() => imageInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="image" /></span> Photos uniquement</button>
+                  <button type="button" role="menuitem" onClick={() => fileInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="file-text" /></span> Documents et fichiers</button>
+                  <button type="button" role="menuitem" onClick={() => audioInputRef.current?.click()}><span className="attach-menu-icon">♫</span> Musique / audio</button>
+                  <button type="button" role="menuitem" onClick={() => videoInputRef.current?.click()}><span className="attach-menu-icon">▶</span> Vidéos</button>
+                  <button type="button" role="menuitem" onClick={() => otherInputRef.current?.click()}><span className="attach-menu-icon">＋</span> Autres formats</button>
                 </div>}
               </div>
             <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} onInput={(event) => { const field = event.currentTarget; field.style.height = "auto"; field.style.height = `${Math.min(field.scrollHeight, 220)}px`; }} onFocus={(event) => { window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" }), 80); }} placeholder="Écris un message à ZODIX" rows={1} enterKeyHint="enter" aria-label="Message à ZODIX" onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
