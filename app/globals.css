@@ -291,6 +291,11 @@ button{transition:background .16s ease,border-color .16s ease,color .16s ease,tr
 @media(prefers-reduced-motion:reduce){.thinking-orb{animation:none}}
 
 
+/* Activity is a full-width block between chat messages, never inside the user/assistant flex row. */
+.message-entry{display:flex;flex-direction:column;align-items:stretch;width:100%;min-width:0;gap:7px}
+.message-entry>.activity-inline{align-self:stretch;width:100%;max-width:760px;margin:0 auto}
+.message-entry>.activity-after-user{margin-top:0}
+
 /* ChatGPT-like activity: inline text only, no card, fill, border or background. */
 .activity-inline{display:flex;align-items:center;gap:9px;flex-wrap:wrap;width:100%;padding:5px 0;color:#a3a3a3;background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important}
 .activity-inline .thinking-orb{width:7px;height:7px;background:#a3a3a3;box-shadow:none}
