@@ -695,75 +695,74 @@ body{min-height:0}
 @media(max-width:380px){.update-button{gap:5px;padding:0 7px;font-size:11px;min-height:32px}.update-button svg{width:14px;height:14px}}
 
 
-/* Slightly larger, easier-to-hit controls without enlarging typography or layout. */
-.icon-button{
+/* Larger command controls only: leave composer and welcome buttons at their original size. */
+.message-actions{gap:7px}
+.message-actions button{
+  width:40px;
+  height:40px;
+  min-width:40px;
+  min-height:40px;
+  border-radius:10px;
+}
+.message-actions button svg{width:19px;height:19px}
+.topbar-left>.icon-button{
   width:42px;
   height:42px;
   min-width:42px;
   min-height:42px;
-  border-radius:12px;
-}
-.new-chat-button{
-  min-height:46px;
-  height:auto;
-  padding-block:10px;
-}
-.send-button{
-  width:42px;
-  height:42px;
-  min-width:42px;
-  min-height:42px;
-}
-.composer-actions .attach-plus{
-  width:42px;
-  height:42px;
-}
-.chat-composer .composer-actions .attach-menu-wrap{
-  flex-basis:42px;
-  width:42px;
-}
-.chat-composer .composer-actions .send-button{
-  flex-basis:42px;
-  width:42px;
-  height:42px;
-  min-width:42px;
+  border-radius:11px;
 }
 .update-button{
+  min-height:42px;
+  padding-inline:14px;
+  gap:9px;
+}
+.update-button svg{width:19px;height:19px}
+.conversation-item-wrap{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:5px;
+  min-width:0;
+}
+.conversation-item-wrap .conversation-item{flex:1;min-width:0}
+.conversation-delete-button{
+  flex:0 0 40px;
+  width:40px;
+  height:40px;
+  min-width:40px;
   min-height:40px;
-  padding-inline:13px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:1px solid transparent;
+  border-radius:10px;
+  background:transparent;
+  color:#a1a1a1;
+  cursor:pointer;
+  visibility:visible;
+  opacity:.9;
 }
-.user-message-context-menu button{
-  min-height:48px;
+.conversation-delete-button svg{
+  display:block;
+  width:19px;
+  height:19px;
+  stroke:currentColor;
+  flex:none;
 }
-.suggestion-grid button{
-  min-height:74px;
+.conversation-delete-button:hover:not(:disabled){
+  background:#3a2528;
+  border-color:#694047;
+  color:#ff858f;
 }
+.conversation-delete-button:disabled{opacity:.35;cursor:not-allowed}
 @media(max-width:720px){
-  .icon-button,.topbar-right .icon-button,.topbar-left .icon-button{
-    width:44px;
-    height:44px;
-    min-width:44px;
-    min-height:44px;
-  }
-  .chat-composer .composer-actions .attach-menu-wrap,
-  .chat-composer .composer-actions .attach-plus{
-    flex-basis:42px;
-    width:42px;
-    height:42px;
-  }
-  .chat-composer .composer-actions .send-button{
-    flex-basis:42px;
-    width:42px;
-    height:42px;
-    min-width:42px;
-  }
-  .update-button{min-height:40px}
+  .message-actions{gap:8px}
+  .message-actions button{width:42px;height:42px;min-width:42px;min-height:42px}
+  .topbar-left>.icon-button{width:44px;height:44px;min-width:44px;min-height:44px}
+  .conversation-delete-button{width:42px;height:42px;min-width:42px;min-height:42px;flex-basis:42px}
 }
 @media(max-width:380px){
-  .icon-button,.topbar-right .icon-button,.topbar-left .icon-button{
-    width:42px;
-    height:42px;
-    min-width:42px;
-    min-height:42px;
-  }
+  .message-actions button{width:40px;height:40px;min-width:40px;min-height:40px}
+  .topbar-left>.icon-button{width:42px;height:42px;min-width:42px;min-height:42px}
 }
