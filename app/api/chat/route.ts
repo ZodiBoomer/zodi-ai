@@ -475,7 +475,7 @@ export async function POST(request: Request) {
   const providers = getProviderConfigs();
   if (!providers.length) {
     return NextResponse.json(
-      { error: "Aucune clé API cloud n'est configurée. Ajoute OPENROUTER_API_KEY ou OPENAI_DIRECT_API_KEY dans Vercel." },
+      { error: "Aucun fournisseur IA n'est configuré dans cet environnement Vercel. Ajoute OPENAI_API_KEY pour OpenAI ou OPENROUTER_API_KEY pour OpenRouter dans le scope Preview." },
       { status: 503 }
     );
   }
