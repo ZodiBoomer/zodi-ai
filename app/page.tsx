@@ -357,7 +357,7 @@ ${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de 
           }
           continue;
         }
-        addPart(await readFileForPrompt(file));
+        if (!addPart(await readFileForPrompt(file))) break;
       } catch (error) {
         setStatus(`${file.name} : ${error instanceof Error ? error.message : "lecture impossible"}`);
       }
