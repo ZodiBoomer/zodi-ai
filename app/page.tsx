@@ -279,13 +279,14 @@ export default function Home() {
     const selected = Array.from(files);
     const parts: string[] = [];
     const maxPromptCharacters = Math.max(0, 30_000 - input.length);
+    if (maxPromptCharacters === 0) { setStatus("Raccourcis ton message avant d’ajouter des fichiers."); return; }
     let extractedCharacters = 0;
     const addPart = (part: string) => {
       const remaining = maxPromptCharacters - extractedCharacters;
       if (remaining <= 0) return false;
       if (part.length > remaining) {
         const marker = "\n[Contenu tronqué pour respecter la limite du message.]";
-        parts.push(part.slice(0, Math.max(0, remaining - marker.length)) + marker);
+        parts.push(remaining <= marker.length ? marker.slice(0, remaining) : part.slice(0, remaining - marker.length) + marker);
         extractedCharacters = maxPromptCharacters;
         return false;
       }
