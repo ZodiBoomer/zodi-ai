@@ -224,3 +224,13 @@ button{transition:background .16s ease,border-color .16s ease,color .16s ease,tr
   .chatgpt-shell{touch-action:pan-y}
   .sidebar{touch-action:pan-y;will-change:transform}
 }
+
+
+/* Mobile drawer: the exposed side area acts as a clear tap-to-return target. */
+.sidebar-backdrop{display:none}
+@media(max-width:720px){
+  .sidebar-backdrop{display:block;position:absolute;z-index:4;inset:0;border:0;border-radius:0;background:rgba(0,0,0,.48);padding:0;touch-action:manipulation}
+  .sidebar{z-index:5}
+  .sidebar-backdrop:focus-visible{outline:2px solid #60a5fa;outline-offset:-3px}
+  .suggestion-grid button:disabled{opacity:.55;cursor:wait}
+}
