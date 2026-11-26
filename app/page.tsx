@@ -291,8 +291,7 @@ export default function Home() {
         const data = await response.json() as { ok?: boolean; name?: string; kind?: string; text?: string; truncated?: boolean; error?: string };
         if (!response.ok || !data.ok || !data.text) throw new Error(data.error || "Lecture du fichier impossible.");
         parts.push(`[Contenu extrait de ${data.name || file.name} — ${data.kind || kind}]
-${data.text}${data.truncated ? "
-[Contenu tronqué pour respecter la limite de lecture.]" : ""}`);
+${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de lecture.]" : ""}`);
       } catch (error) {
         setStatus(`${file.name} : ${error instanceof Error ? error.message : "lecture impossible"}`);
       }
