@@ -135,7 +135,9 @@ export async function POST(request: Request) {
     } else if (["mp3","wav","m4a","ogg","flac","mpeg","mpga"].includes(ext) || file.type.startsWith("audio/")) {
       extracted = await transcribeAudio(file);
       kind = "transcription audio";
-    } else if (["mp4","mov","webm","avi","mkv","mpeg","mpg"].includes(ext) || file.type.startsWith("video/")) {\n      throw new Error("Pour une vidéo, ZODIX doit encore extraire les images et la piste audio séparément. Ce lecteur vidéo sera ajouté dans une prochaine étape.");\n    } else if (["doc","ppt","rar","7z","exe","apk","iso","dmg","bin"].includes(ext)) {
+    } else if (["mp4","mov","webm","avi","mkv","mpeg","mpg"].includes(ext) || file.type.startsWith("video/")) {
+      throw new Error("Pour une vidéo, ZODIX doit encore extraire les images et la piste audio séparément. Ce lecteur vidéo sera ajouté dans une prochaine étape.");
+    } else if (["doc","ppt","rar","7z","exe","apk","iso","dmg","bin"].includes(ext)) {
       throw new Error("Ce format binaire n’est pas encore pris en charge par le lecteur intégré.");
     } else {
       throw new Error("Format non reconnu ou non pris en charge : ." + (ext || "inconnu"));
