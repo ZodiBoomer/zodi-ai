@@ -2,7 +2,7 @@ name: Zodi AI Desktop Builds
 on:
   workflow_dispatch:
   push:
-    branches: [main, feat/desktop-multi-conversations]
+    branches: [main, feat/desktop-multi-conversations, feat/shared-webview-ui]
   pull_request:
     branches: [main]
     paths:
