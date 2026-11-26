@@ -120,7 +120,12 @@ export default function Home() {
   const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const documentInputRef = useRef<HTMLInputElement>(null);
+  const spreadsheetInputRef = useRef<HTMLInputElement>(null);
+  const presentationInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const otherFileInputRef = useRef<HTMLInputElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [status, setStatus] = useState("Connexion au service…");
@@ -520,9 +525,14 @@ export default function Home() {
         <div className="composer-area">
           <form className="chat-composer" onSubmit={send}>
             <label className="sr-only" htmlFor="message-input">Message à ZODIX</label>
-            <input ref={imageInputRef} type="file" accept="image/*" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={imageInputRef} type="file" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.avif,image/jpeg,image/png,image/webp,image/heic,image/avif" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
-            <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.md,.csv,.json,.xml,.log,.xls,.xlsx,.ods,.ppt,.pptx,.odp,.mp3,.wav,.m4a,.aac,.ogg,.flac,.mp4,.mov,.webm,.zip,.rar,.7z,.js,.ts,.tsx,.jsx,.py,.html,.css,.sql,.yaml,.yml,.toml,.ini,.cfg,.exe,.msi,.apk,.deb,.tar,.gz,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv,application/json,audio/*,video/*,application/zip" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={documentInputRef} type="file" accept=".pdf,.docx,.doc,.txt,.odt,.rtf,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={spreadsheetInputRef} type="file" accept=".xlsx,.xls,.csv,.ods,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={presentationInputRef} type="file" accept=".pptx,.ppt,.odp,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={audioInputRef} type="file" accept=".mp3,.wav,.m4a,.ogg,.flac,audio/mpeg,audio/wav,audio/mp4,audio/ogg,audio/flac" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={videoInputRef} type="file" accept=".mp4,.mov,.webm,video/mp4,video/quicktime,video/webm" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={otherFileInputRef} type="file" accept=".zip,.json,.xml,.log,.js,.ts,.tsx,.jsx,.py,.html,.css,.sql,.yaml,.yml,.toml,.ini,.cfg,.rar,.7z,.exe,.msi,.apk,.deb,.tar,.gz,application/zip,application/json,text/xml" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
             {pendingImages.length > 0 && <div className="composer-attachments">{pendingImages.map((image, index) => <div className="composer-attachment" key={index}><img src={image.dataUrl} alt={image.name} /><button type="button" aria-label="Retirer l'image" onClick={() => setPendingImages((all) => all.filter((_, i) => i !== index))}>×</button></div>)}</div>}
             <div className="composer-actions">
               <div className="attach-menu-wrap" ref={attachMenuRef}>
@@ -530,7 +540,12 @@ export default function Home() {
                 {attachMenuOpen && <div className="attach-menu" role="menu">
                   <button type="button" role="menuitem" onClick={() => cameraInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="camera" /></span> Appareil photo</button>
                   <button type="button" role="menuitem" onClick={() => imageInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="image" /></span> Photos</button>
-                  <button type="button" role="menuitem" onClick={() => fileInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="file-text" /></span> Fichiers</button>
+                  <button type="button" role="menuitem" onClick={() => documentInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="file-text" /></span> Documents</button>
+                  <button type="button" role="menuitem" onClick={() => spreadsheetInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="sheet" /></span> Tableurs</button>
+                  <button type="button" role="menuitem" onClick={() => presentationInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="presentation" /></span> Présentations</button>
+                  <button type="button" role="menuitem" onClick={() => audioInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="audio-lines" /></span> Audio</button>
+                  <button type="button" role="menuitem" onClick={() => videoInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="video" /></span> Vidéos</button>
+                  <button type="button" role="menuitem" onClick={() => otherFileInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="file-archive" /></span> Autres fichiers</button>
                 </div>}
               </div>
             <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} onInput={(event) => { const field = event.currentTarget; field.style.height = "auto"; field.style.height = `${Math.min(field.scrollHeight, 220)}px`; }} onFocus={(event) => { window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" }), 80); }} placeholder="Écris un message à ZODIX" rows={1} enterKeyHint="enter" aria-label="Message à ZODIX" onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
