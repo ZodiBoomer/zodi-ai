@@ -30,7 +30,7 @@ const DEFAULT_OPENROUTER_FALLBACKS = [
   "nvidia/nemotron-3.5-super-vl:free"
 ];
 const MAX_HISTORY_MESSAGES = 10;
-const MAX_MESSAGE_LENGTH = 4000;
+const MAX_MESSAGE_LENGTH = 36_000;
 const MAX_IMAGES = 4;
 const MAX_IMAGE_BYTES = 700 * 1024;
 const MAX_TOTAL_IMAGE_BYTES = 2 * 1024 * 1024;
