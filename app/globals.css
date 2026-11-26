@@ -205,3 +205,15 @@ button{transition:background .16s ease,border-color .16s ease,color .16s ease,tr
  .composer-area{padding:7px 10px max(10px,env(safe-area-inset-bottom))}
  .chat-composer{border-radius:23px;padding:9px 10px 8px}
 }
+
+
+/* Image attachments are independent from the text bubble and keep their original aspect ratio. */
+.message-images{display:flex;flex-wrap:wrap;gap:10px;width:fit-content;max-width:100%;margin:0 0 2px}
+.message-images.user{align-self:flex-end;justify-content:flex-end}
+.message-images.assistant{align-self:flex-start}
+.message-images img{display:block;width:auto;height:auto;max-width:min(100%,360px);max-height:360px;object-fit:contain;border:1px solid rgba(255,255,255,.09);border-radius:14px;background:#171717}
+.message-row.user .message-images{max-width:100%}
+@media(max-width:720px){
+  .message-images{max-width:100%}
+  .message-images img{max-width:min(100%,320px);max-height:340px}
+}
