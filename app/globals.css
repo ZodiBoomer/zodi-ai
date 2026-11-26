@@ -766,3 +766,80 @@ body{min-height:0}
   .message-actions button{width:40px;height:40px;min-width:40px;min-height:40px}
   .topbar-left>.icon-button{width:42px;height:42px;min-width:42px;min-height:42px}
 }
+
+
+/* ZODIX top-bar spacing and persistent conversation delete control — 2026-11-26 */
+.topbar-right{
+  gap:8px;
+}
+.topbar-right>.icon-button[aria-label="Renommer la conversation"]{
+  display:grid;
+  place-items:center;
+  flex:0 0 40px;
+  width:40px;
+  height:40px;
+  min-width:40px;
+  min-height:40px;
+  border:1px solid transparent;
+  border-radius:10px;
+}
+.topbar-right>.update-button{
+  min-height:42px;
+  padding-inline:13px;
+  gap:8px;
+}
+.conversation-item-wrap{
+  isolation:isolate;
+}
+.conversation-item-wrap>.conversation-item{
+  position:relative;
+  z-index:0;
+}
+.conversation-item-wrap>.conversation-delete-button{
+  position:relative;
+  z-index:1;
+  display:grid !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  pointer-events:auto;
+  flex:0 0 40px;
+  width:40px;
+  height:40px;
+  min-width:40px;
+  min-height:40px;
+  color:#b8b8b8;
+  background:transparent;
+}
+.conversation-item-wrap>.conversation-delete-button svg{
+  display:block !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  width:19px;
+  height:19px;
+  stroke:currentColor;
+}
+@media(max-width:720px){
+  .topbar-right{gap:7px}
+  .topbar-right>.icon-button[aria-label="Renommer la conversation"]{
+    flex-basis:40px;
+    width:40px;
+    height:40px;
+    min-width:40px;
+    min-height:40px;
+  }
+}
+@media(max-width:380px){
+  .topbar-right{gap:5px}
+  .topbar-right>.icon-button[aria-label="Renommer la conversation"]{
+    flex-basis:36px;
+    width:36px;
+    height:36px;
+    min-width:36px;
+    min-height:36px;
+  }
+  .topbar-right>.update-button{
+    min-height:38px;
+    padding-inline:8px;
+    gap:5px;
+  }
+}
