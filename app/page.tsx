@@ -447,17 +447,6 @@ export default function Home() {
                 <button type="button" disabled={busy} onClick={() => void send(undefined, "Aide-moi à écrire un texte")}><strong>Écrire un texte</strong><span>Rédiger, corriger ou reformuler</span></button>
                 <button type="button" disabled={busy} onClick={() => void send(undefined, "Aide-moi sur mon projet")}><strong>Faire avancer un projet</strong><span>Réfléchir et passer à l&apos;action</span></button>
               </div>
-            {userMessageMenu && active?.messages[userMessageMenu.index]?.role === "user" && (
-              <div className="user-message-menu-backdrop" onClick={() => setUserMessageMenu(null)} onContextMenu={(event) => { event.preventDefault(); setUserMessageMenu(null); }}>
-                <div className="user-message-context-menu" style={{ left: userMessageMenu.x, top: userMessageMenu.y }} role="menu" aria-label="Actions sur ton message" onClick={(event) => event.stopPropagation()}>
-                  <div className="user-message-menu-date">Message envoyé</div>
-                  <button type="button" role="menuitem" onClick={() => { void copyMessage(active.messages[userMessageMenu.index].content); setUserMessageMenu(null); }}><Icon name="copy" size={20} />Copier</button>
-                  <button type="button" role="menuitem" onClick={() => selectUserMessageText(userMessageMenu.index)}><Icon name="file-text" size={20} />Sélectionner le texte</button>
-                  <button type="button" role="menuitem" disabled={busy} onClick={() => editUserMessage(userMessageMenu.index)}><Icon name="edit" size={20} />Modifier le message</button>
-                  <button type="button" role="menuitem" onClick={() => { void shareMessage(active.messages[userMessageMenu.index].content); setUserMessageMenu(null); }}><Icon name="share" size={20} />Partager le prompt</button>
-                </div>
-              </div>
-            )}
             </div> : <div className="message-stack">
               {messages.map((message, index) => <div className="message-entry" key={index}>
                 {!busy && index === activityAnchorIndex && activitySteps.length > 0 && <div className="activity-inline activity-before-reply" role="status" aria-live="polite"><span className="thinking-orb" /><button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>Historique d’activité <span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button>{activityOpen && <ul className="activity-list">{activitySteps.map((step, stepIndex) => <li key={`${stepIndex}-${step}`}>{step}</li>)}</ul>}</div>}
@@ -474,8 +463,10 @@ export default function Home() {
                       },
                       onTouchStart: (event: React.TouchEvent<HTMLDivElement>) => {
                         const touch = event.touches[0];
+                        const x = touch.clientX;
+                        const y = touch.clientY;
                         if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
-                        longPressTimerRef.current = setTimeout(() => openUserMessageMenu(index, touch.clientX, touch.clientY), 500);
+                        longPressTimerRef.current = setTimeout(() => openUserMessageMenu(index, x, y), 500);
                       },
                       onTouchMove: () => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); },
                       onTouchEnd: () => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); },
@@ -509,6 +500,17 @@ export default function Home() {
                 {busy && index === activityAnchorIndex && activitySteps.length > 0 && <div className="activity-inline activity-after-user" role="status" aria-live="polite"><span className="thinking-orb" /><button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>Zodi travaille <span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button><span className="activity-live">En cours</span>{activityOpen && <ul className="activity-list">{activitySteps.map((step, stepIndex) => <li key={`${stepIndex}-${step}`}>{step}</li>)}</ul>}</div>}
                 </div>)}
               {busy && latestAssistantIndex === -1 && latestUserIndex === -1 && <div className="message-entry"><div className="activity-inline" role="status" aria-live="polite"><span className="thinking-orb" /><button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>Zodi travaille <span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button><span className="activity-live">En cours</span>{activityOpen && <ul className="activity-list">{activitySteps.map((step, index) => <li key={`${index}-${step}`}>{step}</li>)}</ul>}</div></div>}
+            {userMessageMenu && active?.messages[userMessageMenu.index]?.role === "user" && (
+              <div className="user-message-menu-backdrop" onClick={() => setUserMessageMenu(null)} onContextMenu={(event) => { event.preventDefault(); setUserMessageMenu(null); }}>
+                <div className="user-message-context-menu" style={{ left: userMessageMenu.x, top: userMessageMenu.y }} role="menu" aria-label="Actions sur ton message" onClick={(event) => event.stopPropagation()}>
+                  <div className="user-message-menu-date">Message envoyé</div>
+                  <button type="button" role="menuitem" onClick={() => { void copyMessage(active.messages[userMessageMenu.index].content); setUserMessageMenu(null); }}><Icon name="copy" size={20} />Copier</button>
+                  <button type="button" role="menuitem" onClick={() => selectUserMessageText(userMessageMenu.index)}><Icon name="file-text" size={20} />Sélectionner le texte</button>
+                  <button type="button" role="menuitem" disabled={busy} onClick={() => editUserMessage(userMessageMenu.index)}><Icon name="edit" size={20} />Modifier le message</button>
+                  <button type="button" role="menuitem" onClick={() => { void shareMessage(active.messages[userMessageMenu.index].content); setUserMessageMenu(null); }}><Icon name="share" size={20} />Partager le prompt</button>
+                </div>
+              </div>
+            )}
               <div ref={chatEndRef} />
             </div>}
           </div>
