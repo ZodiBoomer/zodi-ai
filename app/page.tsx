@@ -8,7 +8,7 @@ type Message = { role: "user" | "assistant"; content: string; images?: ImageAtta
 type Conversation = { id: string; title: string; messages: Message[]; updatedAt: number };
 type Health = { ok?: boolean; aiConfigured?: boolean; provider?: string; providers?: string[]; model?: string; modelFallbacks?: string[] };
 const BUILD_ID = process.env.NEXT_PUBLIC_ZODI_BUILD_ID ?? "local";
-const welcome = (): Message[] => [{ role: "assistant", content: "Salut ! Je suis Zodi. Comment puis-je t'aider aujourd'hui ?" }];
+const welcome = (): Message[] => [{ role: "assistant", content: "Salut ! Je suis ZODIX. Comment puis-je t'aider aujourd'hui ?" }];
 const createConversation = (): Conversation => ({ id: crypto.randomUUID(), title: "Nouvelle discussion", messages: welcome(), updatedAt: Date.now() });
 
 
@@ -196,7 +196,7 @@ export default function Home() {
       const data = await response.json() as { buildId?: string };
       const available = Boolean(data.buildId && data.buildId !== "unknown" && BUILD_ID !== "local" && data.buildId !== BUILD_ID);
       if (available) { setUpdateStatus("Mise à jour disponible · Recharger"); if (reload) window.location.reload(); }
-      else setUpdateStatus("Zodi AI est à jour");
+      else setUpdateStatus("ZODIX est à jour");
     } catch { setUpdateStatus("Vérification impossible · Réessayer"); }
     finally { checkingUpdateRef.current = false; setCheckingUpdate(false); }
   }, []);
@@ -315,7 +315,7 @@ export default function Home() {
   }
   async function shareMessage(content: string) {
     try {
-      if (navigator.share) await navigator.share({ title: "Réponse de Zodi AI", text: content });
+      if (navigator.share) await navigator.share({ title: "Réponse de ZODIX", text: content });
       else await navigator.clipboard.writeText(content);
     } catch (error) {
       if (error instanceof Error && error.name !== "AbortError") setStatus("Partage indisponible");
@@ -426,9 +426,9 @@ export default function Home() {
       <section className="main-chat">
         <header className="chat-topbar">
           <div className="topbar-left">
-            <button className="icon-button" type="button" onClick={() => setSidebarOpen((open) => !open)} aria-label="Ouvrir ou fermer le menu" title="Menu"><Icon name="menu" /></button><span className="topbar-brand">Zodi</span>
+            <button className="icon-button" type="button" onClick={() => setSidebarOpen((open) => !open)} aria-label="Ouvrir ou fermer le menu" title="Menu"><Icon name="menu" /></button><span className="topbar-brand">ZODIX</span>
           </div>
-          <div className="topbar-right"><span className={`connection-label ${statusTone}`} title={status}><i />{ready ? "En ligne" : "Connexion…"}</span><button className="icon-button" type="button" onClick={renameActiveChat} disabled={!active || busy} title="Renommer la conversation" aria-label="Renommer la conversation"><Icon name="edit" /></button><button className="icon-button" type="button" onClick={deleteActiveChat} disabled={!active || busy} title="Supprimer la conversation" aria-label="Supprimer la conversation"><Icon name="trash" /></button><button className="update-button" type="button" onClick={() => void checkForUpdates(true)} disabled={checkingUpdate} title={updateStatus} aria-label="Mettre à jour Zodi AI"><Icon name="refresh" size={16} /><span>{checkingUpdate ? "Vérification…" : "Mettre à jour"}</span></button></div>
+          <div className="topbar-right"><span className={`connection-label ${statusTone}`} title={status}><i />{ready ? "En ligne" : "Connexion…"}</span><button className="icon-button" type="button" onClick={renameActiveChat} disabled={!active || busy} title="Renommer la conversation" aria-label="Renommer la conversation"><Icon name="edit" /></button><button className="icon-button" type="button" onClick={deleteActiveChat} disabled={!active || busy} title="Supprimer la conversation" aria-label="Supprimer la conversation"><Icon name="trash" /></button><button className="update-button" type="button" onClick={() => void checkForUpdates(true)} disabled={checkingUpdate} title={updateStatus} aria-label="Mettre à jour ZODIX"><Icon name="refresh" size={16} /><span>{checkingUpdate ? "Vérification…" : "Mettre à jour"}</span></button></div>
         </header>
         <div className="conversation-viewport">
           <div className={`messages-container ${messages.length <= 1 ? "welcome-state" : ""}`}>
@@ -491,9 +491,9 @@ export default function Home() {
                   </div>}
                 </div>
               </article>
-                {busy && index === activityAnchorIndex && activitySteps.length > 0 && <div className="activity-inline activity-after-user" role="status" aria-live="polite"><span className="thinking-orb" /><button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>Zodi travaille <span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button><span className="activity-live">En cours</span>{activityOpen && <ul className="activity-list">{activitySteps.map((step, stepIndex) => <li key={`${stepIndex}-${step}`}>{step}</li>)}</ul>}</div>}
+                {busy && index === activityAnchorIndex && activitySteps.length > 0 && <div className="activity-inline activity-after-user" role="status" aria-live="polite"><span className="thinking-orb" /><button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>ZODIX travaille <span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button><span className="activity-live">En cours</span>{activityOpen && <ul className="activity-list">{activitySteps.map((step, stepIndex) => <li key={`${stepIndex}-${step}`}>{step}</li>)}</ul>}</div>}
                 </div>)}
-              {busy && latestAssistantIndex === -1 && latestUserIndex === -1 && <div className="message-entry"><div className="activity-inline" role="status" aria-live="polite"><span className="thinking-orb" /><button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>Zodi travaille <span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button><span className="activity-live">En cours</span>{activityOpen && <ul className="activity-list">{activitySteps.map((step, index) => <li key={`${index}-${step}`}>{step}</li>)}</ul>}</div></div>}
+              {busy && latestAssistantIndex === -1 && latestUserIndex === -1 && <div className="message-entry"><div className="activity-inline" role="status" aria-live="polite"><span className="thinking-orb" /><button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>ZODIX travaille <span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button><span className="activity-live">En cours</span>{activityOpen && <ul className="activity-list">{activitySteps.map((step, index) => <li key={`${index}-${step}`}>{step}</li>)}</ul>}</div></div>}
             {userMessageMenu && active?.messages[userMessageMenu.index]?.role === "user" && (
               <div className="user-message-menu-backdrop" onClick={() => setUserMessageMenu(null)} onContextMenu={(event) => { event.preventDefault(); setUserMessageMenu(null); }}>
                 <div className="user-message-context-menu" style={{ left: userMessageMenu.x, top: userMessageMenu.y }} role="menu" aria-label="Actions sur ton message" onClick={(event) => event.stopPropagation()}>
@@ -510,7 +510,7 @@ export default function Home() {
         </div>
         <div className="composer-area">
           <form className="chat-composer" onSubmit={send}>
-            <label className="sr-only" htmlFor="message-input">Message à Zodi</label>
+            <label className="sr-only" htmlFor="message-input">Message à ZODIX</label>
             <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={fileInputRef} type="file" accept=".txt,.md,.csv,.json,.log,text/plain,text/markdown,text/csv,application/json" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
@@ -524,7 +524,7 @@ export default function Home() {
                   <button type="button" role="menuitem" onClick={() => fileInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="file-text" /></span> Fichiers</button>
                 </div>}
               </div>
-            <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} onInput={(event) => { const field = event.currentTarget; field.style.height = "auto"; field.style.height = `${Math.min(field.scrollHeight, 220)}px`; }} onFocus={(event) => { window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" }), 80); }} placeholder="Écris un message à Zodi" rows={1} enterKeyHint="enter" aria-label="Message à Zodi" onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
+            <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} onInput={(event) => { const field = event.currentTarget; field.style.height = "auto"; field.style.height = `${Math.min(field.scrollHeight, 220)}px`; }} onFocus={(event) => { window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" }), 80); }} placeholder="Écris un message à ZODIX" rows={1} enterKeyHint="enter" aria-label="Message à ZODIX" onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
               <button className={`send-button ${busy ? "stop-generation-button" : ""}`} disabled={!busy && (!input.trim() && !pendingImages.length)} type={busy ? "button" : "submit"} onClick={busy ? stopGeneration : undefined} aria-label={busy ? "Arrêter la génération" : "Envoyer le message"} title={busy ? "Arrêter" : "Envoyer"}><Icon name={busy ? "stop" : "send"} size={18} /></button>
             </div>
           </form>
