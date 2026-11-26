@@ -44,8 +44,19 @@ public sealed partial class MainWindow : Window {
  private void Bubble(string text,bool user,List<ChatImage>? images=null,int messageIndex=-1){
   var stack=new StackPanel{Spacing=8};
   if(images!=null)foreach(var image in images)stack.Children.Add(new TextBlock{Text="📷 "+image.Name,Foreground=new SolidColorBrush(Color.FromArgb(255,210,210,210))});
-  stack.Children.Add(new TextBlock{Text=text,TextWrapping=TextWrapping.Wrap,FontSize=15,Foreground=new SolidColorBrush(Color.FromArgb(255,244,246,252)),IsTextSelectionEnabled=true});
+  stack.Children.Add(new TextBlock{Text=text,TextWrapping=TextWrapping.Wrap,FontSize=15,Foreground=new SolidColorBrush(Color.FromArgb(255,244,246,252)),IsTextSelectionEnabled=!user});
   var b=new Border{Background=new SolidColorBrush(user?Color.FromArgb(255,38,59,99):Color.FromArgb(0,0,0,0)),BorderBrush=new SolidColorBrush(user?Color.FromArgb(255,59,130,246):Color.FromArgb(0,0,0,0)),BorderThickness=new Thickness(user?1:0),CornerRadius=new CornerRadius(20),Padding=user?new Thickness(16,12,16,12):new Thickness(0,4,0,4),MaxWidth=720,HorizontalAlignment=user?HorizontalAlignment.Right:HorizontalAlignment.Left,Child=stack};
+  if(user&&messageIndex>=0){
+   var menu=new MenuFlyout();
+   var copy=new MenuFlyoutItem{Text="Copier"};
+   copy.Click+=(_,_)=>CopyResponse(text);
+   var edit=new MenuFlyoutItem{Text="Modifier le message"};
+   edit.Click+=(_,_)=>EditUserMessage(messageIndex);
+   var share=new MenuFlyoutItem{Text="Partager le prompt"};
+   share.Click+=(_,_)=>SharePrompt(text);
+   menu.Items.Add(copy);menu.Items.Add(edit);menu.Items.Add(share);
+   b.ContextFlyout=menu;
+  }
   MessagesPanel.Children.Add(b);
   if(!user&&messageIndex>=0){
    var actions=new StackPanel{Orientation=Orientation.Horizontal,Spacing=2,HorizontalAlignment=HorizontalAlignment.Left};
@@ -56,6 +67,18 @@ public sealed partial class MainWindow : Window {
    MessagesPanel.Children.Add(actions);
   }
   _ = MessagesScroll.ChangeView(null,MessagesScroll.ScrollableHeight,null,true);
+ }
+ private void EditUserMessage(int messageIndex){
+  if(active==null||!SendButton.IsEnabled||messageIndex<0||messageIndex>=active.Messages.Count)return;
+  var c=active;var message=c.Messages[messageIndex];if(message.Role!="user")return;
+  c.Messages.RemoveRange(messageIndex,c.Messages.Count-messageIndex);
+  pendingImages.Clear();if(message.Images!=null)pendingImages.AddRange(message.Images);
+  MessageInput.Text=message.Content;Select(c);Save();MessageInput.Focus(FocusState.Programmatic);
+  SetStatus("Message prêt à modifier");
+ }
+ private void SharePrompt(string content){
+  CopyResponse(content);
+  SetStatus("Prompt copié · colle-le dans l’application de ton choix");
  }
  private void CopyResponse(string content){var package=new Windows.ApplicationModel.DataTransfer.DataPackage();package.SetText(content);Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);SetStatus("Réponse copiée · prête à partager");}
  private async System.Threading.Tasks.Task RegenerateResponse(int messageIndex){
