@@ -343,6 +343,10 @@ export default function Home() {
     const userMessages = [...active.messages, { role: "user" as const, content: text || "Analyse cette image.", images }];
     updateConversation(id, (item) => ({ ...item, title: item.title === "Nouvelle discussion" ? text.slice(0, 38) + (text.length > 38 ? "…" : "") : item.title, messages: userMessages, updatedAt: Date.now() }));
     setInput(""); setPendingImages([]); setBusy(true); setActivityOpen(false);
+    requestAnimationFrame(() => {
+      const field = document.getElementById("message-input") as HTMLTextAreaElement | null;
+      if (field) { field.style.height = "38px"; field.scrollTop = 0; }
+    });
     setActivitySteps(["Message ajouté à la conversation", "Demande transmise au fournisseur IA"]);
     const controller = new AbortController(); requestControllerRef.current = controller;
     try {
@@ -454,7 +458,7 @@ export default function Home() {
                   <button type="button" role="menuitem" onClick={() => fileInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="file-text" /></span> Fichiers</button>
                 </div>}
               </div>
-            <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} onFocus={(event) => { window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" }), 80); }} placeholder="Écris un message à Zodi" rows={1} enterKeyHint="enter" aria-label="Message à Zodi" onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
+            <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} onInput={(event) => { const field = event.currentTarget; field.style.height = "auto"; field.style.height = `${Math.min(field.scrollHeight, 220)}px`; }} onFocus={(event) => { window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" }), 80); }} placeholder="Écris un message à Zodi" rows={1} enterKeyHint="enter" aria-label="Message à Zodi" onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
               <button className={`send-button ${busy ? "stop-generation-button" : ""}`} disabled={!busy && (!input.trim() && !pendingImages.length)} type={busy ? "button" : "submit"} onClick={busy ? stopGeneration : undefined} aria-label={busy ? "Arrêter la génération" : "Envoyer le message"} title={busy ? "Arrêter" : "Envoyer"}><Icon name={busy ? "stop" : "send"} size={18} /></button>
             </div>
           </form>
