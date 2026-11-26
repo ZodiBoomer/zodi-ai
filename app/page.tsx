@@ -36,7 +36,7 @@ function inlineMarkdown(text: string): ReactNode[] {
     if (part.startsWith(codeMark) && part.endsWith(codeMark)) return <code key={index}>{part.slice(1, -1)}</code>;
     if (part.startsWith("**") && part.endsWith("**")) return <strong key={index}>{part.slice(2, -2)}</strong>;
     if (part.startsWith("*") && part.endsWith("*")) return <em key={index}>{part.slice(1, -1)}</em>;
-    const link = /^\\[([^\\]]+)\\]\\((https?:\\/\\/[^)]+)\\)$/.exec(part);
+    const link = /^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/.exec(part);
     if (link) return <a key={index} href={link[2]} target="_blank" rel="noreferrer">{link[1]}</a>;
     return part;
   });
