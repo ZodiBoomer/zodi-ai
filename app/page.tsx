@@ -87,6 +87,10 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachMenuRef = useRef<HTMLDivElement>(null);
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [status, setStatus] = useState("Connexion au service…");
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -109,6 +113,17 @@ export default function Home() {
     setConversations(initial); setActiveId(initial[0].id);
   }, []);
   useEffect(() => { if (conversations.length) localStorage.setItem("zodi-conversations-v2", JSON.stringify(conversations)); }, [conversations]);
+  useEffect(() => {
+    if (!attachMenuOpen) return;
+    const close = (event: PointerEvent) => {
+      if (event.target instanceof Node && !attachMenuRef.current?.contains(event.target)) setAttachMenuOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setAttachMenuOpen(false); };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", onKey); };
+  }, [attachMenuOpen]);
+
   useEffect(() => {
     const viewport = window.visualViewport;
     if (!viewport) return;
@@ -211,6 +226,24 @@ export default function Home() {
     setPendingImages((current) => [...current, ...converted].slice(0, 4));
     if (imageInputRef.current) imageInputRef.current.value = "";
   }
+  async function addTextFiles(files: FileList | null) {
+    if (!files) return;
+    const accepted = Array.from(files);
+    const parts: string[] = [];
+    for (const file of accepted) {
+      if (!/\\.(txt|md|csv|json|log)$/i.test(file.name) && !["text/plain","text/markdown","text/csv","application/json"].includes(file.type)) {
+        setStatus(`Le fichier ${file.name} n'est pas encore pris en charge. Utilise TXT, MD, CSV ou JSON.`);
+        continue;
+      }
+      if (file.size > 500_000) { setStatus(`Le fichier ${file.name} dépasse la limite de 500 Ko.`); continue; }
+      try { parts.push(`[Fichier : ${file.name}]\\n${await file.text()}`); }
+      catch { setStatus(`Impossible de lire le fichier ${file.name}.`); }
+    }
+    if (parts.length) setInput((current) => [current, ...parts].filter(Boolean).join("\\n\\n"));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setAttachMenuOpen(false);
+  }
+
   async function copyMessage(content: string) {
     try { await navigator.clipboard.writeText(content); setStatus("Réponse copiée"); }
     catch { setStatus("Copie impossible depuis ce navigateur"); }
@@ -348,10 +381,22 @@ export default function Home() {
         <div className="composer-area">
           <form className="chat-composer" onSubmit={send}>
             <label className="sr-only" htmlFor="message-input">Message à Zodi</label>
-            <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={(event) => void addImages(event.target.files)} />
-            {pendingImages.length > 0 && <div style={{ display: "flex", gap: 8, padding: "8px 12px", flexWrap: "wrap" }}>{pendingImages.map((image, index) => <div key={index} style={{ position: "relative" }}><img src={image.dataUrl} alt={image.name} style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8 }} /><button type="button" aria-label="Retirer l'image" onClick={() => setPendingImages((all) => all.filter((_, i) => i !== index))} style={{ position: "absolute", right: -6, top: -6 }}>×</button></div>)}</div>}
-            <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} onInput={(event) => { const field = event.currentTarget; field.style.height = "auto"; field.style.height = `${Math.min(field.scrollHeight, 190)}px`; }} onFocus={(event) => { window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" }), 80); }} placeholder="Écris un message à Zodi" rows={1} aria-label="Message à Zodi" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
-            <div className="composer-actions"><button type="button" onClick={() => imageInputRef.current?.click()} disabled={busy || pendingImages.length >= 4} aria-label="Ajouter des photos" title="Ajouter des photos"><Icon name="image" /></button><button className="send-button" disabled={busy || (!input.trim() && !pendingImages.length)} type="submit" aria-label="Envoyer le message" title="Envoyer"><Icon name="send" size={18} /></button></div>
+            <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={fileInputRef} type="file" accept=".txt,.md,.csv,.json,.log,text/plain,text/markdown,text/csv,application/json" multiple hidden onChange={(event) => void addTextFiles(event.target.files)} />
+            {pendingImages.length > 0 && <div className="composer-attachments">{pendingImages.map((image, index) => <div className="composer-attachment" key={index}><img src={image.dataUrl} alt={image.name} /><button type="button" aria-label="Retirer l'image" onClick={() => setPendingImages((all) => all.filter((_, i) => i !== index))}>×</button></div>)}</div>}
+            <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} onInput={(event) => { const field = event.currentTarget; field.style.height = "auto"; field.style.height = `${Math.min(field.scrollHeight, 220)}px`; }} onFocus={(event) => { window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" }), 80); }} placeholder="Écris un message à Zodi" rows={1} aria-label="Message à Zodi" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
+            <div className="composer-actions">
+              <div className="attach-menu-wrap" ref={attachMenuRef}>
+                <button className="attach-plus" type="button" onClick={() => setAttachMenuOpen((open) => !open)} disabled={busy} aria-label="Ajouter des pièces jointes" aria-expanded={attachMenuOpen} title="Ajouter"><Icon name="plus" size={24} /></button>
+                {attachMenuOpen && <div className="attach-menu" role="menu">
+                  <button type="button" role="menuitem" onClick={() => cameraInputRef.current?.click()}><span className="attach-menu-icon">⌖</span> Appareil photo</button>
+                  <button type="button" role="menuitem" onClick={() => imageInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="image" /></span> Photos</button>
+                  <button type="button" role="menuitem" onClick={() => fileInputRef.current?.click()}><span className="attach-menu-icon">↥</span> Fichiers</button>
+                </div>}
+              </div>
+              <button className="send-button" disabled={busy || (!input.trim() && !pendingImages.length)} type="submit" aria-label="Envoyer le message" title="Envoyer"><Icon name="send" size={18} /></button>
+            </div>
           </form>
         </div>
       </section>
