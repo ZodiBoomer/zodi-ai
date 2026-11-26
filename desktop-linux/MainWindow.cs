@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Input.Platform;
 using Avalonia.Platform;
 
 namespace ZodiAI.Linux;
@@ -84,7 +85,7 @@ public sealed class MainWindow : Window
 
     private static void OpenExternal(Uri uri)
     {
-        if (uri.Scheme is not (Uri.UriSchemeHttps or Uri.UriSchemeHttp or Uri.UriSchemeMailto or "tel")) return;
+        if (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeMailto && uri.Scheme != "tel") return;
         try { Process.Start(new ProcessStartInfo(uri.ToString()) { UseShellExecute = true }); }
         catch { }
     }
