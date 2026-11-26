@@ -298,9 +298,7 @@ ${data.text}${data.truncated ? "
       }
     }
     if (parts.length) {
-      setInput((current) => [current, ...parts].filter(Boolean).join("
-
-"));
+      setInput((current) => [current, ...parts].filter(Boolean).join("\n\n"));
       setStatus(`${parts.length} fichier(s) lu(s) et ajouté(s) au message.`);
     }
     if (kind === "document" && fileInputRef.current) fileInputRef.current.value = "";
@@ -358,9 +356,7 @@ ${data.text}${data.truncated ? "
     if (frames.length) {
       const room = Math.max(0, 4 - pendingImages.length);
       setPendingImages((current) => [...current, ...frames.slice(0, room)]);
-      setInput((current) => [current, `Analyse les images extraites de la ou des vidéos jointes. Les images sont des échantillons visuels, pas une lecture continue.`].filter(Boolean).join("
-
-"));
+      setInput((current) => [current, `Analyse les images extraites de la ou des vidéos jointes. Les images sont des échantillons visuels, pas une lecture continue.`].filter(Boolean).join("\n\n"));
       setStatus(`${Math.min(frames.length, room)} image(s) extraite(s). L'audio des vidéos n'est pas encore transcrit.`);
     }
     if (videoInputRef.current) videoInputRef.current.value = "";
