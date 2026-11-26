@@ -42,7 +42,7 @@ async function extractZipText(buffer: Buffer, ext: string) {
     const result = await mammoth.extractRawText({ buffer });
     return result.value;
   }
-  if (["xlsx","xlsm","xlsb","ods"].includes(ext)) {
+  if (["xls","xlsx","xlsm","xlsb","ods"].includes(ext)) {
     const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
     for (const sheetName of workbook.SheetNames) {
       parts.push("Feuille : " + sheetName + "\n" + XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]));
@@ -132,10 +132,10 @@ export async function POST(request: Request) {
     } else if (["docx","xlsx","xlsm","xlsb","ods","pptx","odp","odt","zip"].includes(ext)) {
       extracted = await extractZipText(Buffer.from(await file.arrayBuffer()), ext);
       kind = ext.toUpperCase();
-    } else if (["mp3","wav","m4a","ogg","flac","mp4","mpeg","mpga","webm"].includes(ext) || file.type.startsWith("audio/")) {
+    } else if (["mp3","wav","m4a","ogg","flac","mpeg","mpga"].includes(ext) || file.type.startsWith("audio/")) {
       extracted = await transcribeAudio(file);
       kind = "transcription audio";
-    } else if (["doc","xls","ppt","rar","7z","exe","apk","iso","dmg","bin"].includes(ext)) {
+    } else if (["mp4","mov","webm","avi","mkv","mpeg","mpg"].includes(ext) || file.type.startsWith("video/")) {\n      throw new Error("Pour une vidéo, ZODIX doit encore extraire les images et la piste audio séparément. Ce lecteur vidéo sera ajouté dans une prochaine étape.");\n    } else if (["doc","ppt","rar","7z","exe","apk","iso","dmg","bin"].includes(ext)) {
       throw new Error("Ce format binaire n’est pas encore pris en charge par le lecteur intégré.");
     } else {
       throw new Error("Format non reconnu ou non pris en charge : ." + (ext || "inconnu"));
