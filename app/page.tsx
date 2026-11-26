@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 
 type ImageAttachment = { dataUrl: string; mimeType: "image/jpeg" | "image/png" | "image/webp"; name: string };
 type Message = { role: "user" | "assistant"; content: string; images?: ImageAttachment[] };
@@ -9,6 +10,53 @@ type Health = { ok?: boolean; aiConfigured?: boolean; provider?: string; provide
 const BUILD_ID = process.env.NEXT_PUBLIC_ZODI_BUILD_ID ?? "local";
 const welcome = (): Message[] => [{ role: "assistant", content: "Salut ! Je suis Zodi. Comment puis-je t'aider aujourd'hui ?" }];
 const createConversation = (): Conversation => ({ id: crypto.randomUUID(), title: "Nouvelle discussion", messages: welcome(), updatedAt: Date.now() });
+
+
+type IconName = "menu" | "plus" | "edit" | "trash" | "refresh" | "copy" | "share" | "image" | "send" | "sparkles";
+function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
+  const paths: Record<IconName, ReactNode> = {
+    menu: <path d="M4 6h16M4 12h16M4 18h16" />,
+    plus: <path d="M12 5v14M5 12h14" />,
+    edit: <><path d="m15 5 4 4M4 20l4.5-1 10.8-10.8a2.1 2.1 0 0 0-3-3L5.5 16 4 20Z" /></>,
+    trash: <><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></>,
+    refresh: <><path d="M20 7v5h-5M4 17v-5h5" /><path d="M5.5 9A7 7 0 0 1 18 6l2 6M4 12l2 6a7 7 0 0 0 12.5-3" /></>,
+    copy: <><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" /></>,
+    share: <><path d="M12 16V4M7 9l5-5 5 5" /><path d="M5 13v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6" /></>,
+    image: <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8.5" cy="9" r="1.5" /><path d="m21 15-5-5L5 20" /></>,
+    send: <><path d="m5 12 14-7-4 14-3-6-7-1Z" /><path d="m12 13 7-8" /></>,
+    sparkles: <><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" /><path d="m19 14 .9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14Z" /></>
+  };
+  return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
+}
+
+function inlineMarkdown(text: string): ReactNode[] {
+  const token = /(\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\(https?:\/\/[^)]+\))/g;
+  return text.split(token).filter(Boolean).map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) return <strong key={index}>{part.slice(2, -2)}</strong>;
+    if (part.startsWith("*") && part.endsWith("*")) return <em key={index}>{part.slice(1, -1)}</em>;
+    const link = /^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/.exec(part);
+    if (link) return <a key={index} href={link[2]} target="_blank" rel="noreferrer">{link[1]}</a>;
+    return part;
+  });
+}
+
+function AssistantContent({ content }: { content: string }) {
+  const blocks = content.trim().split(/\n\s*\n/).filter(Boolean);
+  return <div className="rich-content">{blocks.map((block, index) => {
+    const lines = block.split("\n");
+    if (block.startsWith("~~~")) return <pre key={index}><code>{lines.slice(1, lines.at(-1)?.startsWith("~~~") ? -1 : undefined).join("\n")}</code></pre>;
+    const heading = /^(#{1,3})\s+(.+)$/.exec(lines[0]);
+    if (heading) {
+      if (heading[1].length === 1) return <h2 key={index}>{inlineMarkdown(heading[2])}</h2>;
+      if (heading[1].length === 2) return <h3 key={index}>{inlineMarkdown(heading[2])}</h3>;
+      return <h4 key={index}>{inlineMarkdown(heading[2])}</h4>;
+    }
+    if (lines.every((line) => /^\s*[-*]\s+/.test(line))) return <ul key={index}>{lines.map((line, i) => <li key={i}>{inlineMarkdown(line.replace(/^\s*[-*]\s+/, ""))}</li>)}</ul>;
+    if (lines.every((line) => /^\s*\d+[.)]\s+/.test(line))) return <ol key={index}>{lines.map((line, i) => <li key={i}>{inlineMarkdown(line.replace(/^\s*\d+[.)]\s+/, ""))}</li>)}</ol>;
+    if (lines.every((line) => line.startsWith(">"))) return <blockquote key={index}>{inlineMarkdown(lines.map((line) => line.replace(/^>\s?/, "")).join(" "))}</blockquote>;
+    return <p key={index}>{inlineMarkdown(block.replace(/\n/g, " "))}</p>;
+  })}</div>;
+}
 
 export default function Home() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -197,10 +245,10 @@ export default function Home() {
     <main className={`chatgpt-shell ${sidebarOpen ? "" : "sidebar-collapsed"}`}>
       <aside className="sidebar">
         <div className="sidebar-top">
-          <button className="icon-button" type="button" onClick={() => setSidebarOpen(false)} aria-label="Réduire le menu" title="Réduire le menu">☰</button>
-          <button className="icon-button" type="button" onClick={startNewChat} aria-label="Nouvelle discussion" title="Nouvelle discussion">＋</button>
+          <button className="icon-button" type="button" onClick={() => setSidebarOpen(false)} aria-label="Réduire le menu" title="Réduire le menu"><Icon name="menu" /></button>
+          <button className="icon-button" type="button" onClick={startNewChat} aria-label="Nouvelle discussion" title="Nouvelle discussion"><Icon name="plus" /></button>
         </div>
-        <button className="new-chat-button" type="button" onClick={startNewChat}>＋　Nouvelle discussion</button>
+        <button className="new-chat-button" type="button" onClick={startNewChat}><Icon name="plus" size={16} /> Nouvelle discussion</button>
         <input className="history-search" type="search" value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="Rechercher une conversation…" aria-label="Rechercher dans l'historique" />
         <nav className="conversation-list" aria-label="Historique des conversations">
           {visibleConversations.length ? visibleConversations.map((item) => <button key={item.id} type="button" className={`conversation-item ${item.id === activeId ? "active" : ""}`} onClick={() => setActiveId(item.id)} title={item.title}><span>◌</span><span className="conversation-title">{item.title}</span></button>) : <p className="history-empty">Aucune conversation trouvée.</p>}
@@ -210,9 +258,9 @@ export default function Home() {
       <section className="main-chat">
         <header className="chat-topbar">
           <div className="topbar-left">
-            <button className="icon-button" type="button" onClick={() => setSidebarOpen((open) => !open)} aria-label="Ouvrir ou fermer le menu" title="Menu">☰</button>
+            <button className="icon-button" type="button" onClick={() => setSidebarOpen((open) => !open)} aria-label="Ouvrir ou fermer le menu" title="Menu"><Icon name="menu" /></button>
           </div>
-          <div className="topbar-right"><span className={`connection-label ${statusTone}`} title={status}><i />{ready ? "En ligne" : "Connexion…"}</span><button className="icon-button" type="button" onClick={renameActiveChat} disabled={!active || busy} title="Renommer la conversation" aria-label="Renommer la conversation">✎</button><button className="icon-button" type="button" onClick={deleteActiveChat} disabled={!active || busy} title="Supprimer la conversation" aria-label="Supprimer la conversation">⌫</button><button className="icon-button" type="button" onClick={() => void checkForUpdates(true)} disabled={checkingUpdate} title={updateStatus} aria-label={updateStatus}>↻</button></div>
+          <div className="topbar-right"><span className={`connection-label ${statusTone}`} title={status}><i />{ready ? "En ligne" : "Connexion…"}</span><button className="icon-button" type="button" onClick={renameActiveChat} disabled={!active || busy} title="Renommer la conversation" aria-label="Renommer la conversation"><Icon name="edit" /></button><button className="icon-button" type="button" onClick={deleteActiveChat} disabled={!active || busy} title="Supprimer la conversation" aria-label="Supprimer la conversation"><Icon name="trash" /></button><button className="icon-button" type="button" onClick={() => void checkForUpdates(true)} disabled={checkingUpdate} title={updateStatus} aria-label={updateStatus}><Icon name="refresh" /></button></div>
         </header>
         <div className="conversation-viewport">
           <div className={`messages-container ${messages.length <= 1 ? "welcome-state" : ""}`}>
@@ -230,12 +278,17 @@ export default function Home() {
                 <div className="message-body">
                   <div className={`message-content ${message.role}`}>
                     {message.images?.length ? <div className="message-images">{message.images.map((image, imageIndex) => <img key={imageIndex} src={image.dataUrl} alt={image.name || "Image jointe"} />)}</div> : null}
-                    {message.content}
+                    {message.role === "assistant" ? <AssistantContent content={message.content} /> : message.content}
                   </div>
                   {message.role === "assistant" && index > 0 && <div className="message-actions" aria-label="Actions sur la réponse">
-                    <button type="button" onClick={() => void copyMessage(message.content)} title="Copier la réponse" aria-label="Copier la réponse">▢</button>
-                    <button type="button" onClick={() => void regenerate(index)} disabled={busy} title="Régénérer la réponse" aria-label="Régénérer la réponse">↻</button>
-                    <button type="button" onClick={() => void shareMessage(message.content)} title="Partager la réponse" aria-label="Partager la réponse">↗</button>
+                    <button type="button" onClick={() => void copyMessage(message.content)} title="Copier la réponse" aria-label="Copier la réponse"><Icon name="copy" size={15} /></button>
+                    <button type="button" onClick={() => void regenerate(index)} disabled={busy} title="Régénérer la réponse" aria-label="Régénérer la réponse"><Icon name="refresh" size={15} /></button>
+                    <button type="button" onClick={() => void shareMessage(message.content)} title="Partager la réponse" aria-label="Partager la réponse"><Icon name="share" size={15} /></button>
+                  </div>}
+                  {message.role === "assistant" && index > 0 && <div className="response-prompts" aria-label="Suggestions de suivi">
+                    <button type="button" onClick={() => { setInput("Peux-tu approfondir ta réponse précédente ?"); document.getElementById("message-input")?.focus(); }}><Icon name="sparkles" size={13} /> Approfondir</button>
+                    <button type="button" onClick={() => { setInput("Donne-moi un exemple concret de ta réponse précédente."); document.getElementById("message-input")?.focus(); }}>Exemple</button>
+                    <button type="button" onClick={() => { setInput("Résume ta réponse précédente en quelques points."); document.getElementById("message-input")?.focus(); }}>Résumé</button>
                   </div>}
                 </div>
               </article>)}
@@ -250,7 +303,7 @@ export default function Home() {
             <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={(event) => void addImages(event.target.files)} />
             {pendingImages.length > 0 && <div style={{ display: "flex", gap: 8, padding: "8px 12px", flexWrap: "wrap" }}>{pendingImages.map((image, index) => <div key={index} style={{ position: "relative" }}><img src={image.dataUrl} alt={image.name} style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8 }} /><button type="button" aria-label="Retirer l'image" onClick={() => setPendingImages((all) => all.filter((_, i) => i !== index))} style={{ position: "absolute", right: -6, top: -6 }}>×</button></div>)}</div>}
             <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} onInput={(event) => { const field = event.currentTarget; field.style.height = "auto"; field.style.height = `${Math.min(field.scrollHeight, 190)}px`; }} onFocus={(event) => { window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" }), 80); }} placeholder="Écris un message à Zodi" rows={1} aria-label="Message à Zodi" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
-            <div className="composer-actions"><button type="button" onClick={() => imageInputRef.current?.click()} disabled={busy || pendingImages.length >= 4} aria-label="Ajouter des photos" title="Ajouter des photos">＋</button><button className="send-button" disabled={busy || (!input.trim() && !pendingImages.length)} type="submit" aria-label="Envoyer le message" title="Envoyer">↑</button></div>
+            <div className="composer-actions"><button type="button" onClick={() => imageInputRef.current?.click()} disabled={busy || pendingImages.length >= 4} aria-label="Ajouter des photos" title="Ajouter des photos"><Icon name="image" /></button><button className="send-button" disabled={busy || (!input.trim() && !pendingImages.length)} type="submit" aria-label="Envoyer le message" title="Envoyer"><Icon name="send" size={18} /></button></div>
           </form>
         </div>
       </section>
