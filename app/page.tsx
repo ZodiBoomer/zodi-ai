@@ -46,6 +46,23 @@ function inlineMarkdown(text: string): ReactNode[] {
   });
 }
 
+function InteractiveTaskList({ items, mode = "multiple" }: { items: string[]; mode?: "multiple" | "single" }) {
+  const [selected, setSelected] = useState<boolean[]>(() => items.map(() => false));
+  return <ul className={`interactive-choice-list ${mode === "single" ? "single-choice-list" : ""}`}>
+    {items.map((item, index) => <li key={index}>
+      <label>
+        <input
+          type={mode === "single" ? "radio" : "checkbox"}
+          name={mode === "single" ? `zodi-choice-${items.join("|")}` : undefined}
+          checked={selected[index]}
+          onChange={() => setSelected((current) => mode === "single" ? current.map((_, i) => i === index) : current.map((value, i) => i === index ? !value : value))}
+        />
+        <span>{inlineMarkdown(item.replace(/^\\s*[-*]\\s+\\[[ xX]\\]\\s+/, "").replace(/^\\s*[-*]\\s+\\(\\s*\\)\\s+/, ""))}</span>
+      </label>
+    </li>)}
+  </ul>;
+}
+
 function AssistantContent({ content }: { content: string }) {
   const fence = String.fromCharCode(96).repeat(3);
   const blocks: Array<{ kind: "text" | "code"; value: string }> = [];
@@ -53,11 +70,11 @@ function AssistantContent({ content }: { content: string }) {
   let codeBuffer: string[] = [];
   let inCode = false;
   const flushText = () => {
-    if (buffer.length) { blocks.push({ kind: "text", value: buffer.join("\n") }); buffer = []; }
+    if (buffer.length) { blocks.push({ kind: "text", value: buffer.join("\\n") }); buffer = []; }
   };
-  for (const line of content.split("\n")) {
+  for (const line of content.split("\\n")) {
     if (line.trimStart().startsWith(fence)) {
-      if (inCode) { blocks.push({ kind: "code", value: codeBuffer.join("\n") }); codeBuffer = []; inCode = false; }
+      if (inCode) { blocks.push({ kind: "code", value: codeBuffer.join("\\n") }); codeBuffer = []; inCode = false; }
       else { flushText(); inCode = true; }
       continue;
     }
@@ -65,25 +82,36 @@ function AssistantContent({ content }: { content: string }) {
     else if (!line.trim()) flushText();
     else buffer.push(line);
   }
-  if (inCode) blocks.push({ kind: "code", value: codeBuffer.join("\n") });
+  if (inCode) blocks.push({ kind: "code", value: codeBuffer.join("\\n") });
   else flushText();
 
   return <div className="rich-content">{blocks.map((item, index) => {
     if (item.kind === "code") return <pre key={index}><code>{item.value}</code></pre>;
-    const lines = item.value.split("\n");
-    const heading = /^(#{1,3})\s+(.+)$/.exec(lines[0]);
-    if (heading) {
-      if (heading[1].length === 1) return <h2 key={index}>{inlineMarkdown(heading[2])}</h2>;
-      if (heading[1].length === 2) return <h3 key={index}>{inlineMarkdown(heading[2])}</h3>;
-      return <h4 key={index}>{inlineMarkdown(heading[2])}</h4>;
+    const lines = item.value.split("\\n");
+    const trimmed = item.value.trim();
+    const status = /^\\[!?((?:SUCCESS|ERROR|WARNING|INFO|NEUTRAL))\\]\\s*:?[ \\t]*(.*)$/i.exec(trimmed);
+    if (status) {
+      const tone = status[1].toLowerCase();
+      const labels: Record<string, string> = { success: "Validé", error: "Erreur", warning: "À vérifier", info: "Information", neutral: "Neutre" };
+      return <div key={index} className={`status-card status-${tone}`} role="status">
+        <span className="status-square" aria-hidden="true" />
+        <div className="status-card-content"><span className="status-label">{labels[tone]}</span><div>{inlineMarkdown(status[2] || labels[tone])}</div></div>
+      </div>;
     }
-    if (lines.every((line) => /^\s*[-*]\s+/.test(line))) return <ul key={index}>{lines.map((line, i) => <li key={i}>{inlineMarkdown(line.replace(/^\s*[-*]\s+/, ""))}</li>)}</ul>;
-    if (lines.every((line) => /^\s*\d+[.)]\s+/.test(line))) return <ol key={index}>{lines.map((line, i) => <li key={i}>{inlineMarkdown(line.replace(/^\s*\d+[.)]\s+/, ""))}</li>)}</ol>;
-    if (lines.every((line) => line.startsWith(">"))) return <blockquote key={index}>{inlineMarkdown(lines.map((line) => line.replace(/^>\s?/, "")).join(" "))}</blockquote>;
-    return <p key={index}>{inlineMarkdown(item.value.replace(/\n/g, " "))}</p>;
+    const heading = /^(#{1,3})\\s+(.+)$/.exec(lines[0]);
+    if (heading) {
+      const rest = lines.slice(1).join(" ").trim();
+      const HeadingTag = heading[1].length === 1 ? "h2" : heading[1].length === 2 ? "h3" : "h4";
+      return <div key={index} className="rich-heading-block"><HeadingTag>{inlineMarkdown(heading[2])}</HeadingTag>{rest ? <p>{inlineMarkdown(rest)}</p> : null}</div>;
+    }
+    if (lines.every((line) => /^\\s*[-*]\\s+\\[[ xX]\\]\\s+/.test(line))) return <InteractiveTaskList key={index} items={lines} />;
+    if (lines.every((line) => /^\\s*[-*]\\s+\\(\\s*\\)\\s+/.test(line))) return <InteractiveTaskList key={index} mode="single" items={lines} />;
+    if (lines.every((line) => /^\\s*[-*]\\s+/.test(line))) return <ul key={index}>{lines.map((line, i) => <li key={i}>{inlineMarkdown(line.replace(/^\\s*[-*]\\s+/, ""))}</li>)}</ul>;
+    if (lines.every((line) => /^\\s*\\d+[.)]\\s+/.test(line))) return <ol key={index}>{lines.map((line, i) => <li key={i}>{inlineMarkdown(line.replace(/^\\s*\\d+[.)]\\s+/, ""))}</li>)}</ol>;
+    if (lines.every((line) => line.startsWith(">"))) return <blockquote key={index}>{inlineMarkdown(lines.map((line) => line.replace(/^>\\s?/, "")).join(" "))}</blockquote>;
+    return <p key={index}>{inlineMarkdown(item.value.replace(/\\n/g, " "))}</p>;
   })}</div>;
 }
-
 export default function Home() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState("");
