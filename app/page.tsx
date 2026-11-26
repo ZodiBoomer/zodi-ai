@@ -109,6 +109,7 @@ export default function Home() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const active = conversations.find((item) => item.id === activeId);
   const messages = active?.messages ?? [];
+  const latestAssistantIndex = messages.reduce((latest, message, index) => message.role === "assistant" ? index : latest, -1);
   const visibleConversations = conversations.filter((item) => item.title.toLowerCase().includes(historyQuery.trim().toLowerCase()) || item.messages.some((message) => message.content.toLowerCase().includes(historyQuery.trim().toLowerCase())));
   const statusTone = /échec|impossible|erreur|indisponible/i.test(status) ? "danger" : ready ? "success" : /vérification|recherche/i.test(status) ? "info" : "warning";
 
@@ -379,7 +380,7 @@ export default function Home() {
               </div>
             </div> : <div className="message-stack">
               {messages.map((message, index) => <article className={`message-row ${message.role}`} key={index}>
-                
+                {index === latestAssistantIndex && activitySteps.length > 0 && <div className="activity-inline activity-before-reply" role="status" aria-live="polite"><span className="thinking-orb" /><button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>Historique de réflexion <span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button>{activityOpen && <ul className="activity-list">{activitySteps.map((step, stepIndex) => <li key={`${stepIndex}-${step}`}>{step}</li>)}</ul>}</div>}
                 <div className="message-body">
                   {message.images?.length ? <div className={`message-images ${message.role}`} aria-label="Images envoyées">{message.images.map((image, imageIndex) => <img key={imageIndex} src={image.dataUrl} alt={image.name || "Image jointe"} />)}</div> : null}
                   <div className={`message-content ${message.role}`}>
@@ -397,7 +398,7 @@ export default function Home() {
                   </div>}
                 </div>
               </article>)}
-              {(busy || activitySteps.length > 0) && <div className="message-row assistant"><div className="activity-inline" role="status" aria-live="polite">{busy && <span className="thinking-orb" />}<button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>{busy ? "Zodi travaille" : "Activité de Zodi"}<span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button>{busy && <span className="activity-live">En cours</span>}{activityOpen && <ul className="activity-list">{activitySteps.map((step, index) => <li key={`${index}-${step}`}>{step}</li>)}</ul>}</div></div>}
+              {busy && latestAssistantIndex === -1 && <div className="message-row assistant"><div className="activity-inline" role="status" aria-live="polite"><span className="thinking-orb" /><button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>Zodi travaille <span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button><span className="activity-live">En cours</span>{activityOpen && <ul className="activity-list">{activitySteps.map((step, index) => <li key={`${index}-${step}`}>{step}</li>)}</ul>}</div></div>}
               <div ref={chatEndRef} />
             </div>}
           </div>
