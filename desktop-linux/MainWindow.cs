@@ -84,7 +84,7 @@ public sealed class MainWindow : Window
 
     private static void OpenExternal(Uri uri)
     {
-        if (uri.Scheme is not (Uri.UriSchemeHttps or Uri.UriSchemeHttp or Uri.UriSchemeMailto or Uri.UriSchemeTel)) return;
+        if (uri.Scheme is not (Uri.UriSchemeHttps or Uri.UriSchemeHttp or Uri.UriSchemeMailto or "tel")) return;
         try { Process.Start(new ProcessStartInfo(uri.ToString()) { UseShellExecute = true }); }
         catch { }
     }
