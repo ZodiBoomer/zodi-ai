@@ -1,200 +1,34 @@
-/* ZODIX responsive layout: reserve OS insets instead of drawing under system bars. */
-html,
-body {
-  width: 100%;
-  min-width: 0;
-  min-height: 100%;
-  overflow: hidden;
+/* Responsive ZODIX layout and official logo */
+html, body { width:100%; min-width:0; min-height:100%; overflow:hidden; }
+.chatgpt-shell { width:100%; height:100vh; height:100dvh; min-height:0; box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-left:env(safe-area-inset-left,0px); padding-right:env(safe-area-inset-right,0px); overflow:hidden; }
+.main-chat { width:100%; height:100%; min-width:0; min-height:0; overflow:hidden; }
+.chat-topbar,.topbar-left,.topbar-right { min-width:0; }
+.topbar-brand { display:inline-flex; align-items:center; gap:9px; min-width:0; white-space:nowrap; }
+.topbar-brand::before { content:""; display:inline-block; flex:0 0 30px; width:30px; height:30px; border-radius:9px; background:#080d2c url("/zodix-logo.jpg") center/cover no-repeat; box-shadow:0 0 12px rgba(37,99,235,.28); }
+@media(max-width:720px) {
+ .chatgpt-shell { height:var(--zodi-visual-height,100dvh); min-height:0; padding-top:env(safe-area-inset-top,0px); padding-left:env(safe-area-inset-left,0px); padding-right:env(safe-area-inset-right,0px); }
+ .main-chat { height:100%; min-height:0; max-height:100%; }
+ .chat-topbar { flex:0 0 52px; height:52px; padding-inline:clamp(5px,2vw,12px); gap:3px; }
+ .topbar-left,.topbar-right { gap:clamp(1px,.7vw,5px); }
+ .topbar-brand { gap:6px; font-size:14px; }
+ .topbar-brand::before { flex-basis:27px; width:27px; height:27px; border-radius:8px; }
+ .conversation-viewport { min-width:0; min-height:0; overflow-x:hidden; }
+ .messages-container,.message-stack,.message-entry,.message-row,.message-body,.message-content,.rich-content { min-width:0; max-width:100%; }
+ .message-row.user .message-body { max-width:min(90%,760px); }
+ .composer-area { flex:0 0 auto; width:100%; padding-bottom:max(10px,env(safe-area-inset-bottom,0px)); }
 }
-
-.chatgpt-shell {
-  width: 100%;
-  height: 100vh;
-  height: 100dvh;
-  min-height: 0;
-  box-sizing: border-box;
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-left: env(safe-area-inset-left, 0px);
-  padding-right: env(safe-area-inset-right, 0px);
-  overflow: hidden;
+@media(max-width:420px) {
+ .chat-topbar { padding-inline:4px; }
+ .topbar-left,.topbar-right { gap:0; }
+ .topbar-left .icon-button,.topbar-right .icon-button { width:31px; min-width:31px; flex:0 0 31px; }
+ .topbar-brand { gap:5px; font-size:13px; }
+ .topbar-brand::before { flex-basis:25px; width:25px; height:25px; }
+ .update-button { width:32px; min-width:32px; height:32px; padding:0; gap:0; flex:0 0 32px; }
+ .update-button span { display:none; }
+ .messages-container { padding-inline:10px; }
+ .composer-area { padding-inline:7px; }
 }
-
-.main-chat {
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.chat-topbar,
-.topbar-left,
-.topbar-right {
-  min-width: 0;
-}
-
-.topbar-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-  white-space: nowrap;
-}
-
-.topbar-brand::before {
-  content: "";
-  display: inline-block;
-  flex: 0 0 30px;
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  background: #080d2c url("/icon.svg") center / cover no-repeat;
-  box-shadow: 0 0 12px rgba(37, 99, 235, .28);
-}
-
-@media (max-width: 720px) {
-  .chatgpt-shell {
-    height: var(--zodi-visual-height, 100dvh);
-    min-height: 0;
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-left: env(safe-area-inset-left, 0px);
-    padding-right: env(safe-area-inset-right, 0px);
-  }
-
-  .main-chat {
-    height: 100%;
-    min-height: 0;
-    max-height: 100%;
-  }
-
-  .chat-topbar {
-    flex: 0 0 52px;
-    height: 52px;
-    padding-inline: clamp(5px, 2vw, 12px);
-    gap: 3px;
-  }
-
-  .topbar-left,
-  .topbar-right {
-    gap: clamp(1px, .7vw, 5px);
-  }
-
-  .topbar-brand {
-    gap: 6px;
-    font-size: 14px;
-  }
-
-  .topbar-brand::before {
-    flex-basis: 27px;
-    width: 27px;
-    height: 27px;
-    border-radius: 8px;
-  }
-
-  .conversation-viewport {
-    min-width: 0;
-    min-height: 0;
-    overflow-x: hidden;
-  }
-
-  .messages-container,
-  .message-stack,
-  .message-entry,
-  .message-row,
-  .message-body,
-  .message-content,
-  .rich-content {
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  .message-row.user .message-body {
-    max-width: min(90%, 760px);
-  }
-
-  .composer-area {
-    flex: 0 0 auto;
-    width: 100%;
-    padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
-  }
-}
-
-@media (max-width: 420px) {
-  .chat-topbar {
-    padding-inline: 4px;
-  }
-
-  .topbar-left,
-  .topbar-right {
-    gap: 0;
-  }
-
-  .topbar-left .icon-button,
-  .topbar-right .icon-button {
-    width: 31px;
-    min-width: 31px;
-    flex: 0 0 31px;
-  }
-
-  .topbar-brand {
-    gap: 5px;
-    font-size: 13px;
-  }
-
-  .topbar-brand::before {
-    flex-basis: 25px;
-    width: 25px;
-    height: 25px;
-  }
-
-  .update-button {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    padding: 0;
-    gap: 0;
-    flex: 0 0 32px;
-  }
-
-  .update-button span {
-    display: none;
-  }
-
-  .messages-container {
-    padding-inline: 10px;
-  }
-
-  .composer-area {
-    padding-inline: 7px;
-  }
-}
-
-/* Long content stays inside the conversation viewport. */
-.rich-content img,
-.message-images img {
-  max-width: 100%;
-  height: auto;
-}
-
-.rich-content table {
-  display: block;
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-.rich-content pre,
-.rich-content code {
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-@media (max-height: 520px) and (max-width: 900px) {
-  .chatgpt-shell {
-    height: 100dvh;
-    padding-top: env(safe-area-inset-top, 0px);
-  }
-  .chat-topbar {
-    flex-basis: 44px;
-    height: 44px;
-  }
-}
+.rich-content img,.message-images img { max-width:100%; height:auto; }
+.rich-content table { display:block; max-width:100%; overflow-x:auto; }
+.rich-content pre,.rich-content code { max-width:100%; overflow-x:auto; }
+@media(max-height:520px) and (max-width:900px) { .chatgpt-shell { height:100dvh; padding-top:env(safe-area-inset-top,0px); } .chat-topbar { flex-basis:44px; height:44px; } }

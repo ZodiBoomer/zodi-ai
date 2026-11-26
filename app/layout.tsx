@@ -7,9 +7,10 @@ export const metadata: Metadata = {
   description: "Le noyau de ton assistant personnel.",
   applicationName: "ZODIX",
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/apple-icon.svg", type: "image/svg+xml" }]
-  }
+    icon: [{ url: "/zodix-logo.jpg", type: "image/jpeg" }],
+    apple: [{ url: "/zodix-logo.jpg", type: "image/jpeg" }]
+  },
+  manifest: "/manifest.webmanifest"
 };
 
 export const viewport: Viewport = {
