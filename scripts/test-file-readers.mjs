@@ -12,7 +12,9 @@ const require = createRequire(import.meta.url);
 const WordExtractor = require("word-extractor");
 
 async function officeText(buffer, fileType) {
-  const ast = await OfficeParser.parseOffice(buffer, { fileType, extractAttachments: true, ocr: false });
+  const config = { extractAttachments: true, ocr: false };
+  if (fileType === "tex") config.fileType = "tex";
+  const ast = await OfficeParser.parseOffice(buffer, config);
   const result = await ast.to("text", { includeImages: "ocr-text-only" });
   return String(result.value ?? "");
 }
