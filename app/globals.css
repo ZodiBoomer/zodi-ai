@@ -834,3 +834,66 @@ button:focus-visible,textarea:focus-visible,input:focus-visible,select:focus-vis
   .message-stack{gap:15px}
   .composer-area{padding-top:4px;padding-bottom:max(5px,env(safe-area-inset-bottom))}
 }
+
+
+/* ChatGPT-style conversation ergonomics, adapted to ZODIX branding. */
+:root{
+  --zodix-content-width:768px;
+  --zodix-reading-size:16px;
+  --zodix-reading-leading:1.75;
+  --zodix-composer-radius:26px;
+}
+.chat-topbar{
+  min-height:56px;
+  flex:0 0 56px;
+  backdrop-filter:blur(16px);
+}
+.messages-container{
+  width:min(100%,var(--zodix-content-width));
+  margin-inline:auto;
+}
+.message-stack{gap:28px}
+.message-row{align-items:flex-start}
+.message-row.user .message-body{
+  max-width:min(82%,680px);
+  padding:12px 17px;
+  border-radius:22px;
+}
+.message-content,.rich-content{
+  font-size:var(--zodix-reading-size);
+  line-height:var(--zodix-reading-leading);
+  letter-spacing:0;
+}
+.rich-content p{margin-block:0 14px}
+.rich-content p:last-child{margin-bottom:0}
+.rich-content ul,.rich-content ol{margin-block:10px 16px}
+.rich-content li{padding-left:2px;margin-block:6px}
+.rich-content pre{border-radius:16px}
+.chat-composer{
+  max-width:var(--zodix-content-width);
+  border-radius:var(--zodix-composer-radius);
+  box-shadow:0 8px 30px rgba(0,0,0,.18);
+}
+.chat-composer:focus-within{
+  outline:1px solid rgba(160,160,180,.28);
+  box-shadow:0 8px 32px rgba(0,0,0,.22),0 0 0 3px rgba(140,120,255,.08);
+}
+.message-actions button,.icon-button,.send-button{
+  transition:background-color .16s ease,border-color .16s ease,transform .16s ease;
+}
+.message-actions button:active,.icon-button:active,.send-button:active{transform:scale(.96)}
+button:focus-visible,a:focus-visible,[role="button"]:focus-visible{
+  outline:2px solid rgba(167,139,250,.9);
+  outline-offset:3px;
+}
+@media(max-width:720px){
+  :root{--zodix-reading-size:16px;--zodix-reading-leading:1.72;--zodix-composer-radius:25px}
+  .chat-topbar{min-height:56px;flex-basis:56px}
+  .messages-container{width:100%;padding-inline:16px}
+  .message-stack{gap:24px}
+  .message-row.user .message-body{max-width:90%;padding:11px 15px}
+  .chat-composer{max-width:none}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
