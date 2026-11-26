@@ -278,6 +278,21 @@ export default function Home() {
     if (!files?.length) return;
     const selected = Array.from(files);
     const parts: string[] = [];
+    const maxPromptCharacters = Math.max(0, 30_000 - input.length);
+    let extractedCharacters = 0;
+    const addPart = (part: string) => {
+      const remaining = maxPromptCharacters - extractedCharacters;
+      if (remaining <= 0) return false;
+      if (part.length > remaining) {
+        const marker = "\\n[Contenu tronqué pour respecter la limite du message.]";
+        parts.push(part.slice(0, Math.max(0, remaining - marker.length)) + marker);
+        extractedCharacters = maxPromptCharacters;
+        return false;
+      }
+      parts.push(part);
+      extractedCharacters += part.length;
+      return true;
+    };
     const archiveExtensions = /\.(rar|7z|tar|tgz|gz|bz2|xz)$/i;
     const readableExtensions = new Set([
       "pdf","doc","docx","docm","dotx","dotm","rtf","odt","epub","tex",
@@ -331,7 +346,7 @@ ${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de 
               const innerFile = await item.entry.extract();
               extractedBytes += innerFile.size;
               if (extractedBytes > 4 * 1024 * 1024) throw new Error("Le contenu extrait de l’archive dépasse 4 Mo.");
-              parts.push(await readFileForPrompt(innerFile, `${file.name} → ${item.path}`));
+              if (!addPart(await readFileForPrompt(innerFile, `${file.name} → ${item.path}`))) break;
               extractedCount += 1;
               if (extractedCount >= 25) break;
             }
@@ -342,7 +357,7 @@ ${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de 
           }
           continue;
         }
-        parts.push(await readFileForPrompt(file));
+        addPart(await readFileForPrompt(file));
       } catch (error) {
         setStatus(`${file.name} : ${error instanceof Error ? error.message : "lecture impossible"}`);
       }
