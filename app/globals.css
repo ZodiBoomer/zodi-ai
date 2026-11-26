@@ -693,3 +693,18 @@ body{min-height:0}
 .update-button:hover:not(:disabled){background:linear-gradient(135deg,rgba(37,99,235,.34),rgba(37,99,235,.16));border-color:#60a5fa;color:#fff}
 .update-button:disabled{opacity:.65;cursor:wait}
 @media(max-width:380px){.update-button{gap:5px;padding:0 7px;font-size:11px;min-height:32px}.update-button svg{width:14px;height:14px}}
+
+/* Persistent, high-contrast delete action: never hide it when a row is selected or updated. */
+.conversation-item-wrap{display:flex!important;align-items:center;gap:6px;min-width:0;width:100%;overflow:visible}
+.conversation-item-wrap .conversation-item{flex:1 1 auto;min-width:0}
+.conversation-delete-button,.conversation-delete-button:visited{display:grid!important;place-items:center;flex:0 0 40px;width:40px;min-width:40px;height:40px;padding:0;border:2px solid #ff3030!important;border-radius:10px;background:#d71920!important;color:#fff!important;opacity:1!important;visibility:visible!important;position:relative;z-index:2;box-shadow:0 0 0 2px rgba(255,48,48,.22),0 2px 8px rgba(0,0,0,.35)}
+.conversation-delete-button svg{display:block;width:19px;height:19px;stroke:#fff!important;color:#fff!important;opacity:1!important;visibility:visible!important}
+.conversation-delete-button:hover,.conversation-delete-button:focus-visible{background:#ff3030!important;border-color:#ff7777!important;color:#fff!important;box-shadow:0 0 0 3px rgba(255,48,48,.3)}
+.conversation-delete-button:disabled{opacity:.85!important;cursor:not-allowed}
+@media(max-width:720px){.conversation-delete-button{flex-basis:42px;width:42px;min-width:42px;height:42px}}
+
+
+/* Mobile swipe polish: prevent Android/WebView blue tap flashes and browser horizontal overscroll while keeping vertical scrolling and pinch zoom. */
+*,*::before,*::after{-webkit-tap-highlight-color:transparent}
+html,body,.chatgpt-shell{overscroll-behavior-x:none}
+.chatgpt-shell{touch-action:pan-y pinch-zoom}

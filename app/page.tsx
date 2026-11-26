@@ -147,16 +147,19 @@ export default function Home() {
   const latestUserIndex = messages.reduce((latest, message, index) => message.role === "user" ? index : latest, -1);
   // While generating, anchor activity after the current user message; once answered, place it immediately before that answer.
   const activityAnchorIndex = busy ? latestUserIndex : latestAssistantIndex;
-  const visibleConversations = conversations.filter((item) => item.title.toLowerCase().includes(historyQuery.trim().toLowerCase()) || item.messages.some((message) => message.content.toLowerCase().includes(historyQuery.trim().toLowerCase())));
+  const visibleConversations = conversations.filter((item) => item.messages.some((message) => message.role === "user") && (item.title.toLowerCase().includes(historyQuery.trim().toLowerCase()) || item.messages.some((message) => message.content.toLowerCase().includes(historyQuery.trim().toLowerCase()))));
   const statusTone = /échec|impossible|erreur|indisponible/i.test(status) ? "danger" : ready ? "success" : /vérification|recherche/i.test(status) ? "info" : "warning";
 
   useEffect(() => {
     let stored: Conversation[] = [];
     try { stored = JSON.parse(localStorage.getItem("zodi-conversations-v2") || "[]"); } catch {}
-    const initial = stored.length ? stored : [createConversation()];
+    const initial = [createConversation(), ...stored];
     setConversations(initial); setActiveId(initial[0].id);
   }, []);
-  useEffect(() => { if (conversations.length) localStorage.setItem("zodi-conversations-v2", JSON.stringify(conversations)); }, [conversations]);
+  useEffect(() => {
+    const saved = conversations.filter((item) => item.messages.some((message) => message.role === "user"));
+    localStorage.setItem("zodi-conversations-v2", JSON.stringify(saved));
+  }, [conversations]);
   useEffect(() => {
     if (!attachMenuOpen) return;
     const close = (event: PointerEvent) => {
