@@ -501,11 +501,11 @@ button{transition:background .16s ease,border-color .16s ease,color .16s ease,tr
 }
 
 
-/* Keep the message field compact: never grow the composer while typing. */
+/* Expand the message field as text is entered; the input handler caps it at 220px. */
 .chat-composer textarea#message-input{
   height:38px;
   min-height:38px;
-  max-height:38px;
+  max-height:220px;
   overflow-x:hidden;
   overflow-y:auto;
   align-self:center;
@@ -513,9 +513,8 @@ button{transition:background .16s ease,border-color .16s ease,color .16s ease,tr
 }
 @media(max-width:720px){
   .chat-composer textarea#message-input{
-    height:38px;
     min-height:38px;
-    max-height:38px;
+    max-height:34dvh;
     overflow-y:auto;
   }
 }
