@@ -394,6 +394,7 @@ ${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de 
             const stream = captureStream.call(video);
             let recorder: MediaRecorder | undefined;
             try {
+              await video.play();
               const audioTracks = stream.getAudioTracks();
               if (audioTracks.length) {
                 const audioStream = new MediaStream(audioTracks);
@@ -408,12 +409,10 @@ ${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de 
                 recorder.start(1000);
                 const audioDuration = Math.min(video.duration, 180);
                 try {
-                  await video.play();
                   await new Promise<void>((resolve, reject) => {
                     let finished = false;
-                    let limit: number | undefined;
                     const cleanup = () => {
-                      if (limit !== undefined) window.clearTimeout(limit);
+                      window.clearTimeout(limit);
                       video.removeEventListener("ended", finish);
                       video.removeEventListener("error", fail);
                     };
@@ -431,7 +430,7 @@ ${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de 
                       cleanup();
                       reject(new Error("Lecture de la piste audio impossible."));
                     };
-                    limit = window.setTimeout(finish, audioDuration * 1000 + 500);
+                    const limit = window.setTimeout(finish, audioDuration * 1000 + 500);
                     video.addEventListener("ended", finish, { once: true });
                     video.addEventListener("error", fail, { once: true });
                   });
@@ -454,6 +453,7 @@ ${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de 
 ${data.text}`);
                 }
               } else {
+                video.pause();
                 videoNotes.push(`[Aucune piste audio détectée dans ${file.name}]`);
               }
             } finally {
