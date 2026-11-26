@@ -12,7 +12,7 @@ const welcome = (): Message[] => [{ role: "assistant", content: "Salut ! Je suis
 const createConversation = (): Conversation => ({ id: crypto.randomUUID(), title: "Nouvelle discussion", messages: welcome(), updatedAt: Date.now() });
 
 
-type IconName = "menu" | "plus" | "edit" | "trash" | "refresh" | "copy" | "share" | "image" | "camera" | "file-text" | "send" | "sparkles" | "message-square";
+type IconName = "menu" | "plus" | "edit" | "trash" | "refresh" | "copy" | "share" | "image" | "camera" | "file-text" | "send" | "stop" | "sparkles" | "message-square";
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   const paths: Record<IconName, ReactNode> = {
     menu: <path d="M4 6h16M4 12h16M4 18h16" />,
@@ -26,6 +26,7 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
     camera: <><path d="M4 8h3l2-3h6l2 3h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z" /><circle cx="12" cy="13" r="3.5" /></>,
     "file-text": <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M8 13h8M8 17h8" /></>,
     send: <><path d="m5 12 14-7-4 14-3-6-7-1Z" /><path d="m12 13 7-8" /></>,
+    stop: <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none" />,
     sparkles: <><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" /><path d="m19 14 .9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14Z" /></>,
     "message-square": <><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l1.5-3A7.5 7.5 0 1 1 20 11.5Z" /></>
   };
@@ -96,12 +97,9 @@ export default function Home() {
   const [status, setStatus] = useState("Connexion au service…");
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [thinkingSeconds, setThinkingSeconds] = useState(0);
-  useEffect(() => {
-    if (!busy) { setThinkingSeconds(0); return; }
-    const timer = window.setInterval(() => setThinkingSeconds((seconds) => seconds + 1), 1000);
-    return () => window.clearInterval(timer);
-  }, [busy]);
+  const requestControllerRef = useRef<AbortController | null>(null);
+  const [activitySteps, setActivitySteps] = useState<string[]>([]);
+  const [activityOpen, setActivityOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [historyQuery, setHistoryQuery] = useState("");
   const [updateStatus, setUpdateStatus] = useState("Vérifier les mises à jour");
@@ -287,6 +285,16 @@ export default function Home() {
     } finally { setBusy(false); }
   }
 
+  function stopGeneration() {
+    const controller = requestControllerRef.current;
+    if (!controller) return;
+    controller.abort(); requestControllerRef.current = null;
+    setBusy(false);
+    setActivitySteps((steps) => [...steps, "Génération arrêtée à ta demande"]);
+    const id = activeId;
+    if (id) updateConversation(id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: "Réponse interrompue." }], updatedAt: Date.now() }));
+  }
+
   async function send(event?: FormEvent<HTMLFormElement>, suggestedText?: string) {
     event?.preventDefault();
     const text = (suggestedText ?? input).trim();
@@ -297,17 +305,21 @@ export default function Home() {
     const requestHistory = history.map((message, index) => ({ ...message, images: index === latestImageMessage ? message.images : undefined }));
     const userMessages = [...active.messages, { role: "user" as const, content: text || "Analyse cette image.", images }];
     updateConversation(id, (item) => ({ ...item, title: item.title === "Nouvelle discussion" ? text.slice(0, 38) + (text.length > 38 ? "…" : "") : item.title, messages: userMessages, updatedAt: Date.now() }));
-    setInput(""); setPendingImages([]); setBusy(true);
+    setInput(""); setPendingImages([]); setBusy(true); setActivityOpen(false);
+    setActivitySteps(["Message ajouté à la conversation", "Demande transmise au fournisseur IA"]);
+    const controller = new AbortController(); requestControllerRef.current = controller;
     try {
-      const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text, history: requestHistory, images: images.map(({ dataUrl, mimeType }) => ({ dataUrl, mimeType })) }) });
+      const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal, body: JSON.stringify({ message: text, history: requestHistory, images: images.map(({ dataUrl, mimeType }) => ({ dataUrl, mimeType })) }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Erreur inconnue");
       updateConversation(id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: data.reply }], updatedAt: Date.now() }));
+      setActivitySteps((steps) => [...steps, `Réponse reçue de ${data.provider === "openrouter" ? "OpenRouter" : "OpenAI"} · modèle ${data.model}`]);
       setReady(true); setStatus((data.provider === "openrouter" ? "OpenRouter" : "OpenAI") + " connecté · modèle " + data.model);
     } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
       updateConversation(id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: error instanceof Error ? error.message : "Impossible de contacter les fournisseurs IA." }], updatedAt: Date.now() }));
       setReady(false); setStatus("Échec de la connexion IA");
-    } finally { setBusy(false); }
+    } finally { if (requestControllerRef.current === controller) requestControllerRef.current = null; setBusy(false); }
   }
 
   return (
@@ -381,7 +393,7 @@ export default function Home() {
                   </div>}
                 </div>
               </article>)}
-              {busy && <div className="message-row assistant"><div className="thinking-panel" role="status" aria-live="polite"><span className="thinking-orb" /><div className="thinking-copy"><strong>Zodi réfléchit…</strong><span>{thinkingSeconds < 4 ? "Analyse de ta demande" : thinkingSeconds < 12 ? "Préparation de la réponse" : "Finalisation de la réponse"}</span></div><time>{thinkingSeconds}s</time></div></div>}
+              {(busy || activitySteps.length > 0) && <div className="message-row assistant"><div className="activity-inline" role="status" aria-live="polite">{busy && <span className="thinking-orb" />}<button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>{busy ? "Zodi travaille" : "Activité de Zodi"}<span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button>{busy && <span className="activity-live">En cours</span>}{activityOpen && <ul className="activity-list">{activitySteps.map((step, index) => <li key={`${index}-${step}`}>{step}</li>)}</ul>}</div></div>}
               <div ref={chatEndRef} />
             </div>}
           </div>
@@ -403,7 +415,7 @@ export default function Home() {
                   <button type="button" role="menuitem" onClick={() => fileInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="file-text" /></span> Fichiers</button>
                 </div>}
               </div>
-              <button className="send-button" disabled={busy || (!input.trim() && !pendingImages.length)} type="submit" aria-label="Envoyer le message" title="Envoyer"><Icon name="send" size={18} /></button>
+              <button className={`send-button ${busy ? "stop-generation-button" : ""}`} disabled={!busy && (!input.trim() && !pendingImages.length)} type={busy ? "button" : "submit"} onClick={busy ? stopGeneration : undefined} aria-label={busy ? "Arrêter la génération" : "Envoyer le message"} title={busy ? "Arrêter" : "Envoyer"}><Icon name={busy ? "stop" : "send"} size={18} /></button>
             </div>
           </form>
         </div>
