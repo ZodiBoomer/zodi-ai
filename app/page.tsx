@@ -401,7 +401,7 @@ export default function Home() {
       onTouchStart={(event) => {
         if (window.matchMedia("(min-width: 721px)").matches) return;
         const touch = event.touches[0];
-        touchStartRef.current = { x: touch.clientX, y: touch.clientY, target: event.target };
+        touchStartRef.current = { x: touch.clientX, y: touch.clientY, target: null };
       }}
       onTouchEnd={(event) => {
         const start = touchStartRef.current;
@@ -410,11 +410,9 @@ export default function Home() {
         const touch = event.changedTouches[0];
         const dx = touch.clientX - start.x;
         const dy = touch.clientY - start.y;
-        if (Math.abs(dy) > 85 || Math.abs(dx) < 70) return;
-        const target = start.target;
-        if (target instanceof HTMLElement && target.closest("button,input,textarea,a,[contenteditable=true]")) return;
-        if (sidebarOpen && dx < -70) setSidebarOpen(false);
-        else if (!sidebarOpen && start.x >= 28 && start.x <= 64 && dx > 75) setSidebarOpen(true);
+        if (Math.abs(dy) > 80 || Math.abs(dx) < 65) return;
+        if (!sidebarOpen && dx > 65) setSidebarOpen(true);
+        else if (sidebarOpen && dx < -65) setSidebarOpen(false);
       }}
     >
       <aside className="sidebar">
