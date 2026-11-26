@@ -15,7 +15,7 @@ const MAX_EXTRACTED_CHARS = 32_000;
 const TEXT_EXTENSIONS = new Set([
   "txt","md","markdown","csv","tsv","json","xml","html","htm","css","js","jsx","ts","tsx",
   "py","java","c","cpp","h","hpp","cs","go","rs","php","rb","swift","kt","sql","yaml","yml",
-  "toml","ini","conf","log","sh","bash","bat","ps1","env","svg","tex"
+  "toml","ini","conf","log","sh","bash","bat","ps1","env","svg"
 ]);
 const OFFICE_EXTENSIONS = new Set([
   "pdf","docx","docm","dotx","dotm","xlsx","xlsm","xltx","xltm","pptx","pptm","ppsx","ppsm",
@@ -154,13 +154,13 @@ export async function POST(request: Request) {
     } else if (OFFICE_EXTENSIONS.has(ext) || ["doc","ppt","pps","pot","xls","xlsb"].includes(ext)) {
       extracted = await extractOffice(Buffer.from(await file.arrayBuffer()), ext);
       kind = ext.toUpperCase();
-    } else if (["mp3","wav","m4a","ogg","flac","mpeg","mpga","aac","webm"].includes(ext) || file.type.startsWith("audio/")) {
+    } else if (["mp3","wav","m4a","ogg","flac","mpeg","mpga","aac"].includes(ext) || file.type.startsWith("audio/")) {
       extracted = await transcribeAudio(file);
       kind = "transcription audio";
     } else if (["mp4","mov","webm","avi","mkv","mpg"].includes(ext) || file.type.startsWith("video/")) {
       throw new Error("Pour une vidéo, sélectionne-la dans le bouton Vidéos : ZODIX extrait ses images et sa piste audio séparément.");
     } else if (["rar","7z","tar","gz","tgz","bz2","xz"].includes(ext)) {
-      throw new Error("Cette archive sera prise en charge par le lecteur d’archives en cours d’intégration.");
+      throw new Error("Cette archive doit être ouverte depuis le sélecteur de fichiers de ZODIX pour être extraite côté navigateur.");
     } else if (["exe","apk","iso","dmg","bin"].includes(ext)) {
       throw new Error("Ce fichier est un programme ou une image disque, pas un document lisible. ZODIX ne l’exécute pas.");
     } else {
