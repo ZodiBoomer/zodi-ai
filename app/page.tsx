@@ -167,6 +167,10 @@ export default function Home() {
   }, [attachMenuOpen]);
 
   useEffect(() => {
+    if (window.matchMedia("(max-width: 720px)").matches) setSidebarOpen(false);
+  }, []);
+
+  useEffect(() => {
     const viewport = window.visualViewport;
     if (!viewport) return;
     const syncViewport = () => document.documentElement.style.setProperty("--zodi-visual-height", `${Math.round(viewport.height)}px`);
