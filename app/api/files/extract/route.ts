@@ -18,7 +18,7 @@ const TEXT_EXTENSIONS = new Set([
   "toml","ini","conf","log","sh","bash","bat","ps1","env","svg"
 ]);
 const OFFICE_EXTENSIONS = new Set([
-  "pdf","docx","docm","dotx","dotm","xlsx","xlsm","xltx","xltm","pptx","pptm","ppsx","ppsm",
+  "pdf","doc","docx","docm","dotx","dotm","ppt","pps","pot","xls","xlsb","xlsx","xlsm","xltx","xltm","pptx","pptm","ppsx","ppsm",
   "odt","ods","odp","odg","epub","rtf","tex"
 ]);
 
@@ -58,6 +58,7 @@ async function extractOffice(buffer: Buffer, ext: string) {
   const timeout = setTimeout(() => controller.abort(), 48_000);
   try {
     const ast = await OfficeParser.parseOffice(buffer, {
+      fileType: ext === "tex" ? "tex" : undefined,
       extractAttachments: true,
       ocr: true,
       ocrConfig: {
@@ -68,7 +69,11 @@ async function extractOffice(buffer: Buffer, ext: string) {
       abortSignal: controller.signal
     });
     const result = await ast.to("text", { includeImages: "image+ocr-text" });
-    return typeof result.value === "string" ? result.value : JSON.stringify(result.value);
+    const text = typeof result.value === "string" ? result.value : JSON.stringify(result.value);
+    const warnings = Array.isArray(ast.warnings)
+      ? ast.warnings.map((issue) => "[Avertissement de lecture " + issue.code + " : " + issue.message + "]")
+      : [];
+    return [text, ...warnings].filter(Boolean).join("\\n\\n");
   } finally {
     clearTimeout(timeout);
   }
