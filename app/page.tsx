@@ -294,7 +294,7 @@ export default function Home() {
       extractedCharacters += part.length;
       return true;
     };
-    const archiveExtensions = /\.(rar|7z|tar|tgz|gz|bz2|xz)$/i;
+    const archiveExtensions = /\.(zip|rar|7z|tar|tgz|gz|bz2|xz|iso|cab|arj|lha|lzh|cpio|deb|rpm)$/i;
     const readableExtensions = new Set([
       "pdf","doc","docx","docm","dotx","dotm","rtf","odt","epub","tex",
       "xls","xlsx","xlsm","xlsb","xltx","ods","ppt","pps","pot","pptx","pptm","ppsx","ppsm","odp","odg",
@@ -312,17 +312,23 @@ ${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de 
     };
 
     for (const file of selected) {
-      if (file.size > 4 * 1024 * 1024) {
-        setStatus(`Le fichier ${file.name} dépasse la limite de 4 Mo.`);
+      const isArchive = archiveExtensions.test(file.name);
+      if (file.size > (isArchive ? 80 : 4) * 1024 * 1024) {
+        setStatus(`Le fichier ${file.name} dépasse la limite de ${isArchive ? "80" : "4"} Mo.`);
         continue;
       }
       try {
         setStatus(`Lecture de ${file.name}…`);
-        if (archiveExtensions.test(file.name)) {
+        if (isArchive) {
           const { Archive } = await import("libarchive.js");
           Archive.init({ workerUrl: "/libarchive-worker.js" });
           const archive = await Archive.open(file);
           try {
+            if (await archive.hasEncryptedData()) {
+              const password = window.prompt(`L’archive ${file.name} est protégée. Saisis son mot de passe (il ne sera pas enregistré).`);
+              if (password === null) throw new Error("Lecture de l’archive annulée.");
+              await archive.usePassword(password);
+            }
             const tree = await archive.getFilesObject() as Record<string, unknown>;
             const entries: Array<{ path: string; entry: { size: number; extract: () => Promise<File> } }> = [];
             const walk = (node: Record<string, unknown>, prefix = "") => {
@@ -746,7 +752,7 @@ ${data.text}`);
             <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.docm,.dotx,.dotm,.odt,.xls,.xlsx,.xlsm,.xlsb,.xltx,.ods,.ppt,.pptx,.pptm,.ppsx,.ppsm,.odp,.odg,.txt,.md,.csv,.log,.rtf,.epub,.tex,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac,.aac,.mpga,.opus,.webm" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "audio"); }} />
             <input ref={videoInputRef} type="file" accept="video/*,.mp4,.mov,.webm,.m4v,.avi,.mkv,.mpg" multiple hidden onChange={(event) => { void addVideoFiles(event.target.files); }} />
-            <input ref={otherInputRef} type="file" accept=".zip,.7z,.rar,.tar,.tgz,.gz,.bz2,.xz,.json,.xml,.html,.css,.js,.ts,.tsx,.py,.java,.c,.cpp,.h,.hpp,.cs,.go,.rs,.php,.rb,.swift,.kt,.sql,.yaml,.yml,.toml,.ini,.sh,.bash,.bat,.ps1,.bin,.exe,.apk,.dmg,.iso" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "other"); }} />
+            <input ref={otherInputRef} type="file" accept=".zip,.7z,.rar,.tar,.tgz,.gz,.bz2,.xz,.iso,.cab,.arj,.lha,.lzh,.cpio,.deb,.rpm,.json,.xml,.html,.css,.js,.ts,.tsx,.py,.java,.c,.cpp,.h,.hpp,.cs,.go,.rs,.php,.rb,.swift,.kt,.sql,.yaml,.yml,.toml,.ini,.sh,.bash,.bat,.ps1,.bin,.exe,.apk,.dmg,.iso" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "other"); }} />
             {pendingImages.length > 0 && <div className="composer-attachments">{pendingImages.map((image, index) => <div className="composer-attachment" key={index}><img src={image.dataUrl} alt={image.name} /><button type="button" aria-label="Retirer l'image" onClick={() => setPendingImages((all) => all.filter((_, i) => i !== index))}>×</button></div>)}</div>}
             <div className="composer-actions">
               <div className="attach-menu-wrap" ref={attachMenuRef}>
