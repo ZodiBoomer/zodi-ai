@@ -271,7 +271,6 @@ export default function Home() {
           <button className="icon-button" type="button" onClick={() => setSidebarOpen(false)} aria-label="Réduire le menu" title="Réduire le menu"><Icon name="menu" /></button>
           <button className="icon-button" type="button" onClick={startNewChat} aria-label="Nouvelle discussion" title="Nouvelle discussion"><Icon name="plus" /></button>
         </div>
-        <button className="new-chat-button" type="button" onClick={startNewChat}><Icon name="plus" size={16} /> Nouvelle discussion</button>
         <input className="history-search" type="search" value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="Rechercher une conversation…" aria-label="Rechercher dans l'historique" />
         <nav className="conversation-list" aria-label="Historique des conversations">
           {visibleConversations.length ? visibleConversations.map((item) => <button key={item.id} type="button" className={`conversation-item ${item.id === activeId ? "active" : ""}`} onClick={() => setActiveId(item.id)} title={item.title}><Icon name="message-square" size={15} /><span className="conversation-title">{item.title}</span></button>) : <p className="history-empty">Aucune conversation trouvée.</p>}
@@ -299,8 +298,8 @@ export default function Home() {
               {messages.map((message, index) => <article className={`message-row ${message.role}`} key={index}>
                 
                 <div className="message-body">
+                  {message.images?.length ? <div className={`message-images ${message.role}`} aria-label="Images envoyées">{message.images.map((image, imageIndex) => <img key={imageIndex} src={image.dataUrl} alt={image.name || "Image jointe"} />)}</div> : null}
                   <div className={`message-content ${message.role}`}>
-                    {message.images?.length ? <div className="message-images">{message.images.map((image, imageIndex) => <img key={imageIndex} src={image.dataUrl} alt={image.name || "Image jointe"} />)}</div> : null}
                     {message.role === "assistant" ? <AssistantContent content={message.content} /> : message.content}
                   </div>
                   {message.role === "assistant" && index > 0 && <div className="message-actions" aria-label="Actions sur la réponse">
