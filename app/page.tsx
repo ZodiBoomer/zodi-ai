@@ -120,7 +120,12 @@ export default function Home() {
   const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const documentInputRef = useRef<HTMLInputElement>(null);
+  const spreadsheetInputRef = useRef<HTMLInputElement>(null);
+  const presentationInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const otherFileInputRef = useRef<HTMLInputElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [status, setStatus] = useState("Connexion au service…");
@@ -249,7 +254,7 @@ export default function Home() {
   }
   async function addImages(files: FileList | null) {
     if (!files) return;
-    const selected = Array.from(files).filter((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type));
+    const selected = Array.from(files).filter((file) => file.type.startsWith("image/") && ["image/jpeg", "image/png", "image/webp"].includes(file.type));
     if (selected.length !== files.length) setStatus("Formats acceptés : JPG, PNG et WEBP.");
     if (pendingImages.length + selected.length > 4) { setStatus("Tu peux joindre 4 images maximum."); return; }
     const converted: ImageAttachment[] = [];
@@ -278,9 +283,20 @@ export default function Home() {
     setPendingImages((current) => [...current, ...converted].slice(0, 4));
     if (imageInputRef.current) imageInputRef.current.value = "";
   }
-  async function addTextFiles(files: FileList | null) {
+  async function addCategoryFiles(files: FileList | null, pattern: RegExp, category: string) {
     if (!files) return;
-    const accepted = Array.from(files);
+    const selected = Array.from(files);
+    const valid = selected.filter((file) => pattern.test(file.name));
+    if (valid.length !== selected.length) setStatus(`Sélection refusée : utilise uniquement les formats de la catégorie ${category}.`);
+    if (valid.length) await addTextFiles(valid);
+    else setAttachMenuOpen(false);
+  }
+
+  async function addTextFiles(files: FileList | File[] | null) {
+    if (!files) return;
+    // Le sélecteur « Fichiers » ne doit jamais accepter une photo, même si le navigateur ignore l'attribut accept.
+    const accepted = Array.from(files).filter((file) => !file.type.startsWith("image/") && !/\.(jpe?g|png|gif|webp|heic|heif|avif|bmp|tiff?)$/i.test(file.name));
+    if (accepted.length !== files.length) setStatus("Pour ajouter une photo, utilise le bouton Photos.");
     const parts: string[] = [];
     for (const file of accepted) {
       if (!/\.(txt|md|csv|json|log)$/i.test(file.name) && !["text/plain","text/markdown","text/csv","application/json"].includes(file.type)) {
@@ -292,7 +308,9 @@ export default function Home() {
       catch { setStatus(`Impossible de lire le fichier ${file.name}.`); }
     }
     if (parts.length) setInput((current) => [current, ...parts].filter(Boolean).join("\\n\\n"));
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    for (const ref of [documentInputRef, spreadsheetInputRef, presentationInputRef, audioInputRef, videoInputRef, otherFileInputRef]) {
+      if (ref.current) ref.current.value = "";
+    }
     setAttachMenuOpen(false);
   }
 
@@ -518,9 +536,14 @@ export default function Home() {
         <div className="composer-area">
           <form className="chat-composer" onSubmit={send}>
             <label className="sr-only" htmlFor="message-input">Message à ZODIX</label>
-            <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={imageInputRef} type="file" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.avif,image/jpeg,image/png,image/webp,image/heic,image/avif" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
-            <input ref={fileInputRef} type="file" accept=".txt,.md,.csv,.json,.log,text/plain,text/markdown,text/csv,application/json" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={documentInputRef} type="file" accept=".pdf,.docx,.doc,.txt,.odt,.rtf,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" multiple hidden onChange={(event) => { void addCategoryFiles(event.target.files, /\.(pdf|docx|doc|txt|odt|rtf)$/i, "Documents"); }} />
+            <input ref={spreadsheetInputRef} type="file" accept=".xlsx,.xls,.csv,.ods,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden onChange={(event) => { void addCategoryFiles(event.target.files, /\.(xlsx|xls|csv|ods)$/i, "Tableurs"); }} />
+            <input ref={presentationInputRef} type="file" accept=".pptx,.ppt,.odp,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" multiple hidden onChange={(event) => { void addCategoryFiles(event.target.files, /\.(pptx|ppt|odp)$/i, "Présentations"); }} />
+            <input ref={audioInputRef} type="file" accept=".mp3,.wav,.m4a,.ogg,.flac,audio/mpeg,audio/wav,audio/mp4,audio/ogg,audio/flac" multiple hidden onChange={(event) => { void addCategoryFiles(event.target.files, /\.(mp3|wav|m4a|ogg|flac)$/i, "Audio"); }} />
+            <input ref={videoInputRef} type="file" accept=".mp4,.mov,.webm,video/mp4,video/quicktime,video/webm" multiple hidden onChange={(event) => { void addCategoryFiles(event.target.files, /\.(mp4|mov|webm)$/i, "Vidéos"); }} />
+            <input ref={otherFileInputRef} type="file" accept=".zip,.json,.xml,.log,.js,.ts,.tsx,.jsx,.py,.html,.css,.sql,.yaml,.yml,.toml,.ini,.cfg,.rar,.7z,.exe,.msi,.apk,.deb,.tar,.gz,application/zip,application/json,text/xml" multiple hidden onChange={(event) => { void addCategoryFiles(event.target.files, /\.(zip|json|xml|log|js|ts|tsx|jsx|py|html|css|sql|yaml|yml|toml|ini|cfg|rar|7z|exe|msi|apk|deb|tar|gz)$/i, "Autres fichiers"); }} />
             {pendingImages.length > 0 && <div className="composer-attachments">{pendingImages.map((image, index) => <div className="composer-attachment" key={index}><img src={image.dataUrl} alt={image.name} /><button type="button" aria-label="Retirer l'image" onClick={() => setPendingImages((all) => all.filter((_, i) => i !== index))}>×</button></div>)}</div>}
             <div className="composer-actions">
               <div className="attach-menu-wrap" ref={attachMenuRef}>
@@ -528,7 +551,12 @@ export default function Home() {
                 {attachMenuOpen && <div className="attach-menu" role="menu">
                   <button type="button" role="menuitem" onClick={() => cameraInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="camera" /></span> Appareil photo</button>
                   <button type="button" role="menuitem" onClick={() => imageInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="image" /></span> Photos</button>
-                  <button type="button" role="menuitem" onClick={() => fileInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="file-text" /></span> Fichiers</button>
+                  <button type="button" role="menuitem" onClick={() => documentInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="file-text" /></span> Documents</button>
+                  <button type="button" role="menuitem" onClick={() => spreadsheetInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="sheet" /></span> Tableurs</button>
+                  <button type="button" role="menuitem" onClick={() => presentationInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="presentation" /></span> Présentations</button>
+                  <button type="button" role="menuitem" onClick={() => audioInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="audio-lines" /></span> Audio</button>
+                  <button type="button" role="menuitem" onClick={() => videoInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="video" /></span> Vidéos</button>
+                  <button type="button" role="menuitem" onClick={() => otherFileInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="file-archive" /></span> Autres fichiers</button>
                 </div>}
               </div>
             <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} onInput={(event) => { const field = event.currentTarget; field.style.height = "auto"; field.style.height = `${Math.min(field.scrollHeight, 220)}px`; }} onFocus={(event) => { window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" }), 80); }} placeholder="Écris un message à ZODIX" rows={1} enterKeyHint="enter" aria-label="Message à ZODIX" onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
