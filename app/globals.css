@@ -499,3 +499,23 @@ button{transition:background .16s ease,border-color .16s ease,color .16s ease,tr
     min-width:38px;
   }
 }
+
+
+/* Keep the message field compact: never grow the composer while typing. */
+.chat-composer textarea#message-input{
+  height:38px;
+  min-height:38px;
+  max-height:38px;
+  overflow-x:hidden;
+  overflow-y:auto;
+  align-self:center;
+  line-height:1.45;
+}
+@media(max-width:720px){
+  .chat-composer textarea#message-input{
+    height:38px;
+    min-height:38px;
+    max-height:38px;
+    overflow-y:auto;
+  }
+}
