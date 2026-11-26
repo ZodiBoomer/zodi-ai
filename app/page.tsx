@@ -281,36 +281,102 @@ export default function Home() {
     setPendingImages((current) => [...current, ...converted].slice(0, 4));
     if (imageInputRef.current) imageInputRef.current.value = "";
   }
-  function reportSelectedMedia(files: FileList | null, kind: "audio" | "video" | "other") {
+  async function addExtractedFiles(files: FileList | null, kind: "document" | "audio" | "other") {
     if (!files?.length) return;
     const selected = Array.from(files);
-    const label = kind === "audio" ? "audio" : kind === "video" ? "vidéo" : "autre";
-    const names = selected.map((file) => `${file.name} (${Math.round(file.size / 1024)} Ko)`).join(", ");
-    setStatus(`${selected.length} fichier(s) ${label} sélectionné(s) : ${names}. Le transfert de ce type vers l’IA n’est pas encore pris en charge.`);
+    const parts: string[] = [];
+    for (const file of selected) {
+      if (file.size > 12 * 1024 * 1024) {
+        setStatus(`Le fichier ${file.name} dépasse la limite de 12 Mo.`);
+        continue;
+      }
+      try {
+        setStatus(`Lecture de ${file.name}…`);
+        const form = new FormData();
+        form.append("file", file, file.name);
+        const response = await fetch("/api/files/extract", { method: "POST", body: form });
+        const data = await response.json() as { ok?: boolean; name?: string; kind?: string; text?: string; truncated?: boolean; error?: string };
+        if (!response.ok || !data.ok || !data.text) throw new Error(data.error || "Lecture du fichier impossible.");
+        parts.push(`[Contenu extrait de ${data.name || file.name} — ${data.kind || kind}]
+${data.text}${data.truncated ? "
+[Contenu tronqué pour respecter la limite de lecture.]" : ""}`);
+      } catch (error) {
+        setStatus(`${file.name} : ${error instanceof Error ? error.message : "lecture impossible"}`);
+      }
+    }
+    if (parts.length) {
+      setInput((current) => [current, ...parts].filter(Boolean).join("
+
+"));
+      setStatus(`${parts.length} fichier(s) lu(s) et ajouté(s) au message.`);
+    }
+    if (kind === "document" && fileInputRef.current) fileInputRef.current.value = "";
     if (kind === "audio" && audioInputRef.current) audioInputRef.current.value = "";
-    if (kind === "video" && videoInputRef.current) videoInputRef.current.value = "";
     if (kind === "other" && otherInputRef.current) otherInputRef.current.value = "";
     setAttachMenuOpen(false);
   }
 
-  async function addTextFiles(files: FileList | null) {
-    if (!files) return;
-    const accepted = Array.from(files);
-    const parts: string[] = [];
-    for (const file of accepted) {
-      if (!/\.(txt|md|csv|json|log)$/i.test(file.name) && !["text/plain","text/markdown","text/csv","application/json"].includes(file.type)) {
-        setStatus(`Le fichier ${file.name} n'est pas encore pris en charge. Utilise TXT, MD, CSV ou JSON.`);
+  async function addVideoFiles(files: FileList | null) {
+    if (!files?.length) return;
+    const selected = Array.from(files);
+    const frames: ImageAttachment[] = [];
+    for (const file of selected) {
+      if (!file.type.startsWith("video/") && !/\.(mp4|mov|webm|m4v)$/i.test(file.name)) {
+        setStatus(`${file.name} n'est pas reconnu comme vidéo.`);
         continue;
       }
-      if (file.size > 500_000) { setStatus(`Le fichier ${file.name} dépasse la limite de 500 Ko.`); continue; }
-      try { parts.push(`[Fichier : ${file.name}]\\n${await file.text()}`); }
-      catch { setStatus(`Impossible de lire le fichier ${file.name}.`); }
+      if (file.size > 80 * 1024 * 1024) {
+        setStatus(`${file.name} dépasse la limite de 80 Mo pour l'extraction d'images.`);
+        continue;
+      }
+      const url = URL.createObjectURL(file);
+      try {
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.muted = true;
+        video.src = url;
+        await new Promise<void>((resolve, reject) => {
+          video.onloadedmetadata = () => resolve();
+          video.onerror = () => reject(new Error("Vidéo illisible par ce navigateur."));
+        });
+        if (!Number.isFinite(video.duration) || video.duration <= 0) throw new Error("Durée vidéo inconnue.");
+        const canvas = document.createElement("canvas");
+        const scale = Math.min(1, 1280 / Math.max(video.videoWidth, video.videoHeight));
+        canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+        canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Extraction des images impossible.");
+        const count = Math.min(4, Math.max(1, Math.ceil(video.duration / 15)));
+        for (let frame = 0; frame < count; frame++) {
+          video.currentTime = Math.min(Math.max(0.05, video.duration * (frame + 0.5) / count), Math.max(0, video.duration - 0.05));
+          await new Promise<void>((resolve, reject) => {
+            video.onseeked = () => resolve();
+            video.onerror = () => reject(new Error("Impossible de lire une image de la vidéo."));
+          });
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          frames.push({ dataUrl: canvas.toDataURL("image/jpeg", 0.78), mimeType: "image/jpeg", name: `${file.name} · image ${frame + 1}` });
+        }
+      } catch (error) {
+        setStatus(`${file.name} : ${error instanceof Error ? error.message : "extraction impossible"}`);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
     }
-    if (parts.length) setInput((current) => [current, ...parts].filter(Boolean).join("\\n\\n"));
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (frames.length) {
+      const room = Math.max(0, 4 - pendingImages.length);
+      setPendingImages((current) => [...current, ...frames.slice(0, room)]);
+      setInput((current) => [current, `Analyse les images extraites de la ou des vidéos jointes. Les images sont des échantillons visuels, pas une lecture continue.`].filter(Boolean).join("
+
+"));
+      setStatus(`${Math.min(frames.length, room)} image(s) extraite(s). L'audio des vidéos n'est pas encore transcrit.`);
+    }
+    if (videoInputRef.current) videoInputRef.current.value = "";
     setAttachMenuOpen(false);
   }
 
+  async function addTextFiles(files: FileList | null) {
+    await addExtractedFiles(files, "document");
+  }
 
   function openUserMessageMenu(index: number, x: number, y: number) {
     const menuWidth = 248, menuHeight = 250, margin = 12;
@@ -536,9 +602,9 @@ export default function Home() {
             <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.odt,.xls,.xlsx,.ods,.ppt,.pptx,.odp,.txt,.md,.csv,.log,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
-            <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac" multiple hidden onChange={(event) => reportSelectedMedia(event.target.files, "audio")} />
-            <input ref={videoInputRef} type="file" accept="video/*,.mp4,.mov,.webm" multiple hidden onChange={(event) => reportSelectedMedia(event.target.files, "video")} />
-            <input ref={otherInputRef} type="file" accept=".zip,.7z,.rar,.json,.xml,.js,.ts,.tsx,.py,.java,.c,.cpp,.h,.sql,.yaml,.yml,.toml,.ini,.sh,.bat,.ps1,.bin,.exe,.apk,.dmg,.iso" multiple hidden onChange={(event) => reportSelectedMedia(event.target.files, "other")} />
+            <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "audio"); }} />
+            <input ref={videoInputRef} type="file" accept="video/*,.mp4,.mov,.webm" multiple hidden onChange={(event) => { void addVideoFiles(event.target.files); }} />
+            <input ref={otherInputRef} type="file" accept=".zip,.7z,.rar,.json,.xml,.js,.ts,.tsx,.py,.java,.c,.cpp,.h,.sql,.yaml,.yml,.toml,.ini,.sh,.bat,.ps1,.bin,.exe,.apk,.dmg,.iso" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "other"); }} />
             {pendingImages.length > 0 && <div className="composer-attachments">{pendingImages.map((image, index) => <div className="composer-attachment" key={index}><img src={image.dataUrl} alt={image.name} /><button type="button" aria-label="Retirer l'image" onClick={() => setPendingImages((all) => all.filter((_, i) => i !== index))}>×</button></div>)}</div>}
             <div className="composer-actions">
               <div className="attach-menu-wrap" ref={attachMenuRef}>
