@@ -73,7 +73,7 @@ async function extractOffice(buffer: Buffer, ext: string) {
     const warnings = Array.isArray(ast.warnings)
       ? ast.warnings.map((issue) => "[Avertissement de lecture " + issue.code + " : " + issue.message + "]")
       : [];
-    return [text, ...warnings].filter(Boolean).join("\\n\\n");
+    return [text, ...warnings].filter(Boolean).join("\n\n");
   } finally {
     clearTimeout(timeout);
   }
