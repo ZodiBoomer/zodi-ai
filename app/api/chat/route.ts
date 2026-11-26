@@ -127,7 +127,9 @@ function getSystemPrompt() {
     "Réponds en français par défaut, sauf si l'utilisateur demande une autre langue ou si le contexte l'exige.",
     "Adapte ton niveau de détail à la demande. Commence par la réponse ou l'action utile, puis explique si nécessaire.",
     "Sois chaleureux, patient, naturel, précis et direct. Évite le jargon inutile, les répétitions, les longues introductions et les questionnaires.",
-    "PRÉSENTATION DU TEXTE : écris en texte simple et naturel. N’utilise pas de syntaxe Markdown décorative : pas de titres avec #, pas de gras avec **, pas d’italique avec *, pas de lignes de séparation, pas de blocs de symboles ni d’emojis décoratifs. Utilise des phrases courtes, des paragraphes et des listes simples uniquement si elles améliorent la lecture.",
+    "PRÉSENTATION DU TEXTE : utilise une mise en forme Markdown sobre et lisible quand elle améliore la compréhension : titres courts, gras pour les notions importantes, listes, étapes, citations et blocs de code. Ne surcharge pas la réponse. Les réponses doivent être structurées et faciles à parcourir, sans décoration inutile.",
+    "CHOIX INTERACTIFS : quand l’utilisateur doit choisir plusieurs éléments ou cocher des étapes, utilise une liste Markdown avec cases `- [ ]`. Pour un choix unique, utilise `- ( )`. N’utilise ces listes que lorsque l’utilisateur peut réellement sélectionner ou valider les éléments.",
+    "STATUTS VISUELS : pour un état important, commence un paragraphe séparé par [SUCCESS] pour une réussite/validation, [ERROR] pour une erreur/échec, [WARNING] pour un point à vérifier, [INFO] pour une information/action, ou [NEUTRAL] pour un état neutre. Un seul marqueur par paragraphe, uniquement si pertinent.",
     "N’ajoute jamais de caractères isolés ou de suites parasites comme */()##. N’utilise les parenthèses, signes de ponctuation et symboles que lorsqu’ils ont un vrai sens. Ne montre pas les marqueurs de mise en forme à l’utilisateur. Exception : conserve exactement la syntaxe nécessaire dans le code, les commandes, les formules et les exemples techniques demandés.",
     "Comprends les fautes de frappe, l'orthographe approximative, la dictée vocale et les formulations phonétiques. Ne corrige pas l'utilisateur sauf si cela est demandé ou utile.",
     "Si une seule information essentielle manque et change réellement la réponse, pose une seule question courte. Sinon, fais une hypothèse raisonnable et annonce-la brièvement.",
@@ -223,7 +225,8 @@ function buildResponsesInput(history: ChatMessage[]) {
 async function postJson(
   config: ProviderConfig,
   route: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  signal?: AbortSignal
 ): Promise<ProviderResponse> {
   const headers: Record<string, string> = {
     Authorization: "Bearer " + config.apiKey,
@@ -245,7 +248,7 @@ async function postJson(
     method: "POST",
     headers,
     body: JSON.stringify(requestPayload),
-    signal: AbortSignal.timeout(timeoutMs),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
     cache: "no-store"
   });
 
@@ -302,7 +305,7 @@ function shouldTryChatCompletions(error: unknown) {
     message.includes("PROVIDER_HTTP_405");
 }
 
-async function generateWithProvider(config: ProviderConfig, history: ChatMessage[]) {
+async function generateWithProvider(config: ProviderConfig, history: ChatMessage[], signal?: AbortSignal) {
   const system = getSystemPrompt();
   const messages = [
     { role: "system" as const, content: system },
@@ -330,7 +333,7 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
             max_completion_tokens: 2048,
             provider: { allow_fallbacks: true },
             __timeoutMs: OPENROUTER_TIMEOUT_MS
-          });
+          }, signal);
         } catch (error) {
           if (!isOpenRouterInFlightBudgetError(error)) throw error;
           console.warn("Zodi AI OpenRouter in-flight budget reached; retrying with a smaller output budget.", {
@@ -344,7 +347,7 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
             max_completion_tokens: 768,
             provider: { allow_fallbacks: true },
             __timeoutMs: OPENROUTER_TIMEOUT_MS
-          });
+          }, signal);
         }
         const reply = extractChatText(response);
         if (reply) return { reply, model: response.model || model };
@@ -356,6 +359,7 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
             .choices?.[0]?.finish_reason || "unknown"
         });
       } catch (error) {
+        if (signal?.aborted) throw error;
         lastError = error;
         console.error("Zodi AI model attempt failed; trying the next cloud model.", {
           provider: config.name,
@@ -382,7 +386,7 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
       instructions: system,
       input: buildResponsesInput(history),
       max_output_tokens: 4096
-    });
+    }, signal);
     const reply = extractResponsesText(response);
     if (reply) return { reply, model: response.model || config.model };
     throw new Error("EMPTY_PROVIDER_RESPONSE");
@@ -398,29 +402,14 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
     model: config.model,
     messages,
     max_completion_tokens: 4096
-  });
+  }, signal);
   const reply = extractChatText(response);
   if (!reply) throw new Error("EMPTY_PROVIDER_RESPONSE");
   return { reply, model: response.model || config.model };
 }
 
 function cleanAssistantReply(value: string) {
-  return value
-    // Convert common Markdown decoration into readable plain text.
-    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
-    .replace(/^\s*[-*_]{3,}\s*$/gm, "")
-    .replace(/^\s*>\s?/gm, "")
-    .replace(/\*\*([^*\n]+)\*\*/g, "$1")
-    .replace(/__([^_\n]+)__/g, "$1")
-    .replace(/\*([^*\n]+)\*/g, "$1")
-    .replace(/_([^_\n]+)_/g, "$1")
-    .replace(/\`{1,3}/g, "")
-    .replace(/^\s*\*\s+/gm, "- ")
-    // Remove lines made only of stray formatting punctuation.
-    .replace(/^\s*(?:\*\/|[()#*]){2,}\s*$/gm, "")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return value.trim();
 }
 
 function getPublicError(error: unknown) {
@@ -429,7 +418,7 @@ function getPublicError(error: unknown) {
     return "Aucune clé API cloud valide n'est configurée dans Vercel.";
   }
   if (message.includes("PROVIDER_HTTP_401")) {
-    return "Le fournisseur IA a refusé sa clé API. Vérifie la clé configurée dans Vercel.";
+    return "La clé OpenAI (OPENAI_API_KEY) utilisée par cet environnement Vercel a été refusée (401 invalid_api_key). Elle est invalide, révoquée ou ne correspond pas au fournisseur. Vérifie la variable OPENAI_API_KEY dans les paramètres Vercel de l’environnement Preview, puis redéploie la Preview. Si tu utilises OpenRouter, configure plutôt OPENROUTER_API_KEY.";
   }
   if (isOpenRouterInFlightBudgetError(error)) {
     return "OpenRouter a bloqué la requête car son coût estimé dépasse le budget disponible pour les requêtes en cours. Zodi a réduit automatiquement la limite de génération et réessayé. Si le blocage persiste, attends la fin des requêtes en cours ou ajoute des crédits.";
@@ -490,7 +479,7 @@ export async function POST(request: Request) {
   const providers = getProviderConfigs();
   if (!providers.length) {
     return NextResponse.json(
-      { error: "Aucune clé API cloud n'est configurée. Ajoute OPENROUTER_API_KEY ou OPENAI_DIRECT_API_KEY dans Vercel." },
+      { error: "Aucun fournisseur IA n'est configuré dans cet environnement Vercel. Ajoute OPENAI_API_KEY pour OpenAI ou OPENROUTER_API_KEY pour OpenRouter dans le scope Preview." },
       { status: 503 }
     );
   }
@@ -501,7 +490,7 @@ export async function POST(request: Request) {
   let lastError: unknown;
   for (const provider of providers) {
     try {
-      const result = await generateWithProvider(provider, history);
+      const result = await generateWithProvider(provider, history, request.signal);
       return NextResponse.json({
         ok: true,
         reply: cleanAssistantReply(result.reply),
@@ -510,6 +499,7 @@ export async function POST(request: Request) {
         failoverAvailable: providers.length > 1 || provider.name === "openrouter"
       });
     } catch (error) {
+      if (request.signal.aborted) return new Response(null, { status: 204 });
       lastError = error;
       console.error("Zodi AI cloud provider attempt failed:", {
         provider: provider.name,
