@@ -234,3 +234,22 @@ button{transition:background .16s ease,border-color .16s ease,color .16s ease,tr
   .sidebar-backdrop:focus-visible{outline:2px solid #60a5fa;outline-offset:-3px}
   .suggestion-grid button:disabled{opacity:.55;cursor:wait}
 }
+
+
+/* Remove the oversized blue focus frame around the message field on mobile and desktop. */
+.chat-composer textarea,
+.chat-composer textarea:focus,
+.chat-composer textarea:focus-visible{
+  outline:none !important;
+  border:0 !important;
+  box-shadow:none !important;
+  background:transparent !important;
+  -webkit-appearance:none;
+  appearance:none;
+}
+.chat-composer:focus-within{
+  outline:none;
+  border-color:#656565;
+  box-shadow:0 0 0 1px rgba(255,255,255,.035);
+}
+.chat-composer textarea:focus-visible{ -webkit-tap-highlight-color:transparent; }
