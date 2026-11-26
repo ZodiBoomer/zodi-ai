@@ -305,17 +305,6 @@ export default function Home() {
     setUserMessageMenu(null);
     requestAnimationFrame(() => document.getElementById("message-input")?.focus());
   }
-  function selectUserMessageText(index: number) {
-    const node = document.querySelector<HTMLElement>(`[data-user-message-index="${index}"]`);
-    if (node) {
-      const selection = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(node);
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-    }
-    setUserMessageMenu(null);
-  }
   async function copyMessage(content: string) {
     try { await navigator.clipboard.writeText(content); setStatus("Réponse copiée"); }
     catch { setStatus("Copie impossible depuis ce navigateur"); }
@@ -471,6 +460,7 @@ export default function Home() {
                       onTouchMove: () => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); },
                       onTouchEnd: () => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); },
                       onTouchCancel: () => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); },
+                      onDragStart: (event: React.DragEvent<HTMLDivElement>) => event.preventDefault(),
                       onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
                         if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
                           event.preventDefault();
@@ -505,7 +495,6 @@ export default function Home() {
                 <div className="user-message-context-menu" style={{ left: userMessageMenu.x, top: userMessageMenu.y }} role="menu" aria-label="Actions sur ton message" onClick={(event) => event.stopPropagation()}>
                   <div className="user-message-menu-date">Message envoyé</div>
                   <button type="button" role="menuitem" onClick={() => { void copyMessage(active.messages[userMessageMenu.index].content); setUserMessageMenu(null); }}><Icon name="copy" size={20} />Copier</button>
-                  <button type="button" role="menuitem" onClick={() => selectUserMessageText(userMessageMenu.index)}><Icon name="file-text" size={20} />Sélectionner le texte</button>
                   <button type="button" role="menuitem" disabled={busy} onClick={() => editUserMessage(userMessageMenu.index)}><Icon name="edit" size={20} />Modifier le message</button>
                   <button type="button" role="menuitem" onClick={() => { void shareMessage(active.messages[userMessageMenu.index].content); setUserMessageMenu(null); }}><Icon name="share" size={20} />Partager le prompt</button>
                 </div>
