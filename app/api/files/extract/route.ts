@@ -7,7 +7,7 @@ import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const MAX_FILE_BYTES = 12 * 1024 * 1024;
+const MAX_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_EXTRACTED_CHARS = 120_000;
 const TEXT_EXTENSIONS = new Set([
   "txt","md","markdown","csv","tsv","json","xml","html","htm","css","js","jsx","ts","tsx",
@@ -47,18 +47,18 @@ async function extractZipText(buffer: Buffer, ext: string) {
     if (!parts.length) throw new Error("Aucun texte HTML n’a été trouvé dans cet EPUB.");
     return parts.join("\\n\\n");
   }
-  if (["docx"].includes(ext)) {
+  if (["docx","docm"].includes(ext)) {
     const result = await mammoth.extractRawText({ buffer });
     return result.value;
   }
-  if (["xls","xlsx","xlsm","xlsb","ods"].includes(ext)) {
+  if (["xls","xlsx","xlsm","xlsb","xltx","ods"].includes(ext)) {
     const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
     for (const sheetName of workbook.SheetNames) {
       parts.push("Feuille : " + sheetName + "\n" + XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]));
     }
     return parts.join("\n\n");
   }
-  if (["pptx","odp"].includes(ext)) {
+  if (["pptx","pptm","ppsx","odp"].includes(ext)) {
     const slides = files.filter((entry) => /(?:ppt\/slides\/slide\d+\.xml|content\.xml)$/i.test(entry.name)).sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
     for (const slide of slides) {
       const xml = await slide.async("text");
@@ -77,7 +77,7 @@ async function extractZipText(buffer: Buffer, ext: string) {
       if (!TEXT_EXTENSIONS.has(fileExt)) continue;
       const data = await entry.async("nodebuffer");
       total += data.byteLength;
-      if (total > MAX_FILE_BYTES) throw new Error("Le contenu décompressé de l’archive dépasse 12 Mo.");
+      if (total > MAX_FILE_BYTES) throw new Error("Le contenu décompressé de l’archive dépasse 4 Mo.");
       parts.push("Fichier : " + entry.name + "\n" + data.toString("utf8"));
       if (parts.join("\n").length > MAX_EXTRACTED_CHARS) break;
     }
@@ -127,7 +127,7 @@ export async function POST(request: Request) {
     const form = await request.formData();
     const file = form.get("file");
     if (!(file instanceof File)) return NextResponse.json({ error: "Aucun fichier reçu." }, { status: 400 });
-    if (!file.size || file.size > MAX_FILE_BYTES) return NextResponse.json({ error: "Le fichier doit faire entre 1 octet et 12 Mo." }, { status: 413 });
+    if (!file.size || file.size > MAX_FILE_BYTES) return NextResponse.json({ error: "Le fichier doit faire entre 1 octet et 4 Mo." }, { status: 413 });
 
     const ext = extension(file.name);
     let extracted = "";
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
     } else if (ext === "pdf" || file.type === "application/pdf") {
       extracted = await extractPdf(Buffer.from(await file.arrayBuffer()));
       kind = "PDF";
-    } else if (["docx","xlsx","xlsm","xlsb","ods","pptx","odp","odt","zip"].includes(ext)) {
+    } else if (["docx","docm","xlsx","xls","xlsm","xlsb","xltx","ods","pptx","pptm","ppsx","odp","odt","epub","zip"].includes(ext)) {
       extracted = await extractZipText(Buffer.from(await file.arrayBuffer()), ext);
       kind = ext.toUpperCase();
     } else if (["mp3","wav","m4a","ogg","flac","mpeg","mpga"].includes(ext) || file.type.startsWith("audio/")) {
