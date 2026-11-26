@@ -40,7 +40,7 @@ function makePdf(text) {
   return Buffer.from(pdf);
 }
 
-const rtf = Buffer.from(String.raw`{\\rtf1\\ansi ZODIX RTF smoke test}`);
+const rtf = Buffer.from(String.raw`{\rtf1\ansi ZODIX RTF smoke test}`);
 assert.match(await officeText(rtf, "rtf"), /ZODIX RTF smoke test/);
 
 const docxZip = new JSZip();
