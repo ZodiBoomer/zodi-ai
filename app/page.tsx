@@ -129,6 +129,8 @@ export default function Home() {
   const requestControllerRef = useRef<AbortController | null>(null);
   const [activitySteps, setActivitySteps] = useState<string[]>([]);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [userMessageMenu, setUserMessageMenu] = useState<{ index: number; x: number; y: number } | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [historyQuery, setHistoryQuery] = useState("");
   const [updateStatus, setUpdateStatus] = useState("Vérifier les mises à jour");
@@ -136,6 +138,7 @@ export default function Home() {
   const checkingUpdateRef = useRef(false);
   const touchStartRef = useRef<{ x: number; y: number; target: EventTarget | null } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  useEffect(() => () => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }, []);
   const active = conversations.find((item) => item.id === activeId);
   const messages = active?.messages ?? [];
   const latestAssistantIndex = messages.reduce((latest, message, index) => message.role === "assistant" ? index : latest, -1);
@@ -283,6 +286,36 @@ export default function Home() {
     setAttachMenuOpen(false);
   }
 
+
+  function openUserMessageMenu(index: number, x: number, y: number) {
+    const menuWidth = 248, menuHeight = 250, margin = 12;
+    setUserMessageMenu({
+      index,
+      x: Math.max(margin, Math.min(x, window.innerWidth - menuWidth - margin)),
+      y: Math.max(margin, Math.min(y, window.innerHeight - menuHeight - margin))
+    });
+  }
+  function editUserMessage(index: number) {
+    if (!active || busy) return;
+    const message = active.messages[index];
+    if (!message || message.role !== "user") return;
+    updateConversation(active.id, (item) => ({ ...item, messages: item.messages.slice(0, index), updatedAt: Date.now() }));
+    setInput(message.content);
+    setPendingImages(message.images || []);
+    setUserMessageMenu(null);
+    requestAnimationFrame(() => document.getElementById("message-input")?.focus());
+  }
+  function selectUserMessageText(index: number) {
+    const node = document.querySelector<HTMLElement>(`[data-user-message-index="${index}"]`);
+    if (node) {
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }
+    setUserMessageMenu(null);
+  }
   async function copyMessage(content: string) {
     try { await navigator.clipboard.writeText(content); setStatus("Réponse copiée"); }
     catch { setStatus("Copie impossible depuis ce navigateur"); }
@@ -414,13 +447,51 @@ export default function Home() {
                 <button type="button" disabled={busy} onClick={() => void send(undefined, "Aide-moi à écrire un texte")}><strong>Écrire un texte</strong><span>Rédiger, corriger ou reformuler</span></button>
                 <button type="button" disabled={busy} onClick={() => void send(undefined, "Aide-moi sur mon projet")}><strong>Faire avancer un projet</strong><span>Réfléchir et passer à l&apos;action</span></button>
               </div>
+            {userMessageMenu && active?.messages[userMessageMenu.index]?.role === "user" && (
+              <div className="user-message-menu-backdrop" onClick={() => setUserMessageMenu(null)} onContextMenu={(event) => { event.preventDefault(); setUserMessageMenu(null); }}>
+                <div className="user-message-context-menu" style={{ left: userMessageMenu.x, top: userMessageMenu.y }} role="menu" aria-label="Actions sur ton message" onClick={(event) => event.stopPropagation()}>
+                  <div className="user-message-menu-date">Message envoyé</div>
+                  <button type="button" role="menuitem" onClick={() => { void copyMessage(active.messages[userMessageMenu.index].content); setUserMessageMenu(null); }}><Icon name="copy" size={20} />Copier</button>
+                  <button type="button" role="menuitem" onClick={() => selectUserMessageText(userMessageMenu.index)}><Icon name="file-text" size={20} />Sélectionner le texte</button>
+                  <button type="button" role="menuitem" disabled={busy} onClick={() => editUserMessage(userMessageMenu.index)}><Icon name="edit" size={20} />Modifier le message</button>
+                  <button type="button" role="menuitem" onClick={() => { void shareMessage(active.messages[userMessageMenu.index].content); setUserMessageMenu(null); }}><Icon name="share" size={20} />Partager le prompt</button>
+                </div>
+              </div>
+            )}
             </div> : <div className="message-stack">
               {messages.map((message, index) => <div className="message-entry" key={index}>
                 {!busy && index === activityAnchorIndex && activitySteps.length > 0 && <div className="activity-inline activity-before-reply" role="status" aria-live="polite"><span className="thinking-orb" /><button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>Historique d’activité <span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button>{activityOpen && <ul className="activity-list">{activitySteps.map((step, stepIndex) => <li key={`${stepIndex}-${step}`}>{step}</li>)}</ul>}</div>}
                 <article className={`message-row ${message.role}`}>
                 <div className="message-body">
                   {message.images?.length ? <div className={`message-images ${message.role}`} aria-label="Images envoyées">{message.images.map((image, imageIndex) => <img key={imageIndex} src={image.dataUrl} alt={image.name || "Image jointe"} />)}</div> : null}
-                  <div className={`message-content ${message.role}`}>
+                  <div
+                    className={`message-content ${message.role}`}
+                    {...(message.role === "user" ? {
+                      "data-user-message-index": index,
+                      onContextMenu: (event: React.MouseEvent<HTMLDivElement>) => {
+                        event.preventDefault();
+                        openUserMessageMenu(index, event.clientX, event.clientY);
+                      },
+                      onTouchStart: (event: React.TouchEvent<HTMLDivElement>) => {
+                        const touch = event.touches[0];
+                        if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+                        longPressTimerRef.current = setTimeout(() => openUserMessageMenu(index, touch.clientX, touch.clientY), 500);
+                      },
+                      onTouchMove: () => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); },
+                      onTouchEnd: () => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); },
+                      onTouchCancel: () => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); },
+                      onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
+                        if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+                          event.preventDefault();
+                          const rect = event.currentTarget.getBoundingClientRect();
+                          openUserMessageMenu(index, rect.left + rect.width / 2, rect.bottom);
+                        }
+                      },
+                      tabIndex: 0,
+                      role: "button",
+                      "aria-label": "Options du message envoyé"
+                    } : {})}
+                  >
                     {message.role === "assistant" ? <AssistantContent content={message.content} /> : message.content}
                   </div>
                   {message.role === "assistant" && index > 0 && <div className="message-actions" aria-label="Actions sur la réponse">
