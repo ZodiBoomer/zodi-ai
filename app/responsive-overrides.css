@@ -32,3 +32,7 @@ html, body { width:100%; min-width:0; min-height:100%; overflow:hidden; }
 .rich-content table { display:block; max-width:100%; overflow-x:auto; }
 .rich-content pre,.rich-content code { max-width:100%; overflow-x:auto; }
 @media(max-height:520px) and (max-width:900px) { .chatgpt-shell { height:100dvh; padding-top:env(safe-area-inset-top,0px); } .chat-topbar { flex-basis:44px; height:44px; } }
+
+/* Retire le pictogramme carré et le libellé ZODIX du bandeau supérieur Web. */
+.chat-topbar .topbar-brand { display:none !important; }
+.chat-topbar .topbar-brand::before { content:none !important; display:none !important; }
