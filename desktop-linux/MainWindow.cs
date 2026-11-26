@@ -160,6 +160,20 @@ public sealed class MainWindow : Window
         }
         content.Children.Add(new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap, Foreground = Text, FontSize = 14, LineHeight = 22 });
         var bubble = new Border { Background = user ? Brush("#263B63") : Brushes.Transparent, BorderBrush = user ? Brush("#3B82F6") : Brushes.Transparent, BorderThickness = user ? new Thickness(1) : new Thickness(0), CornerRadius = new CornerRadius(20), Padding = user ? new Thickness(16, 12) : new Thickness(0, 4), MaxWidth = 720, HorizontalAlignment = user ? HorizontalAlignment.Right : HorizontalAlignment.Left, Child = content };
+        if (user && messageIndex >= 0)
+        {
+            var menu = new ContextMenu();
+            var copy = new MenuItem { Header = "Copier" };
+            copy.Click += (_, _) => _ = CopyPrompt(value);
+            var edit = new MenuItem { Header = "Modifier le message" };
+            edit.Click += (_, _) => EditUserMessage(messageIndex);
+            var share = new MenuItem { Header = "Partager le prompt" };
+            share.Click += (_, _) => _ = SharePrompt(value);
+            menu.Items.Add(copy);
+            menu.Items.Add(edit);
+            menu.Items.Add(share);
+            bubble.ContextMenu = menu;
+        }
         messages.Children.Add(bubble);
         if (!user && messageIndex >= 0)
         {
@@ -171,6 +185,42 @@ public sealed class MainWindow : Window
             messages.Children.Add(actions);
         }
     }
+    void EditUserMessage(int messageIndex)
+    {
+        if (active == null || !send.IsEnabled || messageIndex < 0 || messageIndex >= active.Messages.Count) return;
+        var conversation = active;
+        var message = conversation.Messages[messageIndex];
+        if (message.Role != "user") return;
+        conversation.Messages.RemoveRange(messageIndex, conversation.Messages.Count - messageIndex);
+        pendingImages.Clear();
+        if (message.Images != null) pendingImages.AddRange(message.Images);
+        input.Text = message.Content;
+        Render();
+        Save();
+        input.Focus();
+        SetStatus("Message prêt à modifier");
+    }
+
+    async Task CopyPrompt(string value)
+    {
+        try
+        {
+            await TopLevel.GetTopLevel(this)!.Clipboard!.SetTextAsync(value);
+            SetStatus("Message copié");
+        }
+        catch { SetStatus("Copie indisponible sur ce bureau"); }
+    }
+
+    async Task SharePrompt(string value)
+    {
+        try
+        {
+            await TopLevel.GetTopLevel(this)!.Clipboard!.SetTextAsync(value);
+            SetStatus("Prompt copié · colle-le dans l’application de ton choix");
+        }
+        catch { SetStatus("Partage indisponible sur ce bureau"); }
+    }
+
     async void CopyResponse(string value)
     {
         try { await TopLevel.GetTopLevel(this)!.Clipboard!.SetTextAsync(value); SetStatus("Réponse copiée · prête à partager"); }
