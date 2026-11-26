@@ -64,7 +64,7 @@ public sealed partial class MainWindow : Window
 
     private static async Task OpenExternalAsync(Uri uri)
     {
-        if (uri.Scheme is Uri.UriSchemeHttps or Uri.UriSchemeHttp or Uri.UriSchemeMailto or Uri.UriSchemeTel)
+        if (uri.Scheme is Uri.UriSchemeHttps or Uri.UriSchemeHttp or Uri.UriSchemeMailto or "tel")
         {
             try { await Launcher.LaunchUriAsync(uri); } catch { }
         }
