@@ -23,7 +23,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        Title = "Zodi AI";
+        Title = "ZODIX";
         AppWebView.Loaded += MainWindow_Loaded;
     }
 
