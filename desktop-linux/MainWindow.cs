@@ -32,6 +32,17 @@ public sealed class MainWindow : Window
         MinHeight = 520;
         Background = new SolidColorBrush(Color.Parse("#151515"));
 
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "zodix-logo.png");
+        if (File.Exists(iconPath))
+        {
+            try
+            {
+                using var iconStream = File.OpenRead(iconPath);
+                Icon = new WindowIcon(iconStream);
+            }
+            catch { }
+        }
+
         webView = new NativeWebView
         {
             Source = new Uri(AppUrl),

@@ -15,5 +15,6 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.4.0"/>
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.4.0"/>
     <PackageReference Include="Avalonia.Controls.WebView" Version="11.4.1"/>
+    <Content Include="Assets/zodix-logo.png" Link="zodix-logo.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Always" />
   </ItemGroup>
 </Project>
