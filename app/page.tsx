@@ -278,6 +278,23 @@ export default function Home() {
     if (!files?.length) return;
     const selected = Array.from(files);
     const parts: string[] = [];
+    const archiveExtensions = /\.(rar|7z|tar|tgz|gz|bz2|xz)$/i;
+    const readableExtensions = new Set([
+      "pdf","doc","docx","docm","dotx","dotm","rtf","odt","epub","tex",
+      "xls","xlsx","xlsm","xlsb","xltx","ods","ppt","pps","pot","pptx","pptm","ppsx","ppsm","odp","odg",
+      "txt","md","markdown","csv","tsv","json","xml","html","htm","css","js","jsx","ts","tsx",
+      "py","java","c","cpp","h","hpp","cs","go","rs","php","rb","swift","kt","sql","yaml","yml","toml","ini","conf","log","sh","bash","bat","ps1","env","svg"
+    ]);
+    const readFileForPrompt = async (file: File, displayName = file.name) => {
+      const form = new FormData();
+      form.append("file", file, file.name);
+      const response = await fetch("/api/files/extract", { method: "POST", body: form });
+      const data = await response.json() as { ok?: boolean; name?: string; kind?: string; text?: string; truncated?: boolean; error?: string };
+      if (!response.ok || !data.ok || !data.text) throw new Error(data.error || "Lecture du fichier impossible.");
+      return `[Contenu extrait de ${displayName} — ${data.kind || kind}]
+${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de lecture.]" : ""}`;
+    };
+
     for (const file of selected) {
       if (file.size > 4 * 1024 * 1024) {
         setStatus(`Le fichier ${file.name} dépasse la limite de 4 Mo.`);
@@ -285,20 +302,54 @@ export default function Home() {
       }
       try {
         setStatus(`Lecture de ${file.name}…`);
-        const form = new FormData();
-        form.append("file", file, file.name);
-        const response = await fetch("/api/files/extract", { method: "POST", body: form });
-        const data = await response.json() as { ok?: boolean; name?: string; kind?: string; text?: string; truncated?: boolean; error?: string };
-        if (!response.ok || !data.ok || !data.text) throw new Error(data.error || "Lecture du fichier impossible.");
-        parts.push(`[Contenu extrait de ${data.name || file.name} — ${data.kind || kind}]
-${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de lecture.]" : ""}`);
+        if (archiveExtensions.test(file.name)) {
+          const { Archive } = await import("libarchive.js/main.js");
+          Archive.init({ workerUrl: "/libarchive-worker.js" });
+          const archive = await Archive.open(file);
+          try {
+            const tree = await archive.getFilesObject() as Record<string, unknown>;
+            const entries: Array<{ path: string; entry: { size: number; extract: () => Promise<File> } }> = [];
+            const walk = (node: Record<string, unknown>, prefix = "") => {
+              for (const [name, value] of Object.entries(node)) {
+                const path = prefix ? `${prefix}/${name}` : name;
+                if (value && typeof value === "object" && typeof (value as { extract?: unknown }).extract === "function") {
+                  entries.push({ path, entry: value as { size: number; extract: () => Promise<File> } });
+                } else if (value && typeof value === "object") {
+                  walk(value as Record<string, unknown>, path);
+                }
+              }
+            };
+            walk(tree);
+            if (entries.length > 100) throw new Error("Cette archive contient plus de 100 fichiers.");
+            let extractedBytes = 0;
+            let extractedCount = 0;
+            for (const item of entries) {
+              const ext = item.path.split(".").pop()?.toLowerCase() || "";
+              if (!readableExtensions.has(ext)) continue;
+              if (!Number.isFinite(item.entry.size) || item.entry.size < 0 || item.entry.size > 4 * 1024 * 1024) continue;
+              if (extractedBytes + item.entry.size > 4 * 1024 * 1024) break;
+              const innerFile = await item.entry.extract();
+              extractedBytes += innerFile.size;
+              if (extractedBytes > 4 * 1024 * 1024) throw new Error("Le contenu extrait de l’archive dépasse 4 Mo.");
+              parts.push(await readFileForPrompt(innerFile, `${file.name} → ${item.path}`));
+              extractedCount += 1;
+              if (extractedCount >= 25) break;
+            }
+            if (!extractedCount) throw new Error("Aucun document ou fichier texte pris en charge n’a été trouvé dans cette archive.");
+            setStatus(`${extractedCount} fichier(s) lu(s) dans ${file.name}.`);
+          } finally {
+            await archive.close();
+          }
+          continue;
+        }
+        parts.push(await readFileForPrompt(file));
       } catch (error) {
         setStatus(`${file.name} : ${error instanceof Error ? error.message : "lecture impossible"}`);
       }
     }
     if (parts.length) {
       setInput((current) => [current, ...parts].filter(Boolean).join("\n\n"));
-      setStatus(`${parts.length} fichier(s) lu(s) et ajouté(s) au message.`);
+      setStatus(`${parts.length} contenu(s) de fichier(s) lu(s) et ajouté(s) au message.`);
     }
     if (kind === "document" && fileInputRef.current) fileInputRef.current.value = "";
     if (kind === "audio" && audioInputRef.current) audioInputRef.current.value = "";
@@ -310,8 +361,9 @@ ${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de 
     if (!files?.length) return;
     const selected = Array.from(files);
     const frames: ImageAttachment[] = [];
+    const videoNotes: string[] = [];
     for (const file of selected) {
-      if (!file.type.startsWith("video/") && !/\.(mp4|mov|webm|m4v)$/i.test(file.name)) {
+      if (!file.type.startsWith("video/") && !/\.(mp4|mov|webm|m4v|avi|mkv|mpg)$/i.test(file.name)) {
         setStatus(`${file.name} n'est pas reconnu comme vidéo.`);
         continue;
       }
@@ -323,13 +375,76 @@ ${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de 
       try {
         const video = document.createElement("video");
         video.preload = "metadata";
-        video.muted = true;
+        video.playsInline = true;
         video.src = url;
         await new Promise<void>((resolve, reject) => {
           video.onloadedmetadata = () => resolve();
           video.onerror = () => reject(new Error("Vidéo illisible par ce navigateur."));
         });
         if (!Number.isFinite(video.duration) || video.duration <= 0) throw new Error("Durée vidéo inconnue.");
+
+        // Capture the audio track locally, without uploading the original video.
+        const captureStream = (video as HTMLVideoElement & { captureStream?: () => MediaStream; mozCaptureStream?: () => MediaStream }).captureStream
+          || (video as HTMLVideoElement & { mozCaptureStream?: () => MediaStream }).mozCaptureStream;
+        if (captureStream && typeof MediaRecorder !== "undefined") {
+          try {
+            video.currentTime = 0;
+            video.muted = false;
+            video.volume = 0;
+            const stream = captureStream.call(video);
+            const audioTracks = stream.getAudioTracks();
+            if (audioTracks.length) {
+              const audioStream = new MediaStream(audioTracks);
+              const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+                ? "audio/webm;codecs=opus"
+                : MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+              if (!mimeType) throw new Error("Ce navigateur ne sait pas encoder la piste audio en WebM.");
+              const recorder = new MediaRecorder(audioStream, { mimeType, audioBitsPerSecond: 64_000 });
+              const chunks: BlobPart[] = [];
+              recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+              const stopped = new Promise<void>((resolve) => { recorder.onstop = () => resolve(); });
+              recorder.start(1000);
+              const audioDuration = Math.min(video.duration, 180);
+              await video.play();
+              await new Promise<void>((resolve, reject) => {
+                let finished = false;
+                const finish = () => {
+                  if (finished) return;
+                  finished = true;
+                  window.clearTimeout(limit);
+                  video.removeEventListener("ended", finish);
+                  video.pause();
+                  if (recorder.state !== "inactive") recorder.stop();
+                  resolve();
+                };
+                const limit = window.setTimeout(finish, audioDuration * 1000 + 500);
+                video.addEventListener("ended", finish, { once: true });
+                video.addEventListener("error", () => reject(new Error("Lecture de la piste audio impossible.")), { once: true });
+              });
+              await stopped;
+              const audioBlob = new Blob(chunks, { type: mimeType });
+              if (audioBlob.size > 4 * 1024 * 1024) throw new Error("La piste audio extraite dépasse 4 Mo.");
+              if (audioBlob.size) {
+                const audioFile = new File([audioBlob], file.name.replace(/\.[^.]+$/, "") + ".audio.webm", { type: mimeType });
+                const form = new FormData();
+                form.append("file", audioFile, audioFile.name);
+                const response = await fetch("/api/files/extract", { method: "POST", body: form });
+                const data = await response.json() as { ok?: boolean; text?: string; error?: string };
+                if (!response.ok || !data.ok || !data.text) throw new Error(data.error || "Transcription audio vidéo impossible.");
+                videoNotes.push(`[Transcription audio de ${file.name}${video.duration > 180 ? " — premières 3 minutes seulement" : ""}]
+${data.text}`);
+              }
+            } else {
+              videoNotes.push(`[Aucune piste audio détectée dans ${file.name}]`);
+            }
+            stream.getTracks().forEach((track) => track.stop());
+          } catch (error) {
+            videoNotes.push(`[Audio de ${file.name} non transcrit : ${error instanceof Error ? error.message : "indisponible"}]`);
+          }
+        } else {
+          videoNotes.push(`[Ce navigateur ne permet pas l'extraction audio de ${file.name}]`);
+        }
+
         const canvas = document.createElement("canvas");
         const scale = Math.min(1, 1280 / Math.max(video.videoWidth, video.videoHeight));
         canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
@@ -355,8 +470,10 @@ ${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de 
     if (frames.length) {
       const room = Math.max(0, 4 - pendingImages.length);
       setPendingImages((current) => [...current, ...frames.slice(0, room)]);
-      setInput((current) => [current, `Analyse les images extraites de la ou des vidéos jointes. Les images sont des échantillons visuels, pas une lecture continue.`].filter(Boolean).join("\n\n"));
-      setStatus(`${Math.min(frames.length, room)} image(s) extraite(s). L'audio des vidéos n'est pas encore transcrit.`);
+      setInput((current) => [current, "Analyse les images extraites de la ou des vidéos jointes. Ce sont des échantillons visuels, pas une lecture continue.", ...videoNotes].filter(Boolean).join("\n\n"));
+      setStatus(`${Math.min(frames.length, room)} image(s) extraite(s) et piste(s) audio traitée(s) quand possible.`);
+    } else if (videoNotes.length) {
+      setInput((current) => [current, ...videoNotes].filter(Boolean).join("\n\n"));
     }
     if (videoInputRef.current) videoInputRef.current.value = "";
     setAttachMenuOpen(false);
@@ -365,7 +482,6 @@ ${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de 
   async function addTextFiles(files: FileList | null) {
     await addExtractedFiles(files, "document");
   }
-
   function openUserMessageMenu(index: number, x: number, y: number) {
     const menuWidth = 248, menuHeight = 250, margin = 12;
     setUserMessageMenu({
