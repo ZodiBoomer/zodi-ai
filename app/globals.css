@@ -868,3 +868,22 @@ body{min-height:0}
   .welcome-panel .suggestion-grid{gap:5px}
   .welcome-panel .suggestion-grid button{min-height:44px;padding:5px 8px}
 }
+
+/* Make the refresh mark in the top-right update button clearly readable. */
+.topbar-right>.update-button svg{
+  width:24px;
+  height:24px;
+  min-width:24px;
+  min-height:24px;
+  flex:0 0 24px;
+  stroke-width:2.4;
+}
+@media(max-width:380px){
+  .topbar-right>.update-button svg{
+    width:21px;
+    height:21px;
+    min-width:21px;
+    min-height:21px;
+    flex-basis:21px;
+  }
+}
