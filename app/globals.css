@@ -693,3 +693,77 @@ body{min-height:0}
 .update-button:hover:not(:disabled){background:linear-gradient(135deg,rgba(37,99,235,.34),rgba(37,99,235,.16));border-color:#60a5fa;color:#fff}
 .update-button:disabled{opacity:.65;cursor:wait}
 @media(max-width:380px){.update-button{gap:5px;padding:0 7px;font-size:11px;min-height:32px}.update-button svg{width:14px;height:14px}}
+
+
+/* Slightly larger, easier-to-hit controls without enlarging typography or layout. */
+.icon-button{
+  width:42px;
+  height:42px;
+  min-width:42px;
+  min-height:42px;
+  border-radius:12px;
+}
+.new-chat-button{
+  min-height:46px;
+  height:auto;
+  padding-block:10px;
+}
+.send-button{
+  width:42px;
+  height:42px;
+  min-width:42px;
+  min-height:42px;
+}
+.composer-actions .attach-plus{
+  width:42px;
+  height:42px;
+}
+.chat-composer .composer-actions .attach-menu-wrap{
+  flex-basis:42px;
+  width:42px;
+}
+.chat-composer .composer-actions .send-button{
+  flex-basis:42px;
+  width:42px;
+  height:42px;
+  min-width:42px;
+}
+.update-button{
+  min-height:40px;
+  padding-inline:13px;
+}
+.user-message-context-menu button{
+  min-height:48px;
+}
+.suggestion-grid button{
+  min-height:74px;
+}
+@media(max-width:720px){
+  .icon-button,.topbar-right .icon-button,.topbar-left .icon-button{
+    width:44px;
+    height:44px;
+    min-width:44px;
+    min-height:44px;
+  }
+  .chat-composer .composer-actions .attach-menu-wrap,
+  .chat-composer .composer-actions .attach-plus{
+    flex-basis:42px;
+    width:42px;
+    height:42px;
+  }
+  .chat-composer .composer-actions .send-button{
+    flex-basis:42px;
+    width:42px;
+    height:42px;
+    min-width:42px;
+  }
+  .update-button{min-height:40px}
+}
+@media(max-width:380px){
+  .icon-button,.topbar-right .icon-button,.topbar-left .icon-button{
+    width:42px;
+    height:42px;
+    min-width:42px;
+    min-height:42px;
+  }
+}
