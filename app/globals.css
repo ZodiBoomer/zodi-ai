@@ -289,3 +289,16 @@ button{transition:background .16s ease,border-color .16s ease,color .16s ease,tr
 .thinking-panel time{margin-left:7px;color:#858585;font-size:11px;font-variant-numeric:tabular-nums}
 @keyframes zodi-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.82)}}
 @media(prefers-reduced-motion:reduce){.thinking-orb{animation:none}}
+
+
+/* ChatGPT-like activity: inline text only, no card, fill, border or background. */
+.activity-inline{display:flex;align-items:center;gap:9px;flex-wrap:wrap;width:100%;padding:5px 0;color:#a3a3a3;background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important}
+.activity-inline .thinking-orb{width:7px;height:7px;background:#a3a3a3;box-shadow:none}
+.activity-toggle{display:inline-flex;align-items:center;gap:6px;padding:0;border:0;background:transparent;color:#a3a3a3;font-size:13px;font-weight:500}
+.activity-toggle:hover{color:#eee}
+.activity-chevron{font-size:15px}
+.activity-live{font-size:11px;color:#777}
+.activity-list{flex-basis:100%;margin:2px 0 0 16px;padding:0 0 0 14px;color:#929292;font-size:12px;line-height:1.75}
+.activity-list li{padding-left:2px}
+.stop-generation-button{background:#e5e5e5!important;color:#171717!important}
+.stop-generation-button:hover{background:#fff!important}
