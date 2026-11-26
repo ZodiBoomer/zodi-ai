@@ -30,21 +30,43 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
 }
 
 function inlineMarkdown(text: string): ReactNode[] {
-  const token = /(\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\(https?:\/\/[^)]+\))/g;
+  const codeMark = String.fromCharCode(96);
+  const token = new RegExp("(" + codeMark + "[^" + codeMark + "]+"+ codeMark + "|\\*\\*[^*]+\\*\\*|\\*[^*]+\\*|\\[[^\\]]+\\]\\(https?:\\/\\/[^)]+\\))","g");
   return text.split(token).filter(Boolean).map((part, index) => {
+    if (part.startsWith(codeMark) && part.endsWith(codeMark)) return <code key={index}>{part.slice(1, -1)}</code>;
     if (part.startsWith("**") && part.endsWith("**")) return <strong key={index}>{part.slice(2, -2)}</strong>;
     if (part.startsWith("*") && part.endsWith("*")) return <em key={index}>{part.slice(1, -1)}</em>;
-    const link = /^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/.exec(part);
+    const link = /^\\[([^\\]]+)\\]\\((https?:\\/\\/[^)]+)\\)$/.exec(part);
     if (link) return <a key={index} href={link[2]} target="_blank" rel="noreferrer">{link[1]}</a>;
     return part;
   });
 }
 
 function AssistantContent({ content }: { content: string }) {
-  const blocks = content.trim().split(/\n\s*\n/).filter(Boolean);
-  return <div className="rich-content">{blocks.map((block, index) => {
-    const lines = block.split("\n");
-    if (block.startsWith("~~~")) return <pre key={index}><code>{lines.slice(1, lines.at(-1)?.startsWith("~~~") ? -1 : undefined).join("\n")}</code></pre>;
+  const fence = String.fromCharCode(96).repeat(3);
+  const blocks: Array<{ kind: "text" | "code"; value: string }> = [];
+  let buffer: string[] = [];
+  let codeBuffer: string[] = [];
+  let inCode = false;
+  const flushText = () => {
+    if (buffer.length) { blocks.push({ kind: "text", value: buffer.join("\n") }); buffer = []; }
+  };
+  for (const line of content.split("\n")) {
+    if (line.trimStart().startsWith(fence)) {
+      if (inCode) { blocks.push({ kind: "code", value: codeBuffer.join("\n") }); codeBuffer = []; inCode = false; }
+      else { flushText(); inCode = true; }
+      continue;
+    }
+    if (inCode) codeBuffer.push(line);
+    else if (!line.trim()) flushText();
+    else buffer.push(line);
+  }
+  if (inCode) blocks.push({ kind: "code", value: codeBuffer.join("\n") });
+  else flushText();
+
+  return <div className="rich-content">{blocks.map((item, index) => {
+    if (item.kind === "code") return <pre key={index}><code>{item.value}</code></pre>;
+    const lines = item.value.split("\n");
     const heading = /^(#{1,3})\s+(.+)$/.exec(lines[0]);
     if (heading) {
       if (heading[1].length === 1) return <h2 key={index}>{inlineMarkdown(heading[2])}</h2>;
@@ -54,7 +76,7 @@ function AssistantContent({ content }: { content: string }) {
     if (lines.every((line) => /^\s*[-*]\s+/.test(line))) return <ul key={index}>{lines.map((line, i) => <li key={i}>{inlineMarkdown(line.replace(/^\s*[-*]\s+/, ""))}</li>)}</ul>;
     if (lines.every((line) => /^\s*\d+[.)]\s+/.test(line))) return <ol key={index}>{lines.map((line, i) => <li key={i}>{inlineMarkdown(line.replace(/^\s*\d+[.)]\s+/, ""))}</li>)}</ol>;
     if (lines.every((line) => line.startsWith(">"))) return <blockquote key={index}>{inlineMarkdown(lines.map((line) => line.replace(/^>\s?/, "")).join(" "))}</blockquote>;
-    return <p key={index}>{inlineMarkdown(block.replace(/\n/g, " "))}</p>;
+    return <p key={index}>{inlineMarkdown(item.value.replace(/\n/g, " "))}</p>;
   })}</div>;
 }
 
