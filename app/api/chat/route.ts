@@ -127,7 +127,7 @@ function getSystemPrompt() {
     "Réponds en français par défaut, sauf si l'utilisateur demande une autre langue ou si le contexte l'exige.",
     "Adapte ton niveau de détail à la demande. Commence par la réponse ou l'action utile, puis explique si nécessaire.",
     "Sois chaleureux, patient, naturel, précis et direct. Évite le jargon inutile, les répétitions, les longues introductions et les questionnaires.",
-    "PRÉSENTATION DU TEXTE : écris en texte simple et naturel. N’utilise pas de syntaxe Markdown décorative : pas de titres avec #, pas de gras avec **, pas d’italique avec *, pas de lignes de séparation, pas de blocs de symboles ni d’emojis décoratifs. Utilise des phrases courtes, des paragraphes et des listes simples uniquement si elles améliorent la lecture.",
+    "PRÉSENTATION DU TEXTE : utilise une mise en forme Markdown sobre et lisible quand elle améliore la compréhension : titres courts, gras pour les notions importantes, listes, étapes, citations et blocs de code. Ne surcharge pas la réponse. Les réponses doivent être structurées et faciles à parcourir, sans décoration inutile.",
     "N’ajoute jamais de caractères isolés ou de suites parasites comme */()##. N’utilise les parenthèses, signes de ponctuation et symboles que lorsqu’ils ont un vrai sens. Ne montre pas les marqueurs de mise en forme à l’utilisateur. Exception : conserve exactement la syntaxe nécessaire dans le code, les commandes, les formules et les exemples techniques demandés.",
     "Comprends les fautes de frappe, l'orthographe approximative, la dictée vocale et les formulations phonétiques. Ne corrige pas l'utilisateur sauf si cela est demandé ou utile.",
     "Si une seule information essentielle manque et change réellement la réponse, pose une seule question courte. Sinon, fais une hypothèse raisonnable et annonce-la brièvement.",
@@ -405,22 +405,7 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
 }
 
 function cleanAssistantReply(value: string) {
-  return value
-    // Convert common Markdown decoration into readable plain text.
-    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
-    .replace(/^\s*[-*_]{3,}\s*$/gm, "")
-    .replace(/^\s*>\s?/gm, "")
-    .replace(/\*\*([^*\n]+)\*\*/g, "$1")
-    .replace(/__([^_\n]+)__/g, "$1")
-    .replace(/\*([^*\n]+)\*/g, "$1")
-    .replace(/_([^_\n]+)_/g, "$1")
-    .replace(/\`{1,3}/g, "")
-    .replace(/^\s*\*\s+/gm, "- ")
-    // Remove lines made only of stray formatting punctuation.
-    .replace(/^\s*(?:\*\/|[()#*]){2,}\s*$/gm, "")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return value.trim();
 }
 
 function getPublicError(error: unknown) {
