@@ -165,7 +165,6 @@ export default function Home() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Impossible de régénérer la réponse");
       updateConversation(active.id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: data.reply }], updatedAt: Date.now() }));
-      setFeedback((all) => { const next = { ...all }; delete next[index]; return next; });
     } catch (error) {
       updateConversation(active.id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: error instanceof Error ? error.message : "Erreur pendant la régénération." }], updatedAt: Date.now() }));
     } finally { setBusy(false); }
