@@ -251,32 +251,25 @@ export default function Home() {
     setRevealedDeleteId(null);
   }
   async function addImages(files: FileList | null) {
-    if (!files) return;
-    const selected = Array.from(files).filter((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type));
-    if (selected.length !== files.length) setStatus("Formats acceptés : JPG, PNG et WEBP.");
+    if (!files?.length) return;
+    const selected = Array.from(files).filter((file) => file.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif|avif|gif|bmp|tiff?)$/i.test(file.name));
+    if (selected.length !== files.length) setStatus("Le bouton Photos accepte uniquement les images.");
     if (pendingImages.length + selected.length > 4) { setStatus("Tu peux joindre 4 images maximum."); return; }
     const converted: ImageAttachment[] = [];
     for (const file of selected) {
       try {
-        const source = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(new Error("Lecture impossible")); reader.readAsDataURL(file);
-        });
-        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-          const image = new Image(); image.onload = () => resolve(image); image.onerror = () => reject(new Error("Image illisible")); image.src = source;
-        });
-        const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
-        const canvas = document.createElement("canvas"); canvas.width = Math.max(1, Math.round(img.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
-        const context = canvas.getContext("2d"); if (!context) throw new Error("Conversion image impossible");
-        context.drawImage(img, 0, 0, canvas.width, canvas.height);
-        let dataUrl = canvas.toDataURL("image/jpeg", 0.82);
-        let quality = 0.72;
-        while (dataUrl.length > 950000 && quality > 0.4) { dataUrl = canvas.toDataURL("image/jpeg", quality); quality -= 0.1; }
-        if (dataUrl.length > 950000) throw new Error("Image trop volumineuse après compression.");
-        const imageBytes = Math.floor((dataUrl.length - dataUrl.indexOf(",") - 1) * 3 / 4);
+        const form = new FormData();
+        form.append("file", file, file.name);
+        const response = await fetch("/api/files/image", { method: "POST", body: form });
+        const data = await response.json() as { ok?: boolean; name?: string; dataUrl?: string; mimeType?: "image/jpeg"; error?: string };
+        if (!response.ok || !data.ok || !data.dataUrl) throw new Error(data.error || "Conversion de l’image impossible.");
+        const imageBytes = Math.floor((data.dataUrl.length - data.dataUrl.indexOf(",") - 1) * 3 / 4);
         const usedBytes = [...pendingImages, ...converted].reduce((sum, image) => sum + Math.floor((image.dataUrl.length - image.dataUrl.indexOf(",") - 1) * 3 / 4), 0);
         if (usedBytes + imageBytes > 2 * 1024 * 1024) throw new Error("Les photos jointes ne doivent pas dépasser 2 Mo au total.");
-        converted.push({ dataUrl, mimeType: "image/jpeg", name: file.name });
-      } catch (error) { setStatus(error instanceof Error ? error.message : "Image invalide."); }
+        converted.push({ dataUrl: data.dataUrl, mimeType: "image/jpeg", name: data.name || file.name });
+      } catch (error) {
+        setStatus(`${file.name} : ${error instanceof Error ? error.message : "image illisible"}`);
+      }
     }
     setPendingImages((current) => [...current, ...converted].slice(0, 4));
     if (imageInputRef.current) imageInputRef.current.value = "";
@@ -599,8 +592,8 @@ ${data.text}${data.truncated ? "
         <div className="composer-area">
           <form className="chat-composer" onSubmit={send}>
             <label className="sr-only" htmlFor="message-input">Message à ZODIX</label>
-            <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
-            <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={imageInputRef} type="file" accept="image/*,.heic,.heif,.avif,.tif,.tiff,.bmp,.gif" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={cameraInputRef} type="file" accept="image/*,.heic,.heif,.avif" capture="environment" hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.odt,.xls,.xlsx,.ods,.ppt,.pptx,.odp,.txt,.md,.csv,.log,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "audio"); }} />
             <input ref={videoInputRef} type="file" accept="video/*,.mp4,.mov,.webm" multiple hidden onChange={(event) => { void addVideoFiles(event.target.files); }} />
