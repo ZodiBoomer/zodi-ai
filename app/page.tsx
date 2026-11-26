@@ -382,8 +382,9 @@ export default function Home() {
                 <button type="button" disabled={busy} onClick={() => void send(undefined, "Aide-moi sur mon projet")}><strong>Faire avancer un projet</strong><span>Réfléchir et passer à l&apos;action</span></button>
               </div>
             </div> : <div className="message-stack">
-              {messages.map((message, index) => <article className={`message-row ${message.role}`} key={index}>
-                {index === activityAnchorIndex && activitySteps.length > 0 && <div className="activity-inline activity-before-reply" role="status" aria-live="polite"><span className="thinking-orb" /><button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>{busy ? "Zodi travaille" : "Historique d’activité"} <span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button>{busy && <span className="activity-live">En cours</span>}{activityOpen && <ul className="activity-list">{activitySteps.map((step, stepIndex) => <li key={`${stepIndex}-${step}`}>{step}</li>)}</ul>}</div>}
+              {messages.map((message, index) => <div className="message-entry" key={index}>
+                {!busy && index === activityAnchorIndex && activitySteps.length > 0 && <div className="activity-inline activity-before-reply" role="status" aria-live="polite"><span className="thinking-orb" /><button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>Historique d’activité <span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button>{activityOpen && <ul className="activity-list">{activitySteps.map((step, stepIndex) => <li key={`${stepIndex}-${step}`}>{step}</li>)}</ul>}</div>}
+                <article className={`message-row ${message.role}`}>
                 <div className="message-body">
                   {message.images?.length ? <div className={`message-images ${message.role}`} aria-label="Images envoyées">{message.images.map((image, imageIndex) => <img key={imageIndex} src={image.dataUrl} alt={image.name || "Image jointe"} />)}</div> : null}
                   <div className={`message-content ${message.role}`}>
@@ -400,8 +401,10 @@ export default function Home() {
                     <button type="button" onClick={() => { setInput("Résume ta réponse précédente en quelques points."); document.getElementById("message-input")?.focus(); }}>Résumé</button>
                   </div>}
                 </div>
-              </article>)}
-              {busy && latestAssistantIndex === -1 && <div className="message-row assistant"><div className="activity-inline" role="status" aria-live="polite"><span className="thinking-orb" /><button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>Zodi travaille <span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button><span className="activity-live">En cours</span>{activityOpen && <ul className="activity-list">{activitySteps.map((step, index) => <li key={`${index}-${step}`}>{step}</li>)}</ul>}</div></div>}
+              </article>
+                {busy && index === activityAnchorIndex && activitySteps.length > 0 && <div className="activity-inline activity-after-user" role="status" aria-live="polite"><span className="thinking-orb" /><button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>Zodi travaille <span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button><span className="activity-live">En cours</span>{activityOpen && <ul className="activity-list">{activitySteps.map((step, stepIndex) => <li key={`${stepIndex}-${step}`}>{step}</li>)}</ul>}</div>}
+                </div>)}
+              {busy && latestAssistantIndex === -1 && latestUserIndex === -1 && <div className="message-entry"><div className="activity-inline" role="status" aria-live="polite"><span className="thinking-orb" /><button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>Zodi travaille <span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button><span className="activity-live">En cours</span>{activityOpen && <ul className="activity-list">{activitySteps.map((step, index) => <li key={`${index}-${step}`}>{step}</li>)}</ul>}</div></div>}
               <div ref={chatEndRef} />
             </div>}
           </div>
