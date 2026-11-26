@@ -693,3 +693,11 @@ body{min-height:0}
 .update-button:hover:not(:disabled){background:linear-gradient(135deg,rgba(37,99,235,.34),rgba(37,99,235,.16));border-color:#60a5fa;color:#fff}
 .update-button:disabled{opacity:.65;cursor:wait}
 @media(max-width:380px){.update-button{gap:5px;padding:0 7px;font-size:11px;min-height:32px}.update-button svg{width:14px;height:14px}}
+
+/* Make the conversation delete action clearly visible on every screen. */
+.conversation-item-wrap{display:flex;align-items:center;gap:5px;min-width:0;width:100%}
+.conversation-item-wrap .conversation-item{flex:1;min-width:0}
+.conversation-delete-button{display:grid;place-items:center;flex:none;width:36px;height:36px;padding:0;border:1px solid #713535;border-radius:9px;background:#3a2020;color:#ff7777;opacity:1;visibility:visible}
+.conversation-delete-button:hover{background:#572626;border-color:#a34a4a;color:#ffaaaa}
+.conversation-delete-button:disabled{opacity:.4;cursor:not-allowed}
+@media(max-width:720px){.conversation-delete-button{width:40px;height:40px}}
