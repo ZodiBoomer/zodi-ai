@@ -702,3 +702,9 @@ body{min-height:0}
 .conversation-delete-button:hover,.conversation-delete-button:focus-visible{background:#ff3030!important;border-color:#ff7777!important;color:#fff!important;box-shadow:0 0 0 3px rgba(255,48,48,.3)}
 .conversation-delete-button:disabled{opacity:.85!important;cursor:not-allowed}
 @media(max-width:720px){.conversation-delete-button{flex-basis:42px;width:42px;min-width:42px;height:42px}}
+
+
+/* Mobile swipe polish: prevent Android/WebView blue tap flashes and browser horizontal overscroll while keeping vertical scrolling and pinch zoom. */
+*,*::before,*::after{-webkit-tap-highlight-color:transparent}
+html,body,.chatgpt-shell{overscroll-behavior-x:none}
+.chatgpt-shell{touch-action:pan-y pinch-zoom}
