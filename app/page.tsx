@@ -95,6 +95,7 @@ export default function Home() {
   const [updateStatus, setUpdateStatus] = useState("Vérifier les mises à jour");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const checkingUpdateRef = useRef(false);
+  const touchStartRef = useRef<{ x: number; y: number; target: EventTarget | null } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const active = conversations.find((item) => item.id === activeId);
   const messages = active?.messages ?? [];
@@ -265,7 +266,27 @@ export default function Home() {
   }
 
   return (
-    <main className={`chatgpt-shell ${sidebarOpen ? "" : "sidebar-collapsed"}`}>
+    <main
+      className={`chatgpt-shell ${sidebarOpen ? "" : "sidebar-collapsed"}`}
+      onTouchStart={(event) => {
+        if (window.matchMedia("(min-width: 721px)").matches) return;
+        const touch = event.touches[0];
+        touchStartRef.current = { x: touch.clientX, y: touch.clientY, target: event.target };
+      }}
+      onTouchEnd={(event) => {
+        const start = touchStartRef.current;
+        touchStartRef.current = null;
+        if (!start || window.matchMedia("(min-width: 721px)").matches) return;
+        const touch = event.changedTouches[0];
+        const dx = touch.clientX - start.x;
+        const dy = touch.clientY - start.y;
+        if (Math.abs(dy) > 85 || Math.abs(dx) < 70) return;
+        const target = start.target;
+        if (target instanceof HTMLElement && target.closest("button,input,textarea,a,[contenteditable=true]")) return;
+        if (sidebarOpen && dx < -70) setSidebarOpen(false);
+        else if (!sidebarOpen && start.x >= 28 && start.x <= 64 && dx > 75) setSidebarOpen(true);
+      }}
+    >
       <aside className="sidebar">
         <div className="sidebar-top">
           <button className="icon-button" type="button" onClick={() => setSidebarOpen(false)} aria-label="Réduire le menu" title="Réduire le menu"><Icon name="menu" /></button>
