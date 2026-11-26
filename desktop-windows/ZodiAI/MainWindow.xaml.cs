@@ -89,7 +89,6 @@ public sealed partial class MainWindow : Window
             var script = $$"""
                 (() => {
                   const key = "{{LegacyStore}}";
-                  if (localStorage.getItem(key)) return;
                   try {
                     let old = JSON.parse({{rawLiteral}});
                     const normalized = (Array.isArray(old) ? old : []).map((c, i) => ({
@@ -106,8 +105,11 @@ public sealed partial class MainWindow : Window
                         }))
                       }))
                     }));
-                    if (normalized.length) {
-                      localStorage.setItem(key, JSON.stringify(normalized));
+                    const existing = JSON.parse(localStorage.getItem(key) || "[]");
+                    const known = new Set(existing.map(item => item.id));
+                    const merged = [...existing, ...normalized.filter(item => !known.has(item.id))];
+                    if (merged.length > existing.length) {
+                      localStorage.setItem(key, JSON.stringify(merged));
                       location.reload();
                     }
                   } catch (_) {}
