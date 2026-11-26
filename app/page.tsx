@@ -284,7 +284,7 @@ export default function Home() {
       const remaining = maxPromptCharacters - extractedCharacters;
       if (remaining <= 0) return false;
       if (part.length > remaining) {
-        const marker = "\\n[Contenu tronqué pour respecter la limite du message.]";
+        const marker = "\n[Contenu tronqué pour respecter la limite du message.]";
         parts.push(part.slice(0, Math.max(0, remaining - marker.length)) + marker);
         extractedCharacters = maxPromptCharacters;
         return false;
