@@ -1,9 +1,22 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./responsive-overrides.css";
 
 export const metadata: Metadata = {
   title: "ZODIX",
-  description: "Le noyau de ton assistant personnel."
+  description: "Le noyau de ton assistant personnel.",
+  applicationName: "ZODIX",
+  icons: {
+    icon: [{ url: "/zodix-logo.jpg", type: "image/jpeg" }],
+    apple: [{ url: "/zodix-logo.jpg", type: "image/jpeg" }]
+  },
+  manifest: "/manifest.webmanifest"
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover"
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

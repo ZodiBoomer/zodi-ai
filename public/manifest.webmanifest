@@ -1,0 +1,16 @@
+{
+  "name": "ZODIX",
+  "short_name": "ZODIX",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080817",
+  "theme_color": "#080817",
+  "icons": [
+    {
+      "src": "/zodix-logo.jpg",
+      "sizes": "128x128",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
