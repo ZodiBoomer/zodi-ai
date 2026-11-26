@@ -133,6 +133,8 @@ export default function Home() {
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [historyQuery, setHistoryQuery] = useState("");
+  const [revealedDeleteId, setRevealedDeleteId] = useState<string | null>(null);
+  const conversationTouchRef = useRef<{ id: string; x: number; y: number } | null>(null);
   const [updateStatus, setUpdateStatus] = useState("Vérifier les mises à jour");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const checkingUpdateRef = useRef(false);
@@ -232,14 +234,18 @@ export default function Home() {
     const value = window.prompt("Nouveau nom de la conversation :", active.title);
     if (value?.trim()) updateConversation(active.id, (item) => ({ ...item, title: value.trim(), updatedAt: Date.now() }));
   }
-  function deleteActiveChat() {
-    if (!active || busy || !window.confirm("Supprimer cette conversation de cet appareil ?")) return;
-    const remaining = conversations.filter((item) => item.id !== active.id);
+  function deleteConversation(id: string) {
+    const target = conversations.find((item) => item.id === id);
+    if (!target || (busy && id === activeId) || !window.confirm("Supprimer cette conversation de cet appareil ?")) return;
+    const remaining = conversations.filter((item) => item.id !== id);
     const next = remaining.length ? remaining : [createConversation()];
     setConversations(next);
-    setActiveId(next[0].id);
-    setInput("");
-    setPendingImages([]);
+    if (id === activeId) {
+      setActiveId(next[0].id);
+      setInput("");
+      setPendingImages([]);
+    }
+    setRevealedDeleteId(null);
   }
   async function addImages(files: FileList | null) {
     if (!files) return;
@@ -418,7 +424,10 @@ export default function Home() {
         </div>
         <input className="history-search" type="search" value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="Rechercher une conversation…" aria-label="Rechercher dans l'historique" />
         <nav className="conversation-list" aria-label="Historique des conversations">
-          {visibleConversations.length ? visibleConversations.map((item) => <button key={item.id} type="button" className={`conversation-item ${item.id === activeId ? "active" : ""}`} onClick={() => setActiveId(item.id)} title={item.title}><Icon name="message-square" size={15} /><span className="conversation-title">{item.title}</span></button>) : <p className="history-empty">Aucune conversation trouvée.</p>}
+          {visibleConversations.length ? visibleConversations.map((item) => <div key={item.id} className={`conversation-item-wrap ${revealedDeleteId === item.id ? "delete-revealed" : ""}`} onTouchStart={(event) => { const touch = event.touches[0]; conversationTouchRef.current = { id: item.id, x: touch.clientX, y: touch.clientY }; }} onTouchEnd={(event) => { const start = conversationTouchRef.current; conversationTouchRef.current = null; if (!start || start.id !== item.id) return; const touch = event.changedTouches[0]; const dx = touch.clientX - start.x; const dy = touch.clientY - start.y; if (Math.abs(dy) > 35 || Math.abs(dx) < 45) return; if (dx < -45) setRevealedDeleteId(item.id); else if (dx > 45) setRevealedDeleteId(null); }}>
+            <button type="button" className={`conversation-item ${item.id === activeId ? "active" : ""}`} onClick={() => { setActiveId(item.id); setRevealedDeleteId(null); }} title={item.title}><Icon name="message-square" size={15} /><span className="conversation-title">{item.title}</span></button>
+            <button type="button" className="conversation-delete-button" onClick={() => deleteConversation(item.id)} disabled={busy && item.id === activeId} aria-label={`Supprimer la conversation : ${item.title}`} title="Supprimer cette conversation"><Icon name="trash" size={15} /></button>
+          </div>) : <p className="history-empty">Aucune conversation trouvée.</p>}
         </nav>
         
       </aside>
@@ -428,7 +437,7 @@ export default function Home() {
           <div className="topbar-left">
             <button className="icon-button" type="button" onClick={() => setSidebarOpen((open) => !open)} aria-label="Ouvrir ou fermer le menu" title="Menu"><Icon name="menu" /></button><span className="topbar-brand">ZODIX</span>
           </div>
-          <div className="topbar-right"><span className={`connection-label ${statusTone}`} title={status}><i />{ready ? "En ligne" : "Connexion…"}</span><button className="icon-button" type="button" onClick={renameActiveChat} disabled={!active || busy} title="Renommer la conversation" aria-label="Renommer la conversation"><Icon name="edit" /></button><button className="icon-button" type="button" onClick={deleteActiveChat} disabled={!active || busy} title="Supprimer la conversation" aria-label="Supprimer la conversation"><Icon name="trash" /></button><button className="update-button" type="button" onClick={() => void checkForUpdates(true)} disabled={checkingUpdate} title={updateStatus} aria-label="Mettre à jour ZODIX"><Icon name="refresh" size={16} /><span>{checkingUpdate ? "Vérification…" : "Mettre à jour"}</span></button></div>
+          <div className="topbar-right"><span className={`connection-label ${statusTone}`} title={status}><i />{ready ? "En ligne" : "Connexion…"}</span><button className="icon-button" type="button" onClick={renameActiveChat} disabled={!active || busy} title="Renommer la conversation" aria-label="Renommer la conversation"><Icon name="edit" /></button><button className="update-button" type="button" onClick={() => void checkForUpdates(true)} disabled={checkingUpdate} title={updateStatus} aria-label="Mettre à jour ZODIX"><Icon name="refresh" size={16} /><span>{checkingUpdate ? "Vérification…" : "Mettre à jour"}</span></button></div>
         </header>
         <div className="conversation-viewport">
           <div className={`messages-container ${messages.length <= 1 ? "welcome-state" : ""}`}>
