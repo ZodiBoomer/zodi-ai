@@ -1,3 +1,4 @@
+# Trigger desktop CI validation for the current Windows/Linux packaging revision.
 name: Zodi AI Desktop Builds
 on:
   workflow_dispatch:

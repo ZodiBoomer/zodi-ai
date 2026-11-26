@@ -11,3 +11,7 @@ Client de bureau natif Avalonia/.NET 8. Il se connecte à https://zodi-ai-core.v
 Télécharger le paquet Debian .deb pour Ubuntu/Debian ou l'archive .tar.gz pour les autres distributions. Une connexion Internet est nécessaire pour les réponses IA.
 
 Les conversations locales ne sont pas encore synchronisées entre appareils.
+
+## Validation CI
+
+Le packaging Linux x64 (`.deb` et `.tar.gz`) est vérifié par le workflow GitHub Actions `Zodi AI Desktop Builds`.

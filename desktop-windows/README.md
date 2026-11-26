@@ -26,3 +26,8 @@ L'installateur final est créé dans `release/Zodi-AI-Setup-0.2.0-x64.exe`.
 ## Limites de cette première version
 
 Le client dispose d'une conversation dans la session en cours. L'authentification Google, la synchronisation de l'historique multi-conversations et la mémoire du compte doivent être raccordées au flux OAuth/API du backend avant d'être considérées comme disponibles dans ce client natif.
+
+
+## Validation CI
+
+Le packaging Windows x64 est vérifié par le workflow GitHub Actions `Zodi AI Desktop Builds`.
