@@ -175,4 +175,4 @@ jobs:
         run: |
           gh api --method POST repos/ZodiBoomer/zodi-ai-releases-publique/dispatches \
             -f event_type=zodi-desktop-release-published \
-            -F client_payload[tag_name]=desktop-v0.3.$RUN_NUMBER
+            -F client_payload[tag_name]=desktop-v1.1.0
