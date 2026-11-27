@@ -191,6 +191,11 @@ public sealed class MainWindow : Window
             using var message = JsonDocument.Parse(e.Body);
             var root = message.RootElement;
             var type = root.TryGetProperty("type", out var typeValue) ? typeValue.GetString() : null;
+            if (type == "checkUpdates")
+            {
+                await CheckForUpdatesOnStartupAsync();
+                return;
+            }
             var text = root.TryGetProperty("text", out var textValue) ? textValue.GetString() : null;
             if (type is not ("copy" or "share") || string.IsNullOrEmpty(text)) return;
             var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
