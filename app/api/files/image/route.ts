@@ -11,12 +11,18 @@ export async function POST(request: Request) {
     const form = await request.formData();
     const file = form.get("file");
     if (!(file instanceof File)) return NextResponse.json({ error: "Aucune image reçue." }, { status: 400 });
-    const imageName = /\.(jpe?g|png|webp|heic|heif|avif|gif|bmp|tiff?)$/i.test(file.name);
-    if ((!file.type.startsWith("image/") && !imageName) || !file.size || file.size > MAX_IMAGE_BYTES) {
+    if (!file.size || file.size > MAX_IMAGE_BYTES) {
       return NextResponse.json({ error: "Choisis une image de 4 Mo maximum." }, { status: 413 });
     }
     const input = Buffer.from(await file.arrayBuffer());
-    const output = await sharp(input, { limitInputPixels: 40_000_000 })
+    // Android gallery providers may omit both MIME type and filename extension.
+    const source = sharp(input, { limitInputPixels: 40_000_000 });
+    const metadata = await source.metadata();
+    const supportedFormats = new Set(["jpeg", "png", "webp", "heif", "avif", "gif", "tiff", "bmp"]);
+    if (!metadata.format || !supportedFormats.has(metadata.format)) {
+      return NextResponse.json({ error: "Le fichier sélectionné n’est pas une image prise en charge." }, { status: 415 });
+    }
+    const output = await source
       .rotate()
       .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
       .jpeg({ quality: 78, mozjpeg: true })
