@@ -36,29 +36,27 @@ internal static class AppUpdater
             expectedSha256.Length != 64 || !expectedSha256.All(Uri.IsHexDigit))
             throw new InvalidOperationException("Le catalogue de mise à jour contient des informations invalides.");
 
-        var current = Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? "0.0.0";
+        // Keep all four version components; ToString(3) drops the revision and
+        // makes releases such as 1.7.5.3 look perpetually newer than 1.7.5.
+        var current = Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "0.0.0.0";
         if (CompareVersions(version, current) <= 0)
-            return $"Zodi AI est à jour (v{current}).";
+            return "NO_UPDATE";
 
         var assetName = Path.GetFileName(new Uri(downloadUrl).AbsolutePath);
         if (!assetName.EndsWith(".deb", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Le catalogue ne pointe pas vers un paquet Debian.");
+            throw new InvalidOperationException("Le catalogue ne pointe pas vers un installateur compatible.");
 
-        var downloadDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
-        Directory.CreateDirectory(downloadDirectory);
-        var destination = Path.Combine(downloadDirectory, assetName);
+        var destination = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", assetName);
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
         await DownloadAsync(downloadUrl, destination);
         var actualSha256 = await ComputeSha256Async(destination);
         if (!CryptographicOperations.FixedTimeEquals(Convert.FromHexString(expectedSha256), Convert.FromHexString(actualSha256)))
         {
             File.Delete(destination);
-            throw new InvalidOperationException("La vérification SHA-256 du paquet Debian a échoué.");
+            throw new InvalidOperationException("La vérification SHA-256 de l'installateur a échoué.");
         }
 
-        var installer = new ProcessStartInfo("xdg-open") { UseShellExecute = false };
-        installer.ArgumentList.Add(destination);
-        Process.Start(installer);
-        return $"Paquet v{version} vérifié et téléchargé dans {downloadDirectory}. Le gestionnaire de logiciels va s'ouvrir pour confirmer l'installation.";
+        return destination;
     }
 
     private static async Task DownloadAsync(string address, string destination)

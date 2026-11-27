@@ -1,8 +1,10 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
 using Windows.System;
@@ -38,6 +40,7 @@ public sealed partial class MainWindow : Window
             core.Settings.IsStatusBarEnabled = false;
             core.NavigationStarting += Core_NavigationStarting;
             core.NewWindowRequested += Core_NewWindowRequested;
+            core.WebMessageReceived += Core_WebMessageReceived;
             AppWebView.NavigationCompleted += AppWebView_NavigationCompleted;
             AppWebView.Source = new Uri(AppUrl);
             _ = CheckForUpdatesOnStartupAsync();
@@ -54,6 +57,17 @@ public sealed partial class MainWindow : Window
         if (uri.Scheme == Uri.UriSchemeHttps && string.Equals(uri.Host, AppHost, StringComparison.OrdinalIgnoreCase)) return;
         e.Cancel = true;
         _ = OpenExternalAsync(uri);
+    }
+
+    private void Core_WebMessageReceived(CoreWebView2 sender, CoreWebView2WebMessageReceivedEventArgs e)
+    {
+        try
+        {
+            using var message = JsonDocument.Parse(e.WebMessageAsJson);
+            if (message.RootElement.TryGetProperty("type", out var type) && type.GetString() == "checkUpdates")
+                _ = CheckForUpdatesOnStartupAsync(manual: true);
+        }
+        catch { }
     }
 
     private void Core_NewWindowRequested(CoreWebView2 sender, CoreWebView2NewWindowRequestedEventArgs e)
@@ -120,17 +134,53 @@ public sealed partial class MainWindow : Window
         catch { /* The original local history file is intentionally left untouched. */ }
     }
 
-    private async Task CheckForUpdatesOnStartupAsync()
+    private async Task CheckForUpdatesOnStartupAsync(bool manual = false)
     {
         await Task.Delay(1800);
         try
         {
-            var result = await AppUpdater.CheckAndInstallAsync();
-            if (result == "INSTALLER_STARTED")
+            var installerPath = await AppUpdater.CheckAndInstallAsync();
+            if (installerPath == "NO_UPDATE")
             {
+                if (manual)
+                {
+                    var currentDialog = new ContentDialog
+                    {
+                        XamlRoot = AppWebView.XamlRoot,
+                        Title = "ZODIX est à jour",
+                        Content = "Aucune nouvelle version n'est disponible.",
+                        CloseButtonText = "Fermer"
+                    };
+                    await currentDialog.ShowAsync();
+                }
+                return;
+            }
+
+            var dialog = new ContentDialog
+            {
+                XamlRoot = AppWebView.XamlRoot,
+                Title = "Mise à jour ZODIX disponible",
+                Content = "La version 1.7.5.3 est prête. Veux-tu l'installer maintenant ? ZODIX se fermera pendant l'installation.",
+                PrimaryButtonText = "Installer",
+                CloseButtonText = "Plus tard",
+                DefaultButton = ContentDialogButton.Primary
+            };
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+                Process.Start(new ProcessStartInfo(installerPath) { UseShellExecute = true });
                 Application.Current.Exit();
             }
         }
-        catch { /* The web app remains usable when the release service is offline. */ }
+        catch (Exception ex)
+        {
+            var dialog = new ContentDialog
+            {
+                XamlRoot = AppWebView.XamlRoot,
+                Title = "Vérification des mises à jour impossible",
+                Content = ex.Message,
+                CloseButtonText = "Fermer"
+            };
+            await dialog.ShowAsync();
+        }
     }
 }
