@@ -23,6 +23,7 @@ export async function GET(
     const { presignedUrl } = await presignUrl(token, {
       pathname: blobPath,
       operation: "get",
+      access: "private",
       validUntil: Date.now() + SIGNED_URL_LIFETIME_MS
     });
     return Response.redirect(presignedUrl, 307);
