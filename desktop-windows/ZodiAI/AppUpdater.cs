@@ -36,11 +36,18 @@ internal static class AppUpdater
             expectedSha256.Length != 64 || !expectedSha256.All(Uri.IsHexDigit))
             throw new InvalidOperationException("Le catalogue de mise à jour contient des informations invalides.");
 
-        var current = Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? "0.0.0";
+        // Keep all four version components; ToString(3) drops the revision and
+        // makes releases such as 1.7.5.3 look perpetually newer than 1.7.5.
+        var current = Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "0.0.0.0";
         if (CompareVersions(version, current) <= 0)
-            return $"Zodi AI est à jour (v{current}).";
+            return "NO_UPDATE";
+
+        var assetName = Path.GetFileName(new Uri(downloadUrl).AbsolutePath);
+        if (!assetName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Le catalogue ne pointe pas vers un installateur compatible.");
 
         var destination = Path.Combine(Path.GetTempPath(), $"Zodi-AI-Setup-{version}.exe");
+        
         await DownloadAsync(downloadUrl, destination);
         var actualSha256 = await ComputeSha256Async(destination);
         if (!CryptographicOperations.FixedTimeEquals(Convert.FromHexString(expectedSha256), Convert.FromHexString(actualSha256)))
@@ -49,8 +56,7 @@ internal static class AppUpdater
             throw new InvalidOperationException("La vérification SHA-256 de l'installateur a échoué.");
         }
 
-        Process.Start(new ProcessStartInfo(destination) { UseShellExecute = true });
-        return "INSTALLER_STARTED";
+        return destination;
     }
 
     private static async Task DownloadAsync(string address, string destination)
