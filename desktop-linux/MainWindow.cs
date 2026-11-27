@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Layout;
 using Avalonia.Input.Platform;
 using Avalonia.Platform;
 
@@ -201,7 +202,71 @@ public sealed class MainWindow : Window
     private async Task CheckForUpdatesOnStartupAsync()
     {
         await Task.Delay(1800);
-        try { await AppUpdater.CheckAndInstallAsync(); }
-        catch { }
+        try
+        {
+            var packagePath = await AppUpdater.CheckAndInstallAsync();
+            if (packagePath == "NO_UPDATE") return;
+
+            var prompt = new Window
+            {
+                Title = "Mise à jour ZODIX disponible",
+                Width = 440,
+                Height = 210,
+                CanResize = false,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Content = new StackPanel
+                {
+                    Margin = new Thickness(20),
+                    Spacing = 18,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            Text = "La version 1.7.5.3 est prête. Veux-tu ouvrir le gestionnaire de logiciels pour l'installer ?",
+                            TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                        },
+                        new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                            Spacing = 10,
+                            Children =
+                            {
+                                new Button { Content = "Plus tard", IsCancel = true },
+                                new Button { Content = "Installer", IsDefault = true, Tag = packagePath }
+                            }
+                        }
+                    }
+                }
+            };
+            var buttons = ((StackPanel)((StackPanel)prompt.Content!).Children[1]);
+            ((Button)buttons.Children[0]).Click += (_, _) => prompt.Close(false);
+            ((Button)buttons.Children[1]).Click += (_, _) => prompt.Close(true);
+            if (await prompt.ShowDialog<bool>(this))
+                Process.Start(new ProcessStartInfo("xdg-open") { UseShellExecute = false, ArgumentList = { packagePath } });
+        }
+        catch (Exception ex)
+        {
+            var error = new Window
+            {
+                Title = "Vérification des mises à jour impossible",
+                Width = 440,
+                Height = 170,
+                CanResize = false,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Content = new StackPanel
+                {
+                    Margin = new Thickness(20),
+                    Spacing = 14,
+                    Children =
+                    {
+                        new TextBlock { Text = ex.Message, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
+                        new Button { Content = "Fermer", HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right }
+                    }
+                }
+            };
+            ((Button)((StackPanel)error.Content!).Children[1]).Click += (_, _) => error.Close();
+            await error.ShowDialog(this);
+        }
     }
 }
