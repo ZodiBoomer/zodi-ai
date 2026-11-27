@@ -221,6 +221,28 @@ export default function Home() {
     if (checkingUpdateRef.current) return;
     checkingUpdateRef.current = true; setCheckingUpdate(true); setUpdateStatus("Vérification…");
     try {
+      if (reload) {
+        const native = window as unknown as {
+          ZodiNative?: { checkForUpdates?: () => void };
+          invokeCSharpAction?: (payload: string) => void;
+          chrome?: { webview?: { postMessage: (payload: unknown) => void } };
+        };
+        if (native.ZodiNative?.checkForUpdates) {
+          native.ZodiNative.checkForUpdates();
+          setUpdateStatus("Vérification des mises à jour de l'application…");
+          return;
+        }
+        if (native.chrome?.webview?.postMessage) {
+          native.chrome.webview.postMessage({ type: "checkUpdates" });
+          setUpdateStatus("Vérification des mises à jour de l'application…");
+          return;
+        }
+        if (native.invokeCSharpAction) {
+          native.invokeCSharpAction(JSON.stringify({ type: "checkUpdates" }));
+          setUpdateStatus("Vérification des mises à jour de l'application…");
+          return;
+        }
+      }
       const response = await fetch("/api/version", { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
       if (!response.ok) throw new Error();
       const data = await response.json() as { buildId?: string };
