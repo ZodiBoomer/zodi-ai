@@ -1,6 +1,6 @@
 {
   "name": "zodi-ai-core",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -21,7 +21,8 @@
     "hucre": "^1.0.0",
     "officeparser": "^8.9.0",
     "word-extractor": "^1.0.4",
-    "libarchive.js": "^2.0.2"
+    "libarchive.js": "^2.0.2",
+    "@vercel/blob": "^2.4.0"
   },
   "devDependencies": {
     "@types/node": "^22.18.6",

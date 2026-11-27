@@ -887,3 +887,57 @@ body{min-height:0}
     flex-basis:21px;
   }
 }
+
+
+/* Universal attachments: original files remain visible in the composer and conversation. */
+.composer-attachments{align-items:flex-start}
+.composer-attachment-card{position:relative;display:flex;flex-direction:column;gap:7px;width:min(260px,100%);min-width:120px;padding:8px;border:1px solid #4a4a4a;border-radius:13px;background:#242424;color:#eee}
+.composer-attachment-card>img{width:100%;max-height:150px;object-fit:contain;border-radius:8px}
+.composer-attachment-card>video{width:100%;max-height:150px;border-radius:8px;background:#111}
+.composer-attachment-card>button{position:absolute;right:4px;top:4px;width:25px;height:25px;border:1px solid #555;border-radius:50%;background:#171717;color:#fff;font-size:18px;line-height:1;z-index:2}
+.composer-file,.composer-audio{display:flex;align-items:center;gap:9px;min-width:0;padding:5px 22px 5px 2px}
+.composer-file>span:last-child,.message-attachment-file a>span:last-child{display:flex;flex-direction:column;min-width:0;gap:3px}
+.composer-file strong,.composer-audio strong,.message-attachment-file strong{font-size:12px;overflow-wrap:anywhere}
+.composer-file small,.message-attachment-file small{font-size:10px;color:#aaa;overflow-wrap:anywhere}
+.composer-audio{flex-direction:column;align-items:stretch}
+.composer-audio audio,.message-attachment-audio audio{width:100%;max-width:320px}
+.attachment-file-icon{display:grid;place-items:center;flex:none;width:38px;height:42px;border-radius:7px;background:#3a3a3a;color:#ddd;font-size:9px;font-weight:700}
+.message-attachments{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-bottom:9px;max-width:min(100%,560px)}
+.message-attachment-media{display:flex;flex-direction:column;gap:5px;max-width:100%;font-size:11px;color:#aaa}
+.message-attachment-media img{display:block;max-width:min(100%,360px);max-height:340px;object-fit:contain;border-radius:12px}
+.message-attachment-media video{display:block;width:min(100%,520px);max-height:360px;background:#000;border-radius:12px}
+.message-attachment-media a{color:#aaa;text-decoration:none}
+.message-attachment-audio{display:flex;flex-direction:column;gap:7px;width:min(100%,420px);padding:10px 12px;border:1px solid #444;border-radius:12px;background:#262626}
+.message-attachment-audio strong{font-size:12px;overflow-wrap:anywhere}
+.message-attachment-file{width:min(100%,420px);border:1px solid #444;border-radius:12px;background:#262626;overflow:hidden}
+.message-attachment-file iframe{display:block;width:100%;height:280px;border:0;background:#fff}
+.message-attachment-file>a{display:flex;align-items:center;gap:10px;padding:10px 12px;color:#eee;text-decoration:none}
+.message-attachment-file>a:hover{background:#333}
+@media(max-width:720px){
+ .composer-attachment-card{width:min(230px,calc(100vw - 90px))}
+ .message-attachment-media video{width:100%;max-height:280px}
+ .message-attachment-file iframe{height:220px}
+}
+
+
+/* Prevent accidental blue tap flash on Android/WebView without disabling normal interaction. */
+*,*::before,*::after{-webkit-tap-highlight-color:transparent}
+html,body,.chatgpt-shell{overscroll-behavior-x:none}
+/* ZODIX desktop: use the full available window and keep a compact navigation rail. */
+@media (min-width:721px){
+  .chatgpt-shell{grid-template-columns:252px minmax(0,1fr);min-width:0}
+  .chatgpt-shell.sidebar-collapsed{grid-template-columns:68px minmax(0,1fr)}
+  .chatgpt-shell.sidebar-collapsed .sidebar{width:68px;min-width:0;padding:10px 7px;overflow:hidden}
+  .chatgpt-shell.sidebar-collapsed .sidebar-top{flex-direction:column;justify-content:flex-start;align-items:center;gap:8px;margin-bottom:12px}
+  .chatgpt-shell.sidebar-collapsed .history-search{display:none}
+  .chatgpt-shell.sidebar-collapsed .conversation-item-wrap{justify-content:center}
+  .chatgpt-shell.sidebar-collapsed .conversation-item{width:48px;min-width:48px;max-width:48px;flex:0 0 48px;justify-content:center;padding:8px 0}
+  .chatgpt-shell.sidebar-collapsed .conversation-title,
+  .chatgpt-shell.sidebar-collapsed .conversation-delete-button,
+  .chatgpt-shell.sidebar-collapsed .history-empty{display:none}
+  .chatgpt-shell.sidebar-collapsed .conversation-item-wrap .conversation-item svg{flex:none}
+  .messages-container{width:100%;max-width:none;padding-inline:clamp(20px,3vw,44px)}
+  .welcome-panel{width:100%;max-width:none}
+  .composer-area{width:100%;max-width:none;padding-inline:clamp(16px,2.5vw,36px)}
+  .chat-composer{width:100%;max-width:none}
+}
