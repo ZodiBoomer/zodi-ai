@@ -8,6 +8,10 @@ type Message = { role: "user" | "assistant"; content: string; images?: ImageAtta
 type Conversation = { id: string; title: string; messages: Message[]; updatedAt: number };
 type Health = { ok?: boolean; aiConfigured?: boolean; provider?: string; providers?: string[]; model?: string; modelFallbacks?: string[] };
 const BUILD_ID = process.env.NEXT_PUBLIC_ZODI_BUILD_ID ?? "local";
+const welcome = (): Message[] => [{ role: "assistant", content: "Salut ! Je suis ZODIX. Comment puis-je t'aider aujourd'hui ?" }];
+const createConversation = (): Conversation => ({ id: crypto.randomUUID(), title: "Nouvelle discussion", messages: welcome(), updatedAt: Date.now() });
+
+
 type IconName = "menu" | "plus" | "edit" | "trash" | "refresh" | "copy" | "share" | "image" | "camera" | "file-text" | "send" | "stop" | "sparkles" | "message-square";
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   const paths: Record<IconName, ReactNode> = {
@@ -111,7 +115,6 @@ function AssistantContent({ content }: { content: string }) {
 }
 export default function Home() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [activeId, setActiveId] = useState("");
   const [input, setInput] = useState("");
   const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
@@ -141,24 +144,22 @@ export default function Home() {
   const touchStartRef = useRef<{ x: number; y: number; target: EventTarget | null } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => () => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }, []);
-  const active = conversations.find((item) => item.id === activeId) ?? (activeId ? { id: activeId, title: "Nouvelle discussion", messages: [], updatedAt: 0 } : undefined);
+  const active = conversations.find((item) => item.id === activeId);
   const messages = active?.messages ?? [];
   const latestAssistantIndex = messages.reduce((latest, message, index) => message.role === "assistant" ? index : latest, -1);
   const latestUserIndex = messages.reduce((latest, message, index) => message.role === "user" ? index : latest, -1);
   // While generating, anchor activity after the current user message; once answered, place it immediately before that answer.
   const activityAnchorIndex = busy ? latestUserIndex : latestAssistantIndex;
-  const visibleConversations = conversations.filter((item) => item.title.toLowerCase().includes(historyQuery.trim().toLowerCase()) || item.messages.some((message) => message.content.toLowerCase().includes(historyQuery.trim().toLowerCase())));
+  const visibleConversations = conversations.filter((item) => item.messages.some((message) => message.role === "user") && (item.title.toLowerCase().includes(historyQuery.trim().toLowerCase()) || item.messages.some((message) => message.content.toLowerCase().includes(historyQuery.trim().toLowerCase()))));
   const statusTone = /échec|impossible|erreur|indisponible/i.test(status) ? "danger" : ready ? "success" : /vérification|recherche/i.test(status) ? "info" : "warning";
 
   useEffect(() => {
     let stored: Conversation[] = [];
     try { stored = JSON.parse(localStorage.getItem("zodi-conversations-v2") || "[]"); } catch {}
-    const savedConversations = stored.filter((item) => Array.isArray(item.messages) && item.messages.some((message) => message.role === "user"));
-    setConversations(savedConversations);
-    setActiveId(crypto.randomUUID());
-    setHistoryLoaded(true);
+    const initial = [createConversation(), ...stored];
+    setConversations(initial); setActiveId(initial[0].id);
   }, []);
-  useEffect(() => { if (historyLoaded) localStorage.setItem("zodi-conversations-v2", JSON.stringify(conversations)); }, [conversations, historyLoaded]);
+  useEffect(() => { const saved = conversations.filter((item) => item.messages.some((message) => message.role === "user")); localStorage.setItem("zodi-conversations-v2", JSON.stringify(saved)); }, [conversations]);
   useEffect(() => {
     if (!attachMenuOpen) return;
     const close = (event: PointerEvent) => {
@@ -171,7 +172,9 @@ export default function Home() {
   }, [attachMenuOpen]);
 
   useEffect(() => {
-    if (window.matchMedia("(max-width: 720px)").matches) setSidebarOpen(false);
+    // Keep the mobile interface free of an initial full-screen sidebar overlay.
+    // Desktop retains its expanded navigation by default.
+    if (!window.matchMedia("(max-width: 720px)").matches) setSidebarOpen(true);
   }, []);
 
   useEffect(() => {
@@ -199,9 +202,17 @@ export default function Home() {
       if (!response.ok) throw new Error();
       const data = await response.json() as { buildId?: string };
       const available = Boolean(data.buildId && data.buildId !== "unknown" && BUILD_ID !== "local" && data.buildId !== BUILD_ID);
-      if (available) { setUpdateStatus("Mise à jour disponible · Recharger"); if (reload) window.location.reload(); }
-      else setUpdateStatus("ZODIX est à jour");
-    } catch { setUpdateStatus("Vérification impossible · Réessayer"); }
+      if (available) setUpdateStatus("Mise à jour disponible · Actualisation…");
+      else setUpdateStatus("ZODIX est à jour · Actualisation…");
+      if (reload) {
+        const refreshUrl = new URL(window.location.href);
+        refreshUrl.searchParams.set("_zodix_refresh", Date.now().toString());
+        window.location.replace(refreshUrl.toString());
+      }
+    } catch {
+      setUpdateStatus(reload ? "Actualisation forcée…" : "Vérification impossible · Réessayer");
+      if (reload) window.location.reload();
+    }
     finally { checkingUpdateRef.current = false; setCheckingUpdate(false); }
   }, []);
 
@@ -221,7 +232,9 @@ export default function Home() {
   }, [checkForUpdates]);
 
   function startNewChat() {
-    setActiveId(crypto.randomUUID());
+    const item = createConversation();
+    setConversations((all) => [item, ...all]);
+    setActiveId(item.id);
     setInput("");
     setPendingImages([]);
     if (window.matchMedia("(max-width: 720px)").matches) setSidebarOpen(false);
@@ -238,9 +251,10 @@ export default function Home() {
     const target = conversations.find((item) => item.id === id);
     if (!target || (busy && id === activeId) || !window.confirm("Supprimer cette conversation de cet appareil ?")) return;
     const remaining = conversations.filter((item) => item.id !== id);
-    setConversations(remaining);
+    const next = remaining.length ? remaining : [createConversation()];
+    setConversations(next);
     if (id === activeId) {
-      setActiveId(crypto.randomUUID());
+      setActiveId(next[0].id);
       setInput("");
       setPendingImages([]);
     }
@@ -598,11 +612,7 @@ ${data.text}`);
     const latestImageMessage = images.length ? -1 : history.reduce((last, message, index) => message.images?.length ? index : last, -1);
     const requestHistory = history.map((message, index) => ({ ...message, images: index === latestImageMessage ? message.images : undefined }));
     const userMessages = [...active.messages, { role: "user" as const, content: text || "Analyse cette image.", images }];
-    if (conversations.some((item) => item.id === id)) {
-      updateConversation(id, (item) => ({ ...item, title: item.title === "Nouvelle discussion" ? text.slice(0, 38) + (text.length > 38 ? "…" : "") : item.title, messages: userMessages, updatedAt: Date.now() }));
-    } else {
-      setConversations((all) => [{ ...active, title: text ? text.slice(0, 38) + (text.length > 38 ? "…" : "") : "Photo", messages: userMessages, updatedAt: Date.now() }, ...all]);
-    }
+    updateConversation(id, (item) => ({ ...item, title: item.title === "Nouvelle discussion" ? text.slice(0, 38) + (text.length > 38 ? "…" : "") : item.title, messages: userMessages, updatedAt: Date.now() }));
     setInput(""); setPendingImages([]); setBusy(true); setActivityOpen(false);
     requestAnimationFrame(() => {
       const field = document.getElementById("message-input") as HTMLTextAreaElement | null;
@@ -646,7 +656,7 @@ ${data.text}`);
     >
       <aside className="sidebar">
         <div className="sidebar-top">
-          <button className="icon-button" type="button" onClick={() => setSidebarOpen(false)} aria-label="Réduire le menu" title="Réduire le menu"><Icon name="menu" /></button>
+          <button className="icon-button" type="button" onClick={() => setSidebarOpen((open) => !open)} aria-label="Agrandir ou réduire le menu" title="Agrandir ou réduire le menu"><Icon name="menu" /></button>
           <button className="icon-button" type="button" onClick={startNewChat} aria-label="Nouvelle discussion" title="Nouvelle discussion"><Icon name="plus" /></button>
         </div>
         <input className="history-search" type="search" value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="Rechercher une conversation…" aria-label="Rechercher dans l'historique" />
@@ -759,7 +769,7 @@ ${data.text}`);
                 <button className="attach-plus" type="button" onClick={() => setAttachMenuOpen((open) => !open)} disabled={busy} aria-label="Ajouter des pièces jointes" aria-expanded={attachMenuOpen} title="Ajouter"><Icon name="plus" size={24} /></button>
                 {attachMenuOpen && <div className="attach-menu" role="menu">
                   <button type="button" role="menuitem" onClick={() => cameraInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="camera" /></span> Appareil photo</button>
-                  <button type="button" role="menuitem" onClick={() => imageInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="image" /></span> Photo</button>
+                  <button type="button" role="menuitem" onClick={() => imageInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="image" /></span> Photos uniquement</button>
                   <button type="button" role="menuitem" onClick={() => fileInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="file-text" /></span> Documents et fichiers</button>
                   <button type="button" role="menuitem" onClick={() => audioInputRef.current?.click()}><span className="attach-menu-icon">♫</span> Musique / audio</button>
                   <button type="button" role="menuitem" onClick={() => videoInputRef.current?.click()}><span className="attach-menu-icon">▶</span> Vidéos</button>
