@@ -284,17 +284,20 @@ export default function Home() {
     }
     setRevealedDeleteId(null);
   }
-  function makePendingAttachment(file: File): PendingAttachment {
+  function makePendingAttachment(file: File, forcedKind?: AttachmentKind): PendingAttachment {
     return { id: crypto.randomUUID(), file, previewUrl: URL.createObjectURL(file), name: file.name,
-      contentType: file.type || "application/octet-stream", size: file.size, kind: getAttachmentKind(file) };
+      contentType: file.type || (forcedKind === "image" ? "image/*" : "application/octet-stream"),
+      size: file.size, kind: forcedKind ?? getAttachmentKind(file) };
   }
 
-  async function addImages(files: FileList | null) {
+  async function addImages(files: FileList | null, selectedFromImagePicker = false) {
     if (!files?.length) return;
-    const selected = Array.from(files).filter((file) => file.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif|avif|gif|bmp|tiff?)$/i.test(file.name));
+    // Android gallery providers can return a File with an empty MIME type and no extension.
+    // These two inputs are image-only, so trust their source and still render the preview.
+    const selected = Array.from(files).filter((file) => selectedFromImagePicker || file.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif|avif|gif|bmp|tiff?)$/i.test(file.name));
     if (selected.length !== files.length) setStatus("Le bouton Photos accepte uniquement les images.");
     if (pendingAttachments.filter((item) => item.kind === "image").length + selected.length > 4) { setStatus("Tu peux joindre 4 images maximum."); return; }
-    setPendingAttachments((current) => [...current, ...selected.map(makePendingAttachment)]);
+    setPendingAttachments((current) => [...current, ...selected.map((file) => makePendingAttachment(file, "image"))]);
     setImageProcessing((count) => count + selected.length);
     const converted: ImageAttachment[] = [];
     try {
@@ -864,8 +867,8 @@ ${data.text}`);
         <div className="composer-area">
           <form className="chat-composer" onSubmit={send}>
             <label className="sr-only" htmlFor="message-input">Message à ZODIX</label>
-            <input ref={imageInputRef} type="file" accept="image/*,.heic,.heif,.avif,.tif,.tiff,.bmp,.gif" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
-            <input ref={cameraInputRef} type="file" accept="image/*,.heic,.heif,.avif" capture="environment" hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={imageInputRef} type="file" accept="image/*,.heic,.heif,.avif,.tif,.tiff,.bmp,.gif" multiple hidden onChange={(event) => { void addImages(event.target.files, true); setAttachMenuOpen(false); }} />
+            <input ref={cameraInputRef} type="file" accept="image/*,.heic,.heif,.avif" capture="environment" hidden onChange={(event) => { void addImages(event.target.files, true); setAttachMenuOpen(false); }} />
             <input ref={fileInputRef} type="file" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac,.aac,.mpga,.opus,.webm" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "audio"); }} />
             <input ref={videoInputRef} type="file" accept="video/*,.mp4,.mov,.webm,.m4v,.avi,.mkv,.mpg" multiple hidden onChange={(event) => { void addVideoFiles(event.target.files); }} />
