@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 type ImageAttachment = { dataUrl: string; mimeType: "image/jpeg" | "image/png" | "image/webp"; name: string };
 type AttachmentKind = "image" | "video" | "audio" | "document" | "file";
 type MessageAttachment = { pathname: string; name: string; contentType: string; size: number; kind: AttachmentKind };
-type PendingAttachment = MessageAttachment & { id: string; file?: File; previewUrl: string };
+type PendingAttachment = Omit<MessageAttachment, "pathname"> & { pathname?: string; id: string; file?: File; previewUrl: string };
 type Message = { role: "user" | "assistant"; content: string; images?: ImageAttachment[]; attachments?: MessageAttachment[] };
 type Conversation = { id: string; title: string; messages: Message[]; updatedAt: number };
 type Health = { ok?: boolean; aiConfigured?: boolean; provider?: string; providers?: string[]; model?: string; modelFallbacks?: string[] };
