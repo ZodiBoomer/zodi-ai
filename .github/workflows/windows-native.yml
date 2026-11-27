@@ -64,7 +64,7 @@ jobs:
           $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
           $vsPath = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath
           $msbuild = Join-Path $vsPath "MSBuild\Current\Bin\MSBuild.exe"
-          & $msbuild desktop-windows/ZodiAI/ZodiAI.csproj /restore /t:Publish /p:Configuration=Release /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:WindowsAppSDKSelfContained=true /p:Version=1.7.5.2.1 /p:PublishDir="$PWD\publish\"
+          & $msbuild desktop-windows/ZodiAI/ZodiAI.csproj /restore /t:Publish /p:Configuration=Release /p:RuntimeIdentifier=win-x64 /p:SelfContained=true /p:WindowsAppSDKSelfContained=true /p:Version=1.7.5.2 /p:PublishDir="$PWD\publish\"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Install Inno Setup
@@ -74,7 +74,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force release | Out-Null
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.7.5.2.1 desktop-windows/installer/Zodi-AI.iss
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.7.5.2 desktop-windows/installer/Zodi-AI.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Verify native installer output
