@@ -327,7 +327,7 @@ export default function Home() {
       return true;
     });
     if (!selected.length) return;
-    setPendingAttachments((current) => [...current, ...selected.map(makePendingAttachment)]);
+    setPendingAttachments((current) => [...current, ...selected.map((file) => makePendingAttachment(file))]);
     const parts: string[] = [];
     const maxPromptCharacters = Math.max(0, 30_000 - input.length);
     let extractedCharacters = 0;
