@@ -1,15 +1,36 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
+import { upload } from "@vercel/blob/client";
 import type { ReactNode } from "react";
 
 type ImageAttachment = { dataUrl: string; mimeType: "image/jpeg" | "image/png" | "image/webp"; name: string };
-type Message = { role: "user" | "assistant"; content: string; images?: ImageAttachment[] };
+type AttachmentKind = "image" | "video" | "audio" | "document" | "file";
+type MessageAttachment = { pathname: string; name: string; contentType: string; size: number; kind: AttachmentKind };
+type PendingAttachment = Omit<MessageAttachment, "pathname"> & { pathname?: string; id: string; file?: File; previewUrl: string };
+type Message = { role: "user" | "assistant"; content: string; images?: ImageAttachment[]; attachments?: MessageAttachment[] };
 type Conversation = { id: string; title: string; messages: Message[]; updatedAt: number };
 type Health = { ok?: boolean; aiConfigured?: boolean; provider?: string; providers?: string[]; model?: string; modelFallbacks?: string[] };
 const BUILD_ID = process.env.NEXT_PUBLIC_ZODI_BUILD_ID ?? "local";
 const welcome = (): Message[] => [{ role: "assistant", content: "Salut ! Je suis ZODIX. Comment puis-je t'aider aujourd'hui ?" }];
 const createConversation = (): Conversation => ({ id: crypto.randomUUID(), title: "Nouvelle discussion", messages: welcome(), updatedAt: Date.now() });
+
+function getAttachmentKind(file: Pick<File, "name" | "type">): AttachmentKind {
+  const name = file.name.toLowerCase();
+  if (file.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif|avif|gif|bmp|tiff?)$/i.test(name)) return "image";
+  if (file.type.startsWith("video/") || /\.(mp4|mov|webm|m4v|avi|mkv|mpg|mpeg)$/i.test(name)) return "video";
+  if (file.type.startsWith("audio/") || /\.(mp3|wav|m4a|ogg|flac|aac|mpga|opus|aiff?)$/i.test(name)) return "audio";
+  if (/\.(pdf|docx?|docm|odt|rtf|epub|xls[xmb]?|ods|pptx?|pptm|ppsx|ppsm|odp|txt|md|csv|tsv)$/i.test(name) || file.type.includes("pdf") || file.type.includes("officedocument")) return "document";
+  return "file";
+}
+function attachmentUrl(pathname: string) {
+  return "/api/files/" + pathname.split("/").map((part) => encodeURIComponent(part)).join("/");
+}
+function formatFileSize(size: number) {
+  if (size < 1024) return size + " o";
+  if (size < 1024 * 1024) return (size / 1024).toFixed(0) + " Ko";
+  return (size / (1024 * 1024)).toFixed(1) + " Mo";
+}
 
 
 type IconName = "menu" | "plus" | "edit" | "trash" | "refresh" | "copy" | "share" | "image" | "camera" | "file-text" | "send" | "stop" | "sparkles" | "message-square";
@@ -118,6 +139,7 @@ export default function Home() {
   const [activeId, setActiveId] = useState("");
   const [input, setInput] = useState("");
   const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -172,8 +194,7 @@ export default function Home() {
   }, [attachMenuOpen]);
 
   useEffect(() => {
-    // Keep the mobile interface free of an initial full-screen sidebar overlay.
-    // Desktop retains its expanded navigation by default.
+    // Avoid a full-screen overlay intercepting mobile taps during startup.
     if (!window.matchMedia("(max-width: 720px)").matches) setSidebarOpen(true);
   }, []);
 
@@ -237,6 +258,7 @@ export default function Home() {
     setActiveId(item.id);
     setInput("");
     setPendingImages([]);
+    setPendingAttachments((items) => { items.forEach((item) => { if (item.previewUrl.startsWith("blob:")) URL.revokeObjectURL(item.previewUrl); }); return []; });
     if (window.matchMedia("(max-width: 720px)").matches) setSidebarOpen(false);
   }
   function updateConversation(id: string, transform: (item: Conversation) => Conversation) {
@@ -257,19 +279,25 @@ export default function Home() {
       setActiveId(next[0].id);
       setInput("");
       setPendingImages([]);
+      setPendingAttachments((items) => { items.forEach((item) => { if (item.previewUrl.startsWith("blob:")) URL.revokeObjectURL(item.previewUrl); }); return []; });
     }
     setRevealedDeleteId(null);
   }
+  function makePendingAttachment(file: File): PendingAttachment {
+    return { id: crypto.randomUUID(), file, previewUrl: URL.createObjectURL(file), name: file.name,
+      contentType: file.type || "application/octet-stream", size: file.size, kind: getAttachmentKind(file) };
+  }
+
   async function addImages(files: FileList | null) {
     if (!files?.length) return;
     const selected = Array.from(files).filter((file) => file.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif|avif|gif|bmp|tiff?)$/i.test(file.name));
     if (selected.length !== files.length) setStatus("Le bouton Photos accepte uniquement les images.");
     if (pendingImages.length + selected.length > 4) { setStatus("Tu peux joindre 4 images maximum."); return; }
+    setPendingAttachments((current) => [...current, ...selected.map(makePendingAttachment)]);
     const converted: ImageAttachment[] = [];
     for (const file of selected) {
       try {
-        const form = new FormData();
-        form.append("file", file, file.name);
+        const form = new FormData(); form.append("file", file, file.name);
         const response = await fetch("/api/files/image", { method: "POST", body: form });
         const data = await response.json() as { ok?: boolean; name?: string; dataUrl?: string; mimeType?: "image/jpeg"; error?: string };
         if (!response.ok || !data.ok || !data.dataUrl) throw new Error(data.error || "Conversion de l’image impossible.");
@@ -277,19 +305,21 @@ export default function Home() {
         const usedBytes = [...pendingImages, ...converted].reduce((sum, image) => sum + Math.floor((image.dataUrl.length - image.dataUrl.indexOf(",") - 1) * 3 / 4), 0);
         if (usedBytes + imageBytes > 2 * 1024 * 1024) throw new Error("Les photos jointes ne doivent pas dépasser 2 Mo au total.");
         converted.push({ dataUrl: data.dataUrl, mimeType: "image/jpeg", name: data.name || file.name });
-      } catch (error) {
-        setStatus(`${file.name} : ${error instanceof Error ? error.message : "image illisible"}`);
-      }
+      } catch (error) { setStatus(file.name + " : " + (error instanceof Error ? error.message : "image illisible")); }
     }
     setPendingImages((current) => [...current, ...converted].slice(0, 4));
     if (imageInputRef.current) imageInputRef.current.value = "";
   }
   async function addExtractedFiles(files: FileList | null, kind: "document" | "audio" | "other") {
     if (!files?.length) return;
-    const selected = Array.from(files);
+    const selected = Array.from(files).filter((file) => {
+      if (file.size > 80 * 1024 * 1024) { setStatus(file.name + " dépasse la limite de 80 Mo."); return false; }
+      return true;
+    });
+    if (!selected.length) return;
+    setPendingAttachments((current) => [...current, ...selected.map(makePendingAttachment)]);
     const parts: string[] = [];
     const maxPromptCharacters = Math.max(0, 30_000 - input.length);
-    if (maxPromptCharacters === 0) { setStatus("Raccourcis ton message avant d’ajouter des fichiers."); return; }
     let extractedCharacters = 0;
     const addPart = (part: string) => {
       const remaining = maxPromptCharacters - extractedCharacters;
@@ -323,8 +353,8 @@ ${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de 
 
     for (const file of selected) {
       const isArchive = archiveExtensions.test(file.name);
-      if (file.size > (isArchive ? 80 : 4) * 1024 * 1024) {
-        setStatus(`Le fichier ${file.name} dépasse la limite de ${isArchive ? "80" : "4"} Mo.`);
+      if (!isArchive && file.size > 4 * 1024 * 1024) {
+        setStatus(file.name + " est joint ; son extraction automatique est limitée à 4 Mo.");
         continue;
       }
       try {
@@ -403,6 +433,7 @@ ${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de 
         setStatus(`${file.name} dépasse la limite de 80 Mo pour l'extraction d'images.`);
         continue;
       }
+      setPendingAttachments((current) => [...current, makePendingAttachment(file)]);
       const url = URL.createObjectURL(file);
       try {
         const video = document.createElement("video");
@@ -534,7 +565,11 @@ ${data.text}`);
   }
 
   async function addTextFiles(files: FileList | null) {
-    await addExtractedFiles(files, "document");
+    if (!files?.length) return;
+    const selected = Array.from(files);
+    const accepted = selected.filter((file) => !file.type.startsWith("image/") && !/\.(jpe?g|png|gif|webp|heic|heif|avif|bmp|tiff?)$/i.test(file.name));
+    if (accepted.length !== selected.length) setStatus("Pour ajouter une photo, utilise le bouton Photos.");
+    if (accepted.length) await addExtractedFiles(accepted, "document");
   }
   function openUserMessageMenu(index: number, x: number, y: number) {
     const menuWidth = 248, menuHeight = 250, margin = 12;
@@ -551,6 +586,9 @@ ${data.text}`);
     updateConversation(active.id, (item) => ({ ...item, messages: item.messages.slice(0, index), updatedAt: Date.now() }));
     setInput(message.content);
     setPendingImages(message.images || []);
+    setPendingAttachments((message.attachments || []).map((attachment) => ({
+      ...attachment, id: crypto.randomUUID(), previewUrl: attachmentUrl(attachment.pathname)
+    })));
     setUserMessageMenu(null);
     requestAnimationFrame(() => document.getElementById("message-input")?.focus());
   }
@@ -606,32 +644,79 @@ ${data.text}`);
   async function send(event?: FormEvent<HTMLFormElement>, suggestedText?: string) {
     event?.preventDefault();
     const text = (suggestedText ?? input).trim();
-    if ((!text && !pendingImages.length) || busy || !active) return;
+    if ((!text && !pendingImages.length && !pendingAttachments.length) || busy || !active) return;
     const images = pendingImages;
-    const id = active.id, history = active.messages.slice(-10);
-    const latestImageMessage = images.length ? -1 : history.reduce((last, message, index) => message.images?.length ? index : last, -1);
-    const requestHistory = history.map((message, index) => ({ ...message, images: index === latestImageMessage ? message.images : undefined }));
-    const userMessages = [...active.messages, { role: "user" as const, content: text || "Analyse cette image.", images }];
-    updateConversation(id, (item) => ({ ...item, title: item.title === "Nouvelle discussion" ? text.slice(0, 38) + (text.length > 38 ? "…" : "") : item.title, messages: userMessages, updatedAt: Date.now() }));
-    setInput(""); setPendingImages([]); setBusy(true); setActivityOpen(false);
-    requestAnimationFrame(() => {
-      const field = document.getElementById("message-input") as HTMLTextAreaElement | null;
-      if (field) { field.style.height = "38px"; field.scrollTop = 0; }
-    });
-    setActivitySteps(["Message ajouté à la conversation", "Demande transmise au fournisseur IA"]);
+    const pending = pendingAttachments;
+    const id = active.id;
+    const history = active.messages.slice(-10);
+    setBusy(true); setActivityOpen(false);
+    setActivitySteps(["Préparation des pièces jointes", "Envoi du message à ZODIX"]);
     const controller = new AbortController(); requestControllerRef.current = controller;
+    let messageAdded = false;
     try {
-      const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal, body: JSON.stringify({ message: text, history: requestHistory, images: images.map(({ dataUrl, mimeType }) => ({ dataUrl, mimeType })) }) });
+      let sessionId = "";
+      const storedAttachments: MessageAttachment[] = [];
+      for (const item of pending) {
+        if (item.pathname) {
+          storedAttachments.push({ pathname: item.pathname, name: item.name, contentType: item.contentType, size: item.size, kind: item.kind });
+          continue;
+        }
+        if (!item.file) throw new Error("Le fichier " + item.name + " n’est plus disponible. Retire-le puis ajoute-le à nouveau.");
+        if (!sessionId) {
+          const sessionResponse = await fetch("/api/files/session", { cache: "no-store" });
+          const sessionData = await sessionResponse.json() as { sessionId?: string; error?: string };
+          if (!sessionResponse.ok || !sessionData.sessionId) throw new Error(sessionData.error || "Impossible de préparer le stockage des pièces jointes.");
+          sessionId = sessionData.sessionId;
+        }
+        const blob = await upload("sessions/" + sessionId + "/" + encodeURIComponent(item.name), item.file, {
+          access: "private", handleUploadUrl: "/api/files/upload", clientPayload: JSON.stringify({ sessionId }),
+          multipart: item.size > 5 * 1024 * 1024, contentType: item.contentType
+        });
+        const stored = { pathname: blob.pathname, name: item.name, contentType: item.contentType, size: item.size, kind: item.kind };
+        storedAttachments.push(stored);
+        setPendingAttachments((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, ...stored, file: undefined } : candidate));
+      }
+
+      const messageContent = text || "Analyse les pièces jointes.";
+      const latestImageMessage = images.length ? -1 : history.reduce((last, message, index) => message.images?.length ? index : last, -1);
+      const requestHistory = history.map((message, index) => ({ ...message, images: index === latestImageMessage ? message.images : undefined }));
+      const userMessages = [...active.messages, {
+        role: "user" as const, content: messageContent, images,
+        ...(storedAttachments.length ? { attachments: storedAttachments } : {})
+      }];
+      updateConversation(id, (item) => ({
+        ...item,
+        title: item.title === "Nouvelle discussion" ? messageContent.slice(0, 38) + (messageContent.length > 38 ? "…" : "") : item.title,
+        messages: userMessages, updatedAt: Date.now()
+      }));
+      messageAdded = true;
+      setInput(""); setPendingImages([]);
+      pending.forEach((item) => { if (item.previewUrl.startsWith("blob:")) URL.revokeObjectURL(item.previewUrl); });
+      setPendingAttachments([]);
+      requestAnimationFrame(() => {
+        const field = document.getElementById("message-input") as HTMLTextAreaElement | null;
+        if (field) { field.style.height = "38px"; field.scrollTop = 0; }
+      });
+      setActivitySteps(["Pièces jointes enregistrées", "Demande transmise au fournisseur IA"]);
+      const response = await fetch("/api/chat", {
+        method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
+        body: JSON.stringify({ message: messageContent, history: requestHistory, images: images.map(({ dataUrl, mimeType }) => ({ dataUrl, mimeType })) })
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Erreur inconnue");
       updateConversation(id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: data.reply }], updatedAt: Date.now() }));
-      setActivitySteps((steps) => [...steps, `Réponse reçue de ${data.provider === "openrouter" ? "OpenRouter" : "OpenAI"} · modèle ${data.model}`]);
+      setActivitySteps((steps) => [...steps, "Réponse reçue de " + (data.provider === "openrouter" ? "OpenRouter" : "OpenAI") + " · modèle " + data.model]);
       setReady(true); setStatus((data.provider === "openrouter" ? "OpenRouter" : "OpenAI") + " connecté · modèle " + data.model);
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") return;
-      updateConversation(id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: error instanceof Error ? error.message : "Impossible de contacter les fournisseurs IA." }], updatedAt: Date.now() }));
-      setReady(false); setStatus("Échec de la connexion IA");
-    } finally { if (requestControllerRef.current === controller) requestControllerRef.current = null; setBusy(false); }
+      const message = error instanceof Error ? error.message : "Impossible de transmettre les pièces jointes.";
+      if (messageAdded) updateConversation(id, (item) => ({ ...item, messages: [...item.messages, { role: "assistant", content: message }], updatedAt: Date.now() }));
+      else setStatus(message);
+      setReady(false);
+    } finally {
+      if (requestControllerRef.current === controller) requestControllerRef.current = null;
+      setBusy(false);
+    }
   }
 
   return (
@@ -656,7 +741,7 @@ ${data.text}`);
     >
       <aside className="sidebar">
         <div className="sidebar-top">
-          <button className="icon-button" type="button" onClick={() => setSidebarOpen((open) => !open)} aria-label="Agrandir ou réduire le menu" title="Agrandir ou réduire le menu"><Icon name="menu" /></button>
+          <button className="icon-button" type="button" onClick={() => setSidebarOpen(false)} aria-label="Réduire le menu" title="Réduire le menu"><Icon name="menu" /></button>
           <button className="icon-button" type="button" onClick={startNewChat} aria-label="Nouvelle discussion" title="Nouvelle discussion"><Icon name="plus" /></button>
         </div>
         <input className="history-search" type="search" value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="Rechercher une conversation…" aria-label="Rechercher dans l'historique" />
@@ -691,7 +776,21 @@ ${data.text}`);
                 {!busy && index === activityAnchorIndex && activitySteps.length > 0 && <div className="activity-inline activity-before-reply" role="status" aria-live="polite"><span className="thinking-orb" /><button type="button" className="activity-toggle" onClick={() => setActivityOpen((open) => !open)} aria-expanded={activityOpen}>Historique d’activité <span className="activity-chevron">{activityOpen ? "⌃" : "⌄"}</span></button>{activityOpen && <ul className="activity-list">{activitySteps.map((step, stepIndex) => <li key={`${stepIndex}-${step}`}>{step}</li>)}</ul>}</div>}
                 <article className={`message-row ${message.role}`}>
                 <div className="message-body">
-                  {message.images?.length ? <div className={`message-images ${message.role}`} aria-label="Images envoyées">{message.images.map((image, imageIndex) => <img key={imageIndex} src={image.dataUrl} alt={image.name || "Image jointe"} />)}</div> : null}
+                  {message.attachments?.length ? (
+                    <div className={`message-attachments ${message.role}`} aria-label="Fichiers joints">
+                      {message.attachments.map((attachment, attachmentIndex) => {
+                        const src = attachmentUrl(attachment.pathname);
+                        const key = attachment.pathname + "-" + attachmentIndex;
+                        if (attachment.kind === "image") return <div className="message-attachment-media" key={key}><img src={src} alt={attachment.name} loading="lazy" /><a href={src} target="_blank" rel="noreferrer">{attachment.name}</a></div>;
+                        if (attachment.kind === "video") return <div className="message-attachment-media video" key={key}><video src={src} controls playsInline preload="metadata" aria-label={attachment.name} /><span>{attachment.name} · {formatFileSize(attachment.size)}</span></div>;
+                        if (attachment.kind === "audio") return <div className="message-attachment-audio" key={key}><strong>{attachment.name}</strong><audio src={src} controls preload="metadata" /></div>;
+                        return <div className="message-attachment-file" key={key}>
+                          {attachment.contentType === "application/pdf" || /\.pdf$/i.test(attachment.name) ? <iframe src={src} title={attachment.name} loading="lazy" /> : null}
+                          <a href={src} target="_blank" rel="noreferrer"><span className="attachment-file-icon">{attachment.name.split(".").pop()?.slice(0, 5).toUpperCase() || "FILE"}</span><span><strong>{attachment.name}</strong><small>{attachment.contentType} · {formatFileSize(attachment.size)}</small></span></a>
+                        </div>;
+                      })}
+                    </div>
+                  ) : message.images?.length ? <div className={`message-images ${message.role}`} aria-label="Images envoyées">{message.images.map((image, imageIndex) => <img key={imageIndex} src={image.dataUrl} alt={image.name || "Image jointe"} />)}</div> : null}
                   <div
                     className={`message-content ${message.role}`}
                     {...(message.role === "user" ? {
@@ -759,11 +858,23 @@ ${data.text}`);
             <label className="sr-only" htmlFor="message-input">Message à ZODIX</label>
             <input ref={imageInputRef} type="file" accept="image/*,.heic,.heif,.avif,.tif,.tiff,.bmp,.gif" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={cameraInputRef} type="file" accept="image/*,.heic,.heif,.avif" capture="environment" hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
-            <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.docm,.dotx,.dotm,.odt,.xls,.xlsx,.xlsm,.xlsb,.xltx,.ods,.ppt,.pptx,.pptm,.ppsx,.ppsm,.odp,.odg,.txt,.md,.csv,.log,.rtf,.epub,.tex,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={fileInputRef} type="file" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac,.aac,.mpga,.opus,.webm" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "audio"); }} />
             <input ref={videoInputRef} type="file" accept="video/*,.mp4,.mov,.webm,.m4v,.avi,.mkv,.mpg" multiple hidden onChange={(event) => { void addVideoFiles(event.target.files); }} />
-            <input ref={otherInputRef} type="file" accept=".zip,.7z,.rar,.tar,.tgz,.gz,.bz2,.xz,.iso,.cab,.arj,.lha,.lzh,.cpio,.deb,.rpm,.json,.xml,.html,.css,.js,.ts,.tsx,.py,.java,.c,.cpp,.h,.hpp,.cs,.go,.rs,.php,.rb,.swift,.kt,.sql,.yaml,.yml,.toml,.ini,.sh,.bash,.bat,.ps1,.bin,.exe,.apk,.dmg,.iso" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "other"); }} />
-            {pendingImages.length > 0 && <div className="composer-attachments">{pendingImages.map((image, index) => <div className="composer-attachment" key={index}><img src={image.dataUrl} alt={image.name} /><button type="button" aria-label="Retirer l'image" onClick={() => setPendingImages((all) => all.filter((_, i) => i !== index))}>×</button></div>)}</div>}
+            <input ref={otherInputRef} type="file" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "other"); }} />
+            {pendingAttachments.length > 0 && <div className="composer-attachments" aria-label="Pièces jointes en attente">
+              {pendingAttachments.map((item) => <div className={`composer-attachment-card ${item.kind}`} key={item.id}>
+                {item.kind === "image" ? <img src={item.previewUrl} alt={item.name} /> : null}
+                {item.kind === "video" ? <video src={item.previewUrl} controls playsInline preload="metadata" /> : null}
+                {item.kind === "audio" ? <div className="composer-audio"><strong>{item.name}</strong><audio src={item.previewUrl} controls /></div> : null}
+                {item.kind === "document" || item.kind === "file" ? <div className="composer-file"><span className="attachment-file-icon">{item.name.split(".").pop()?.slice(0, 5).toUpperCase() || "FILE"}</span><span><strong>{item.name}</strong><small>{item.contentType} · {formatFileSize(item.size)}</small></span></div> : null}
+                <button type="button" aria-label={"Retirer " + item.name} onClick={() => {
+                  if (item.previewUrl.startsWith("blob:")) URL.revokeObjectURL(item.previewUrl);
+                  setPendingAttachments((all) => all.filter((candidate) => candidate.id !== item.id));
+                  if (item.kind === "image") setPendingImages((all) => all.filter((image) => image.name !== item.name));
+                }}>×</button>
+              </div>)}
+            </div>}
             <div className="composer-actions">
               <div className="attach-menu-wrap" ref={attachMenuRef}>
                 <button className="attach-plus" type="button" onClick={() => setAttachMenuOpen((open) => !open)} disabled={busy} aria-label="Ajouter des pièces jointes" aria-expanded={attachMenuOpen} title="Ajouter"><Icon name="plus" size={24} /></button>
@@ -777,7 +888,7 @@ ${data.text}`);
                 </div>}
               </div>
             <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} onInput={(event) => { const field = event.currentTarget; field.style.height = "auto"; field.style.height = `${Math.min(field.scrollHeight, 220)}px`; }} onFocus={(event) => { window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" }), 80); }} placeholder="Écris un message à ZODIX" rows={1} enterKeyHint="enter" aria-label="Message à ZODIX" onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
-              <button className={`send-button ${busy ? "stop-generation-button" : ""}`} disabled={!busy && (!input.trim() && !pendingImages.length)} type={busy ? "button" : "submit"} onClick={busy ? stopGeneration : undefined} aria-label={busy ? "Arrêter la génération" : "Envoyer le message"} title={busy ? "Arrêter" : "Envoyer"}><Icon name={busy ? "stop" : "send"} size={18} /></button>
+              <button className={`send-button ${busy ? "stop-generation-button" : ""}`} disabled={!busy && (!input.trim() && !pendingImages.length && !pendingAttachments.length)} type={busy ? "button" : "submit"} onClick={busy ? stopGeneration : undefined} aria-label={busy ? "Arrêter la génération" : "Envoyer le message"} title={busy ? "Arrêter" : "Envoyer"}><Icon name={busy ? "stop" : "send"} size={18} /></button>
             </div>
           </form>
         </div>
