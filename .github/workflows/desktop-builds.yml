@@ -18,7 +18,7 @@ jobs:
   windows:
     runs-on: windows-2022
     env:
-      ZODI_VERSION: 1.1.0
+      ZODI_VERSION: 1.7.0
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-python@v5
@@ -48,7 +48,7 @@ jobs:
   linux:
     runs-on: ubuntu-22.04
     env:
-      ZODI_VERSION: 1.1.0
+      ZODI_VERSION: 1.7.0
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-python@v5
@@ -121,7 +121,7 @@ jobs:
           windows_asset="Zodi-AI-Setup-x64.exe"
           deb_asset="$(basename "$(find release/linux -maxdepth 1 -name '*.deb' -print -quit)")"
           test -n "$deb_asset"
-          version="1.1.0"
+          version="1.7.0"
           (
             cd release/windows
             sha256sum "$windows_asset"
@@ -175,4 +175,4 @@ jobs:
         run: |
           gh api --method POST repos/ZodiBoomer/zodi-ai-releases-publique/dispatches \
             -f event_type=zodi-desktop-release-published \
-            -F client_payload[tag_name]=desktop-v1.1.0
+            -F client_payload[tag_name]=desktop-v1.7.0
