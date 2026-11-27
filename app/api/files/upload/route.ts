@@ -15,7 +15,6 @@ export async function POST(request: Request) {
 
   const cookieStore = await cookies();
   const sessionId = cookieStore.get(COOKIE_NAME)?.value;
-  if (!sessionId) return NextResponse.json({ error: "Session de fichiers absente. Recharge la page." }, { status: 401 });
 
   let body: HandleUploadBody;
   try {
@@ -31,7 +30,7 @@ export async function POST(request: Request) {
       onBeforeGenerateToken: async (pathname, clientPayload) => {
         let payload: { sessionId?: string } = {};
         try { payload = JSON.parse(clientPayload || "{}") as { sessionId?: string }; } catch {}
-        if (payload.sessionId !== sessionId || !pathname.startsWith("sessions/" + sessionId + "/")) {
+        if (!sessionId || payload.sessionId !== sessionId || !pathname.startsWith("sessions/" + sessionId + "/")) {
           throw new Error("Session de fichiers invalide.");
         }
         return {
@@ -43,7 +42,7 @@ export async function POST(request: Request) {
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
         const payload = JSON.parse(tokenPayload || "{}") as { sessionId?: string };
-        if (payload.sessionId !== sessionId || !blob.pathname.startsWith("sessions/" + sessionId + "/")) {
+        if (!payload.sessionId || !blob.pathname.startsWith("sessions/" + payload.sessionId + "/")) {
           throw new Error("La validation de la pièce jointe a échoué.");
         }
       }
