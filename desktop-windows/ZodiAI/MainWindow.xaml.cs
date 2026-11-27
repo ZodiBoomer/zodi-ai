@@ -43,7 +43,7 @@ public sealed partial class MainWindow : Window
             core.WebMessageReceived += Core_WebMessageReceived;
             AppWebView.NavigationCompleted += AppWebView_NavigationCompleted;
             AppWebView.Source = new Uri(AppUrl);
-            _ = CheckForUpdatesOnStartupAsync();
+            _ = CheckForUpdatesOnStartupAsync(manual: true);
         }
         catch
         {
@@ -134,13 +134,27 @@ public sealed partial class MainWindow : Window
         catch { /* The original local history file is intentionally left untouched. */ }
     }
 
-    private async Task CheckForUpdatesOnStartupAsync()
+    private async Task CheckForUpdatesOnStartupAsync(bool manual = false)
     {
         await Task.Delay(1800);
         try
         {
             var installerPath = await AppUpdater.CheckAndInstallAsync();
-            if (installerPath == "NO_UPDATE") return;
+            if (installerPath == "NO_UPDATE")
+            {
+                if (manual)
+                {
+                    var currentDialog = new ContentDialog
+                    {
+                        XamlRoot = AppWebView.XamlRoot,
+                        Title = "ZODIX est à jour",
+                        Content = "Aucune nouvelle version n'est disponible.",
+                        CloseButtonText = "Fermer"
+                    };
+                    await currentDialog.ShowAsync();
+                }
+                return;
+            }
 
             var dialog = new ContentDialog
             {
