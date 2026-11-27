@@ -759,7 +759,7 @@ ${data.text}`);
                 <button className="attach-plus" type="button" onClick={() => setAttachMenuOpen((open) => !open)} disabled={busy} aria-label="Ajouter des pièces jointes" aria-expanded={attachMenuOpen} title="Ajouter"><Icon name="plus" size={24} /></button>
                 {attachMenuOpen && <div className="attach-menu" role="menu">
                   <button type="button" role="menuitem" onClick={() => cameraInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="camera" /></span> Appareil photo</button>
-                  <button type="button" role="menuitem" onClick={() => imageInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="image" /></span> Photos uniquement</button>
+                  <button type="button" role="menuitem" onClick={() => imageInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="image" /></span> Photo</button>
                   <button type="button" role="menuitem" onClick={() => fileInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="file-text" /></span> Documents et fichiers</button>
                   <button type="button" role="menuitem" onClick={() => audioInputRef.current?.click()}><span className="attach-menu-icon">♫</span> Musique / audio</button>
                   <button type="button" role="menuitem" onClick={() => videoInputRef.current?.click()}><span className="attach-menu-icon">▶</span> Vidéos</button>
