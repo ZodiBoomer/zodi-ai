@@ -137,3 +137,24 @@ html,body{max-width:100%;overscroll-behavior:none}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
 }
+
+
+/* Keep the rename action available even on narrow phones without overflowing the top bar. */
+@media(max-width:420px){
+  .topbar-right>.icon-button[aria-label="Renommer la conversation"]{
+    display:grid !important;
+    flex:0 0 32px;
+    width:32px;
+    min-width:32px;
+    height:34px;
+    min-height:34px;
+    padding:0;
+  }
+}
+@media(max-width:350px){
+  .topbar-right>.icon-button[aria-label="Renommer la conversation"]{
+    flex-basis:30px;
+    width:30px;
+    min-width:30px;
+  }
+}
