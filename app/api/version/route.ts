@@ -9,7 +9,7 @@ export async function GET() {
     "unknown";
 
   return Response.json(
-    { app: "ZODIX", buildId },
+    { app: "ZODIX", version: "1.7.0", buildId },
     {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
