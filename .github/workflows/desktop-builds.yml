@@ -34,7 +34,7 @@ jobs:
             echo "::error::PUBLIC_RELEASE_TOKEN is required to publish desktop installers."
             exit 1
           fi
-          version="1.7.5.3"
+          version="1.7.5.5"
           tag="desktop-v$version"
           repo="ZodiBoomer/zodi-ai-releases-publique"
           if gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
@@ -49,7 +49,7 @@ jobs:
       sha256: ${{ steps.publish.outputs.sha256 }}
     runs-on: windows-2022
     env:
-      ZODI_VERSION: 1.7.5.3
+      ZODI_VERSION: 1.7.5.5
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-python@v5
@@ -88,7 +88,7 @@ jobs:
       tar_sha256: ${{ steps.publish.outputs.tar_sha256 }}
       deb_sha256: ${{ steps.publish.outputs.deb_sha256 }}
     env:
-      ZODI_VERSION: 1.7.5.3
+      ZODI_VERSION: 1.7.5.5
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-python@v5
@@ -150,7 +150,7 @@ jobs:
       - name: Create checksums and desktop manifest, then publish the release
         shell: bash
         run: |
-          version="1.7.5.3"
+          version="1.7.5.5"
           windows_asset="Zodi-AI-Setup-x64.exe"
           tar_asset="Zodi-AI-Linux-x64.tar.gz"
           deb_asset="zodi-ai_${version}_amd64.deb"
