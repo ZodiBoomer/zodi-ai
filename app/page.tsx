@@ -140,6 +140,7 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
+  const [imageProcessing, setImageProcessing] = useState(0);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -292,9 +293,11 @@ export default function Home() {
     if (!files?.length) return;
     const selected = Array.from(files).filter((file) => file.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif|avif|gif|bmp|tiff?)$/i.test(file.name));
     if (selected.length !== files.length) setStatus("Le bouton Photos accepte uniquement les images.");
-    if (pendingImages.length + selected.length > 4) { setStatus("Tu peux joindre 4 images maximum."); return; }
+    if (pendingAttachments.filter((item) => item.kind === "image").length + selected.length > 4) { setStatus("Tu peux joindre 4 images maximum."); return; }
     setPendingAttachments((current) => [...current, ...selected.map(makePendingAttachment)]);
+    setImageProcessing((count) => count + selected.length);
     const converted: ImageAttachment[] = [];
+    try {
     for (const file of selected) {
       try {
         const form = new FormData(); form.append("file", file, file.name);
@@ -308,7 +311,11 @@ export default function Home() {
       } catch (error) { setStatus(file.name + " : " + (error instanceof Error ? error.message : "image illisible")); }
     }
     setPendingImages((current) => [...current, ...converted].slice(0, 4));
-    if (imageInputRef.current) imageInputRef.current.value = "";
+    } finally {
+      setImageProcessing((count) => Math.max(0, count - selected.length));
+      if (imageInputRef.current) imageInputRef.current.value = "";
+      if (cameraInputRef.current) cameraInputRef.current.value = "";
+    }
   }
   async function addExtractedFiles(files: FileList | File[] | null, kind: "document" | "audio" | "other") {
     if (!files?.length) return;
@@ -645,6 +652,7 @@ ${data.text}`);
     event?.preventDefault();
     const text = (suggestedText ?? input).trim();
     if ((!text && !pendingImages.length && !pendingAttachments.length) || busy || !active) return;
+    if (imageProcessing > 0) { setStatus("Préparation de la photo en cours… attends que l’aperçu soit prêt avant l’envoi."); return; }
     const images = pendingImages;
     const pending = pendingAttachments;
     const id = active.id;
@@ -864,7 +872,7 @@ ${data.text}`);
             <input ref={otherInputRef} type="file" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "other"); }} />
             {pendingAttachments.length > 0 && <div className="composer-attachments" aria-label="Pièces jointes en attente">
               {pendingAttachments.map((item) => <div className={`composer-attachment-card ${item.kind}`} key={item.id}>
-                {item.kind === "image" ? <img src={item.previewUrl} alt={item.name} /> : null}
+                {item.kind === "image" ? <div className="composer-image-preview"><span>Aperçu de la photo</span><img src={item.previewUrl} alt={"Aperçu de " + item.name} /><small>{item.name} · {formatFileSize(item.size)}</small></div> : null}
                 {item.kind === "video" ? <video src={item.previewUrl} controls playsInline preload="metadata" /> : null}
                 {item.kind === "audio" ? <div className="composer-audio"><strong>{item.name}</strong><audio src={item.previewUrl} controls /></div> : null}
                 {item.kind === "document" || item.kind === "file" ? <div className="composer-file"><span className="attachment-file-icon">{item.name.split(".").pop()?.slice(0, 5).toUpperCase() || "FILE"}</span><span><strong>{item.name}</strong><small>{item.contentType} · {formatFileSize(item.size)}</small></span></div> : null}
@@ -888,7 +896,7 @@ ${data.text}`);
                 </div>}
               </div>
             <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} onInput={(event) => { const field = event.currentTarget; field.style.height = "auto"; field.style.height = `${Math.min(field.scrollHeight, 220)}px`; }} onFocus={(event) => { window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" }), 80); }} placeholder="Écris un message à ZODIX" rows={1} enterKeyHint="enter" aria-label="Message à ZODIX" onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
-              <button className={`send-button ${busy ? "stop-generation-button" : ""}`} disabled={!busy && (!input.trim() && !pendingImages.length && !pendingAttachments.length)} type={busy ? "button" : "submit"} onClick={busy ? stopGeneration : undefined} aria-label={busy ? "Arrêter la génération" : "Envoyer le message"} title={busy ? "Arrêter" : "Envoyer"}><Icon name={busy ? "stop" : "send"} size={18} /></button>
+              <button className={`send-button ${busy ? "stop-generation-button" : ""}`} disabled={!busy && (imageProcessing > 0 || (!input.trim() && !pendingImages.length && !pendingAttachments.length))} type={busy ? "button" : "submit"} onClick={busy ? stopGeneration : undefined} aria-label={busy ? "Arrêter la génération" : "Envoyer le message"} title={busy ? "Arrêter" : "Envoyer"}><Icon name={busy ? "stop" : "send"} size={18} /></button>
             </div>
           </form>
         </div>
