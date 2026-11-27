@@ -310,7 +310,7 @@ export default function Home() {
     setPendingImages((current) => [...current, ...converted].slice(0, 4));
     if (imageInputRef.current) imageInputRef.current.value = "";
   }
-  async function addExtractedFiles(files: FileList | null, kind: "document" | "audio" | "other") {
+  async function addExtractedFiles(files: FileList | File[] | null, kind: "document" | "audio" | "other") {
     if (!files?.length) return;
     const selected = Array.from(files).filter((file) => {
       if (file.size > 80 * 1024 * 1024) { setStatus(file.name + " dépasse la limite de 80 Mo."); return false; }
