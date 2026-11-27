@@ -923,18 +923,29 @@ body{min-height:0}
 /* Prevent accidental blue tap flash on Android/WebView without disabling normal interaction. */
 *,*::before,*::after{-webkit-tap-highlight-color:transparent}
 html,body,.chatgpt-shell{overscroll-behavior-x:none}
-/* ZODIX desktop: use the full available window and keep a compact navigation rail. */
+/* ZODIX desktop: keep the conversation panel permanently open and remove both menu toggles. */
 @media (min-width:721px){
-  .chatgpt-shell{grid-template-columns:252px minmax(0,1fr);min-width:0}
-  .chatgpt-shell.sidebar-collapsed{grid-template-columns:68px minmax(0,1fr)}
-  .chatgpt-shell.sidebar-collapsed .sidebar{width:68px;min-width:0;padding:10px 7px;overflow:hidden}
-  .chatgpt-shell.sidebar-collapsed .sidebar-top{flex-direction:column;justify-content:flex-start;align-items:center;gap:8px;margin-bottom:12px}
-  .chatgpt-shell.sidebar-collapsed .history-search{display:none}
-  .chatgpt-shell.sidebar-collapsed .conversation-item-wrap{justify-content:center}
-  .chatgpt-shell.sidebar-collapsed .conversation-item{width:48px;min-width:48px;max-width:48px;flex:0 0 48px;justify-content:center;padding:8px 0}
+  .chatgpt-shell,
+  .chatgpt-shell.sidebar-collapsed{grid-template-columns:252px minmax(0,1fr)!important;min-width:0}
+  .chatgpt-shell .sidebar,
+  .chatgpt-shell.sidebar-collapsed .sidebar{
+    display:flex!important;
+    width:252px!important;
+    min-width:252px!important;
+    padding:10px!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+  }
+  .chatgpt-shell .sidebar-top,
+  .chatgpt-shell.sidebar-collapsed .sidebar-top{flex-direction:row;justify-content:flex-end;align-items:center;gap:8px}
+  .sidebar-top > .icon-button[aria-label="Réduire le menu"],
+  .topbar-left > .icon-button[aria-label="Ouvrir ou fermer le menu"]{display:none!important}
+  .chatgpt-shell.sidebar-collapsed .history-search,
   .chatgpt-shell.sidebar-collapsed .conversation-title,
   .chatgpt-shell.sidebar-collapsed .conversation-delete-button,
-  .chatgpt-shell.sidebar-collapsed .history-empty{display:none}
+  .chatgpt-shell.sidebar-collapsed .history-empty{display:initial!important}
+  .chatgpt-shell.sidebar-collapsed .conversation-item-wrap{justify-content:initial}
+  .chatgpt-shell.sidebar-collapsed .conversation-item{width:100%;min-width:0;max-width:100%;flex:initial;justify-content:flex-start;padding:8px 10px}
   .chatgpt-shell.sidebar-collapsed .conversation-item-wrap .conversation-item svg{flex:none}
   .messages-container{width:100%;max-width:none;padding-inline:clamp(20px,3vw,44px)}
   .welcome-panel{width:100%;max-width:none}
