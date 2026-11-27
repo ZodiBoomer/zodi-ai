@@ -232,7 +232,7 @@ export default function Home() {
           refreshUrl.searchParams.set("_zodix_refresh", Date.now().toString());
           window.location.replace(refreshUrl.toString());
         } else if (promptedUpdateBuildRef.current !== data.buildId) {
-          promptedUpdateBuildRef.current = data.buildId;
+          promptedUpdateBuildRef.current = data.buildId ?? null;
           const accepted = window.confirm("Une nouvelle version de ZODIX est disponible. Actualiser maintenant pour l'installer ?");
           if (accepted) {
             const refreshUrl = new URL(window.location.href);
