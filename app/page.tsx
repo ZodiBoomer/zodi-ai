@@ -9,7 +9,7 @@ type Conversation = { id: string; title: string; messages: Message[]; updatedAt:
 type Health = { ok?: boolean; aiConfigured?: boolean; provider?: string; providers?: string[]; model?: string; modelFallbacks?: string[] };
 const BUILD_ID = process.env.NEXT_PUBLIC_ZODI_BUILD_ID ?? "local";
 const welcome = (): Message[] => [{ role: "assistant", content: "Salut ! Je suis ZODIX. Comment puis-je t'aider aujourd'hui ?" }];
-const createConversation = (): Conversation => ({ id: crypto.randomUUID(), title: "Nouvelle discussion", messages: welcome(), updatedAt: Date.now() });
+const createConversation = (): Conversation => ({ id: crypto.randomUUID(), title: "Nouvelle discussion", messages: [], updatedAt: Date.now() });
 
 
 type IconName = "menu" | "plus" | "edit" | "trash" | "refresh" | "copy" | "share" | "image" | "camera" | "file-text" | "send" | "stop" | "sparkles" | "message-square";
@@ -134,7 +134,7 @@ export default function Home() {
   const [activityOpen, setActivityOpen] = useState(false);
   const [userMessageMenu, setUserMessageMenu] = useState<{ index: number; x: number; y: number } | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [historyQuery, setHistoryQuery] = useState("");
   const [revealedDeleteId, setRevealedDeleteId] = useState<string | null>(null);
   const conversationTouchRef = useRef<{ id: string; x: number; y: number } | null>(null);
@@ -144,7 +144,7 @@ export default function Home() {
   const touchStartRef = useRef<{ x: number; y: number; target: EventTarget | null } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => () => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }, []);
-  const active = conversations.find((item) => item.id === activeId);
+  const active = conversations.find((item) => item.id === activeId) ?? (activeId ? { id: activeId, title: "Nouvelle discussion", messages: [], updatedAt: 0 } : undefined);
   const messages = active?.messages ?? [];
   const latestAssistantIndex = messages.reduce((latest, message, index) => message.role === "assistant" ? index : latest, -1);
   const latestUserIndex = messages.reduce((latest, message, index) => message.role === "user" ? index : latest, -1);
@@ -156,10 +156,11 @@ export default function Home() {
   useEffect(() => {
     let stored: Conversation[] = [];
     try { stored = JSON.parse(localStorage.getItem("zodi-conversations-v2") || "[]"); } catch {}
-    const initial = stored.length ? stored : [createConversation()];
-    setConversations(initial); setActiveId(initial[0].id);
+    const savedConversations = stored.filter((item) => Array.isArray(item.messages) && item.messages.some((message) => message.role === "user"));
+    setConversations(savedConversations);
+    setActiveId(crypto.randomUUID());
   }, []);
-  useEffect(() => { if (conversations.length) localStorage.setItem("zodi-conversations-v2", JSON.stringify(conversations)); }, [conversations]);
+  useEffect(() => { localStorage.setItem("zodi-conversations-v2", JSON.stringify(conversations)); }, [conversations]);
   useEffect(() => {
     if (!attachMenuOpen) return;
     const close = (event: PointerEvent) => {
@@ -222,9 +223,7 @@ export default function Home() {
   }, [checkForUpdates]);
 
   function startNewChat() {
-    const item = createConversation();
-    setConversations((all) => [item, ...all]);
-    setActiveId(item.id);
+    setActiveId(crypto.randomUUID());
     setInput("");
     setPendingImages([]);
     if (window.matchMedia("(max-width: 720px)").matches) setSidebarOpen(false);
@@ -241,10 +240,9 @@ export default function Home() {
     const target = conversations.find((item) => item.id === id);
     if (!target || (busy && id === activeId) || !window.confirm("Supprimer cette conversation de cet appareil ?")) return;
     const remaining = conversations.filter((item) => item.id !== id);
-    const next = remaining.length ? remaining : [createConversation()];
-    setConversations(next);
+    setConversations(remaining);
     if (id === activeId) {
-      setActiveId(next[0].id);
+      setActiveId(crypto.randomUUID());
       setInput("");
       setPendingImages([]);
     }
@@ -602,7 +600,11 @@ ${data.text}`);
     const latestImageMessage = images.length ? -1 : history.reduce((last, message, index) => message.images?.length ? index : last, -1);
     const requestHistory = history.map((message, index) => ({ ...message, images: index === latestImageMessage ? message.images : undefined }));
     const userMessages = [...active.messages, { role: "user" as const, content: text || "Analyse cette image.", images }];
-    updateConversation(id, (item) => ({ ...item, title: item.title === "Nouvelle discussion" ? text.slice(0, 38) + (text.length > 38 ? "…" : "") : item.title, messages: userMessages, updatedAt: Date.now() }));
+    if (conversations.some((item) => item.id === id)) {
+      updateConversation(id, (item) => ({ ...item, title: item.title === "Nouvelle discussion" ? text.slice(0, 38) + (text.length > 38 ? "…" : "") : item.title, messages: userMessages, updatedAt: Date.now() }));
+    } else {
+      setConversations((all) => [{ ...active, title: text.slice(0, 38) + (text.length > 38 ? "…" : ""), messages: userMessages, updatedAt: Date.now() }, ...all]);
+    }
     setInput(""); setPendingImages([]); setBusy(true); setActivityOpen(false);
     requestAnimationFrame(() => {
       const field = document.getElementById("message-input") as HTMLTextAreaElement | null;
