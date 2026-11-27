@@ -110,27 +110,19 @@ async function extractZipText(buffer: Buffer) {
 }
 
 async function transcribeAudio(file: File) {
-  const openRouterKey = String(
-    process.env.OPENROUTER_API_KEY ||
-    (/^sk-or-/i.test(String(process.env.OPENAI_API_KEY || "")) ? process.env.OPENAI_API_KEY : "")
-  ).trim();
-  const openAiKey = String(
-    process.env.OPENAI_DIRECT_API_KEY ||
-    (!/^sk-or-/i.test(String(process.env.OPENAI_API_KEY || "")) ? process.env.OPENAI_API_KEY : "")
-  ).trim();
-  const isOpenRouter = Boolean(openRouterKey);
-  const apiKey = isOpenRouter ? openRouterKey : openAiKey;
-  if (!apiKey) throw new Error("La transcription nécessite une clé OpenRouter ou OpenAI configurée sur le serveur.");
+  const apiKey = String(process.env.OPENROUTER_API_KEY || "").trim();
+  if (!apiKey) throw new Error("La transcription nécessite OPENROUTER_API_KEY dans les variables d’environnement Vercel.");
   const form = new FormData();
   form.append("file", file, file.name);
-  form.append("model", isOpenRouter ? "openai/whisper-1" : "whisper-1");
+  form.append("model", "openai/whisper-1");
   form.append("response_format", "json");
-  const endpoint = isOpenRouter
-    ? "https://openrouter.ai/api/v1/audio/transcriptions"
-    : "https://api.openai.com/v1/audio/transcriptions";
-  const response = await fetch(endpoint, {
+  const response = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", {
     method: "POST",
-    headers: { Authorization: "Bearer " + apiKey },
+    headers: {
+      Authorization: "Bearer " + apiKey,
+      "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "https://zodi-ai-core.vercel.app",
+      "X-Title": process.env.OPENROUTER_APP_NAME || "ZODIX"
+    },
     body: form,
     signal: AbortSignal.timeout(55_000)
   });
