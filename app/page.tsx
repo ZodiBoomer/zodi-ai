@@ -8,10 +8,6 @@ type Message = { role: "user" | "assistant"; content: string; images?: ImageAtta
 type Conversation = { id: string; title: string; messages: Message[]; updatedAt: number };
 type Health = { ok?: boolean; aiConfigured?: boolean; provider?: string; providers?: string[]; model?: string; modelFallbacks?: string[] };
 const BUILD_ID = process.env.NEXT_PUBLIC_ZODI_BUILD_ID ?? "local";
-const welcome = (): Message[] => [{ role: "assistant", content: "Salut ! Je suis ZODIX. Comment puis-je t'aider aujourd'hui ?" }];
-const createConversation = (): Conversation => ({ id: crypto.randomUUID(), title: "Nouvelle discussion", messages: [], updatedAt: Date.now() });
-
-
 type IconName = "menu" | "plus" | "edit" | "trash" | "refresh" | "copy" | "share" | "image" | "camera" | "file-text" | "send" | "stop" | "sparkles" | "message-square";
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   const paths: Record<IconName, ReactNode> = {
@@ -603,7 +599,7 @@ ${data.text}`);
     if (conversations.some((item) => item.id === id)) {
       updateConversation(id, (item) => ({ ...item, title: item.title === "Nouvelle discussion" ? text.slice(0, 38) + (text.length > 38 ? "…" : "") : item.title, messages: userMessages, updatedAt: Date.now() }));
     } else {
-      setConversations((all) => [{ ...active, title: text.slice(0, 38) + (text.length > 38 ? "…" : ""), messages: userMessages, updatedAt: Date.now() }, ...all]);
+      setConversations((all) => [{ ...active, title: text ? text.slice(0, 38) + (text.length > 38 ? "…" : "") : "Photo", messages: userMessages, updatedAt: Date.now() }, ...all]);
     }
     setInput(""); setPendingImages([]); setBusy(true); setActivityOpen(false);
     requestAnimationFrame(() => {
