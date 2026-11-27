@@ -1,6 +1,6 @@
 {
   "name": "zodi-ai-core",
-  "version": "1.7.3",
+  "version": "1.7.5",
   "private": true,
   "scripts": {
     "dev": "next dev",
