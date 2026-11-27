@@ -40,6 +40,7 @@ public sealed partial class MainWindow : Window
             core.Settings.IsStatusBarEnabled = false;
             core.NavigationStarting += Core_NavigationStarting;
             core.NewWindowRequested += Core_NewWindowRequested;
+            core.WebMessageReceived += Core_WebMessageReceived;
             AppWebView.NavigationCompleted += AppWebView_NavigationCompleted;
             AppWebView.Source = new Uri(AppUrl);
             _ = CheckForUpdatesOnStartupAsync();
@@ -56,6 +57,17 @@ public sealed partial class MainWindow : Window
         if (uri.Scheme == Uri.UriSchemeHttps && string.Equals(uri.Host, AppHost, StringComparison.OrdinalIgnoreCase)) return;
         e.Cancel = true;
         _ = OpenExternalAsync(uri);
+    }
+
+    private void Core_WebMessageReceived(CoreWebView2 sender, CoreWebView2WebMessageReceivedEventArgs e)
+    {
+        try
+        {
+            using var message = JsonDocument.Parse(e.WebMessageAsJson);
+            if (message.RootElement.TryGetProperty("type", out var type) && type.GetString() == "checkUpdates")
+                _ = CheckForUpdatesOnStartupAsync();
+        }
+        catch { }
     }
 
     private void Core_NewWindowRequested(CoreWebView2 sender, CoreWebView2NewWindowRequestedEventArgs e)
