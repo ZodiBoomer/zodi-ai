@@ -15,7 +15,38 @@ concurrency:
   group: desktop-builds-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.prepare.outputs.tag }}
+    steps:
+      - name: Prepare the draft release without using Actions artifact storage
+        id: prepare
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error::PUBLIC_RELEASE_TOKEN is required to publish desktop installers."
+            exit 1
+          fi
+          version="1.7.0"
+          tag="desktop-v$version"
+          repo="ZodiBoomer/zodi-ai-releases-publique"
+          if gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
+            gh release edit "$tag" --draft --title "ZODIX Desktop $version" --notes "Windows and Linux binaries built from commit $GITHUB_SHA." --repo "$repo"
+          else
+            gh release create "$tag" --draft --repo "$repo" --title "ZODIX Desktop $version" --notes "Windows and Linux binaries built from commit $GITHUB_SHA."
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
   windows:
+    needs: [prepare-release]
+    outputs:
+      sha256: ${{ steps.publish.outputs.sha256 }}
     runs-on: windows-2022
     env:
       ZODI_VERSION: 1.7.0
@@ -39,14 +70,23 @@ jobs:
       - name: Build installer
         shell: pwsh
         run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=$env:ZODI_VERSION desktop-windows/installer/Zodi-AI.iss'
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ZODIX-Windows-Setup-x64
-          path: release/Zodi-AI-Setup-x64.exe
-          if-no-files-found: error
-          retention-days: 30
+      - name: Publish Windows installer directly to the draft release
+        id: publish
+        if: github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare-release.outputs.tag }}
+        run: |
+          $hash = (Get-FileHash "release/Zodi-AI-Setup-x64.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
+          gh release upload $env:RELEASE_TAG "release/Zodi-AI-Setup-x64.exe" --clobber --repo ZodiBoomer/zodi-ai-releases-publique
+          "sha256=$hash" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
   linux:
+    needs: [prepare-release]
     runs-on: ubuntu-22.04
+    outputs:
+      tar_sha256: ${{ steps.publish.outputs.tar_sha256 }}
+      deb_sha256: ${{ steps.publish.outputs.deb_sha256 }}
     env:
       ZODI_VERSION: 1.7.0
     steps:
@@ -78,58 +118,49 @@ jobs:
           printf 'Package: zodi-ai\nVersion: %s\nSection: utils\nPriority: optional\nArchitecture: amd64\nDepends: libgtk-3-0, libwebkit2gtk-4.1-0\nMaintainer: ZodiBoomer\nDescription: ZODIX desktop assistant\n' "$ZODI_VERSION" > package/DEBIAN/control
           printf '[Desktop Entry]\nName=ZODIX\nComment=Assistant personnel ZODIX\nExec=zodi-ai\nIcon=zodi-ai\nTerminal=false\nType=Application\nCategories=Utility;\n' > package/usr/share/applications/zodi-ai.desktop
           dpkg-deb --build package "release/zodi-ai_${ZODI_VERSION}_amd64.deb"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ZODIX-Linux-x64
-          path: |
-            release/Zodi-AI-Linux-x64.tar.gz
-            release/zodi-ai_*.deb
-          if-no-files-found: error
-          retention-days: 30
-  publish-desktop-release:
-    name: Publish Windows and Linux installers
-    if: github.ref == 'refs/heads/main'
-    needs: [windows, linux]
-    runs-on: ubuntu-latest
-    env:
-      RUN_NUMBER: ${{ github.run_number }}
-      COMMIT_SHA: ${{ github.sha }}
-    steps:
-      - name: Require release publishing token
+      - name: Publish Linux packages directly to the draft release
+        id: publish
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
-        run: |
-          if [[ -z "$GH_TOKEN" ]]; then
-            echo "::error::PUBLIC_RELEASE_TOKEN is required to publish desktop installers to ZodiBoomer/zodi-ai-releases-publique."
-            exit 1
-          fi
-      - name: Download Windows installer
-        uses: actions/download-artifact@v4
-        with:
-          name: ZODIX-Windows-Setup-x64
-          path: release/windows
-      - name: Download Linux packages
-        uses: actions/download-artifact@v4
-        with:
-          name: ZODIX-Linux-x64
-          path: release/linux
-      - name: Publish Windows and Linux installers to public releases repository
-        env:
-          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare-release.outputs.tag }}
         shell: bash
         run: |
-          windows_asset="Zodi-AI-Setup-x64.exe"
-          deb_asset="$(basename "$(find release/linux -maxdepth 1 -name '*.deb' -print -quit)")"
-          test -n "$deb_asset"
+          deb_asset="zodi-ai_${ZODI_VERSION}_amd64.deb"
+          gh release upload "$RELEASE_TAG" \
+            "release/Zodi-AI-Linux-x64.tar.gz" "release/$deb_asset" \
+            --clobber --repo ZodiBoomer/zodi-ai-releases-publique
+          {
+            echo "tar_sha256=$(sha256sum "release/Zodi-AI-Linux-x64.tar.gz" | awk '{print $1}')"
+            echo "deb_sha256=$(sha256sum "release/$deb_asset" | awk '{print $1}')"
+          } >> "$GITHUB_OUTPUT"
+  publish-desktop-release:
+    name: Finalize Windows and Linux release
+    if: github.ref == 'refs/heads/main'
+    needs: [prepare-release, windows, linux]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+      COMMIT_SHA: ${{ github.sha }}
+      RELEASE_TAG: ${{ needs.prepare-release.outputs.tag }}
+      WINDOWS_SHA256: ${{ needs.windows.outputs.sha256 }}
+      LINUX_TAR_SHA256: ${{ needs.linux.outputs.tar_sha256 }}
+      LINUX_DEB_SHA256: ${{ needs.linux.outputs.deb_sha256 }}
+    steps:
+      - name: Create checksums and desktop manifest, then publish the release
+        shell: bash
+        run: |
           version="1.7.0"
-          (
-            cd release/windows
-            sha256sum "$windows_asset"
-          ) > release/SHA256SUMS.txt
-          (
-            cd release/linux
-            sha256sum "Zodi-AI-Linux-x64.tar.gz" "$deb_asset"
-          ) >> release/SHA256SUMS.txt
+          windows_asset="Zodi-AI-Setup-x64.exe"
+          tar_asset="Zodi-AI-Linux-x64.tar.gz"
+          deb_asset="zodi-ai_${version}_amd64.deb"
+          test -n "$WINDOWS_SHA256"
+          test -n "$LINUX_TAR_SHA256"
+          test -n "$LINUX_DEB_SHA256"
+          mkdir -p release
+          printf '%s  %s\n' "$WINDOWS_SHA256" "$windows_asset" > release/SHA256SUMS.txt
+          printf '%s  %s\n' "$LINUX_TAR_SHA256" "$tar_asset" >> release/SHA256SUMS.txt
+          printf '%s  %s\n' "$LINUX_DEB_SHA256" "$deb_asset" >> release/SHA256SUMS.txt
           cat > release/latest-desktop.json <<EOF
           {
             "schemaVersion": 1,
@@ -138,41 +169,14 @@ jobs:
             "commit": "$COMMIT_SHA",
             "platforms": {
               "windows-x64": {"asset": "$windows_asset"},
-              "linux-x64-tar-gz": {"asset": "Zodi-AI-Linux-x64.tar.gz"},
+              "linux-x64-tar-gz": {"asset": "$tar_asset"},
               "linux-x64-deb": {"asset": "$deb_asset"}
             },
             "checksums": "SHA256SUMS.txt"
           }
           EOF
-          tag="desktop-v$version"
-          release_repo="ZodiBoomer/zodi-ai-releases-publique"
-          assets=(
-            "release/windows/$windows_asset"
-            "release/linux/Zodi-AI-Linux-x64.tar.gz"
-            "release/linux/$deb_asset"
-            release/SHA256SUMS.txt
-            release/latest-desktop.json
-          )
-
-          if gh release view "$tag" --repo "$release_repo" >/dev/null 2>&1; then
-            echo "Release $tag already exists; replacing its assets."
-            gh release upload "$tag" "${assets[@]}" --clobber --repo "$release_repo"
-            gh release edit "$tag" \
-              --title "ZODIX Desktop $version" \
-              --notes "Windows and Linux binaries built from commit $COMMIT_SHA." \
-              --repo "$release_repo"
-          else
-            gh release create "$tag" "${assets[@]}" \
-              --repo "$release_repo" \
-              --title "ZODIX Desktop $version" \
-              --notes "Windows and Linux binaries built from commit $COMMIT_SHA."
-          fi
-      - name: Refresh unified public update index
-        env:
-          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
-          RUN_NUMBER: ${{ github.run_number }}
-        shell: bash
-        run: |
+          gh release upload "$RELEASE_TAG" release/SHA256SUMS.txt release/latest-desktop.json --clobber --repo ZodiBoomer/zodi-ai-releases-publique
+          gh release edit "$RELEASE_TAG" --draft=false --title "ZODIX Desktop $version" --notes "Windows and Linux binaries built from commit $COMMIT_SHA." --repo ZodiBoomer/zodi-ai-releases-publique
           gh api --method POST repos/ZodiBoomer/zodi-ai-releases-publique/dispatches \
             -f event_type=zodi-desktop-release-published \
-            -F client_payload[tag_name]=desktop-v1.7.0
+            -F client_payload[tag_name]="$RELEASE_TAG"
