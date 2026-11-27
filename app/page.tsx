@@ -111,6 +111,7 @@ function AssistantContent({ content }: { content: string }) {
 }
 export default function Home() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [activeId, setActiveId] = useState("");
   const [input, setInput] = useState("");
   const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
@@ -155,8 +156,9 @@ export default function Home() {
     const savedConversations = stored.filter((item) => Array.isArray(item.messages) && item.messages.some((message) => message.role === "user"));
     setConversations(savedConversations);
     setActiveId(crypto.randomUUID());
+    setHistoryLoaded(true);
   }, []);
-  useEffect(() => { localStorage.setItem("zodi-conversations-v2", JSON.stringify(conversations)); }, [conversations]);
+  useEffect(() => { if (historyLoaded) localStorage.setItem("zodi-conversations-v2", JSON.stringify(conversations)); }, [conversations, historyLoaded]);
   useEffect(() => {
     if (!attachMenuOpen) return;
     const close = (event: PointerEvent) => {
