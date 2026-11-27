@@ -43,7 +43,7 @@ public sealed partial class MainWindow : Window
             core.WebMessageReceived += Core_WebMessageReceived;
             AppWebView.NavigationCompleted += AppWebView_NavigationCompleted;
             AppWebView.Source = new Uri(AppUrl);
-            _ = CheckForUpdatesOnStartupAsync(manual: true);
+            _ = CheckForUpdatesOnStartupAsync();
         }
         catch
         {
