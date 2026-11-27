@@ -164,6 +164,7 @@ export default function Home() {
   const [updateStatus, setUpdateStatus] = useState("Vérifier les mises à jour");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const checkingUpdateRef = useRef(false);
+  const promptedUpdateBuildRef = useRef<string | null>(null);
   const touchStartRef = useRef<{ x: number; y: number; target: EventTarget | null } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => () => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }, []);
@@ -224,12 +225,28 @@ export default function Home() {
       if (!response.ok) throw new Error();
       const data = await response.json() as { buildId?: string };
       const available = Boolean(data.buildId && data.buildId !== "unknown" && BUILD_ID !== "local" && data.buildId !== BUILD_ID);
-      if (available) setUpdateStatus("Mise à jour disponible · Actualisation…");
-      else setUpdateStatus("ZODIX est à jour · Actualisation…");
-      if (reload) {
-        const refreshUrl = new URL(window.location.href);
-        refreshUrl.searchParams.set("_zodix_refresh", Date.now().toString());
-        window.location.replace(refreshUrl.toString());
+      if (available) {
+        setUpdateStatus("Mise à jour disponible · Actualiser");
+        if (reload) {
+          const refreshUrl = new URL(window.location.href);
+          refreshUrl.searchParams.set("_zodix_refresh", Date.now().toString());
+          window.location.replace(refreshUrl.toString());
+        } else if (promptedUpdateBuildRef.current !== data.buildId) {
+          promptedUpdateBuildRef.current = data.buildId;
+          const accepted = window.confirm("Une nouvelle version de ZODIX est disponible. Actualiser maintenant pour l'installer ?");
+          if (accepted) {
+            const refreshUrl = new URL(window.location.href);
+            refreshUrl.searchParams.set("_zodix_refresh", Date.now().toString());
+            window.location.replace(refreshUrl.toString());
+          }
+        }
+      } else {
+        setUpdateStatus("ZODIX est à jour");
+        if (reload) {
+          const refreshUrl = new URL(window.location.href);
+          refreshUrl.searchParams.set("_zodix_refresh", Date.now().toString());
+          window.location.replace(refreshUrl.toString());
+        }
       }
     } catch {
       setUpdateStatus(reload ? "Actualisation forcée…" : "Vérification impossible · Réessayer");
