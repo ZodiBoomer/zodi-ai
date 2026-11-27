@@ -65,7 +65,7 @@ public sealed partial class MainWindow : Window
         {
             using var message = JsonDocument.Parse(e.WebMessageAsJson);
             if (message.RootElement.TryGetProperty("type", out var type) && type.GetString() == "checkUpdates")
-                _ = CheckForUpdatesOnStartupAsync();
+                _ = CheckForUpdatesOnStartupAsync(manual: true);
         }
         catch { }
     }
