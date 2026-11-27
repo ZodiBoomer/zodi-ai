@@ -199,9 +199,25 @@ export default function Home() {
       if (!response.ok) throw new Error();
       const data = await response.json() as { buildId?: string };
       const available = Boolean(data.buildId && data.buildId !== "unknown" && BUILD_ID !== "local" && data.buildId !== BUILD_ID);
-      if (available) { setUpdateStatus("Mise à jour disponible · Recharger"); if (reload) window.location.reload(); }
-      else setUpdateStatus("ZODIX est à jour");
-    } catch { setUpdateStatus("Vérification impossible · Réessayer"); }
+      if (available) {
+        setUpdateStatus("Mise à jour disponible · Actualisation…");
+        if (reload) {
+          const refreshUrl = new URL(window.location.href);
+          refreshUrl.searchParams.set("_zodix_refresh", Date.now().toString());
+          window.location.replace(refreshUrl.toString());
+        }
+      } else {
+        setUpdateStatus("ZODIX est à jour · Actualisation…");
+        if (reload) {
+          const refreshUrl = new URL(window.location.href);
+          refreshUrl.searchParams.set("_zodix_refresh", Date.now().toString());
+          window.location.replace(refreshUrl.toString());
+        }
+      }
+    } catch {
+      setUpdateStatus(reload ? "Actualisation forcée…" : "Vérification impossible · Réessayer");
+      if (reload) window.location.reload();
+    }
     finally { checkingUpdateRef.current = false; setCheckingUpdate(false); }
   }, []);
 
