@@ -193,7 +193,7 @@ public sealed class MainWindow : Window
             var type = root.TryGetProperty("type", out var typeValue) ? typeValue.GetString() : null;
             if (type == "checkUpdates")
             {
-                await CheckForUpdatesOnStartupAsync();
+                await CheckForUpdatesOnStartupAsync(manual: true);
                 return;
             }
             var text = root.TryGetProperty("text", out var textValue) ? textValue.GetString() : null;
@@ -204,13 +204,39 @@ public sealed class MainWindow : Window
         catch { }
     }
 
-    private async Task CheckForUpdatesOnStartupAsync()
+    private async Task CheckForUpdatesOnStartupAsync(bool manual = false)
     {
         await Task.Delay(1800);
         try
         {
             var packagePath = await AppUpdater.CheckAndInstallAsync();
-            if (packagePath == "NO_UPDATE") return;
+            if (packagePath == "NO_UPDATE")
+            {
+                if (manual)
+                {
+                    var current = new Window
+                    {
+                        Title = "ZODIX est à jour",
+                        Width = 360,
+                        Height = 140,
+                        CanResize = false,
+                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                        Content = new StackPanel
+                        {
+                            Margin = new Thickness(20),
+                            Spacing = 14,
+                            Children =
+                            {
+                                new TextBlock { Text = "Aucune nouvelle version n'est disponible." },
+                                new Button { Content = "Fermer", HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right }
+                            }
+                        }
+                    };
+                    ((Button)((StackPanel)current.Content!).Children[1]).Click += (_, _) => current.Close();
+                    await current.ShowDialog(this);
+                }
+                return;
+            }
 
             var prompt = new Window
             {
