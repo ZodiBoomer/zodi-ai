@@ -52,3 +52,88 @@ html, body { width:100%; min-width:0; min-height:100%; overflow:hidden; }
   .conversation-delete-button{opacity:0;pointer-events:none}
   .conversation-item-wrap.delete-revealed .conversation-delete-button{opacity:1;pointer-events:auto}
 }
+
+
+/* ZODIX 1.7 — final responsive safeguards for phone, tablet and desktop. */
+*,*::before,*::after{box-sizing:border-box}
+html,body{max-width:100%;overscroll-behavior:none}
+.chatgpt-shell,.main-chat,.conversation-viewport,.messages-container,.message-stack,
+.message-entry,.message-row,.message-body,.composer-area,.chat-composer{min-width:0}
+.chatgpt-shell{isolation:isolate}
+.conversation-viewport{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
+.messages-container{margin-inline:auto}
+.message-content,.rich-content,.rich-content p,.rich-content li{overflow-wrap:anywhere}
+.rich-content pre{max-width:100%;overflow:auto;white-space:pre}
+.rich-content table{width:max-content;min-width:100%;border-collapse:collapse}
+.rich-content img,.message-images img,.composer-attachment img{max-width:100%;object-fit:contain}
+.chat-composer textarea#message-input{max-width:100%;overflow-wrap:anywhere}
+.composer-actions{min-width:0}
+.composer-actions>*{min-width:0}
+.attach-menu{max-width:calc(100vw - 20px)}
+.sidebar{min-width:0;overscroll-behavior:contain}
+.conversation-list{min-width:0;overflow-x:hidden;overflow-y:auto}
+.conversation-item,.conversation-item-wrap{min-width:0;max-width:100%}
+.conversation-item{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topbar-left,.topbar-right{display:flex;align-items:center;min-width:0;flex-shrink:1}
+.topbar-right{flex-shrink:0}
+.topbar-right>*{flex-shrink:0}
+@media(min-width:1440px){
+  .chatgpt-shell{grid-template-columns:280px minmax(0,1fr)}
+  .messages-container{width:min(100%,960px)}
+  .composer-area{padding-inline:clamp(28px,4vw,64px)}
+}
+@media(min-width:721px) and (max-width:1050px){
+  .chatgpt-shell{grid-template-columns:clamp(190px,24vw,216px) minmax(0,1fr)}
+  .topbar-right{gap:4px}
+  .topbar-right>.update-button{padding-inline:9px;gap:6px}
+  .messages-container{width:100%;padding-inline:clamp(14px,2.4vw,24px)}
+}
+@media(max-width:720px){
+  html,body{height:100%;height:100dvh}
+  .chatgpt-shell{width:100%;height:100dvh;height:var(--zodi-visual-height,100dvh);grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+  .main-chat{display:flex;flex-direction:column;min-height:0}
+  .chat-topbar{width:100%;max-width:100%;flex:0 0 52px;min-height:52px}
+  .topbar-left{flex:1 1 auto;overflow:hidden}
+  .topbar-right{flex:0 0 auto;max-width:58vw;overflow:visible}
+  .conversation-viewport{flex:1 1 0;height:0;min-height:0}
+  .messages-container{width:100%;max-width:100%;padding-inline:clamp(10px,3vw,18px)}
+  .message-row.user .message-body{max-width:min(94%,760px)}
+  .message-content,.rich-content{font-size:clamp(14px,3.8vw,16px)}
+  .composer-area{width:100%;max-width:100%;padding-left:max(7px,env(safe-area-inset-left));padding-right:max(7px,env(safe-area-inset-right));padding-bottom:max(8px,env(safe-area-inset-bottom))}
+  .chat-composer{width:100%;max-width:100%}
+  .chat-composer textarea#message-input{font-size:16px;min-width:0}
+  .sidebar{max-width:calc(100vw - 40px);padding-bottom:max(10px,env(safe-area-inset-bottom))}
+  .sidebar-backdrop{touch-action:manipulation}
+}
+@media(max-width:420px){
+  .topbar-right{max-width:54vw;gap:2px}
+  .topbar-right>.icon-button[aria-label="Renommer la conversation"]{display:none}
+  .topbar-right>.update-button{width:36px;min-width:36px;height:36px;min-height:36px;padding:0;justify-content:center}
+  .topbar-right>.update-button span{display:none}
+  .topbar-right>.update-button svg{width:20px;height:20px;min-width:20px;min-height:20px;flex-basis:20px}
+  .messages-container{padding-inline:10px}
+  .composer-area{padding-inline:6px}
+  .chat-composer{padding-inline:7px}
+}
+@media(max-width:350px){
+  .topbar-left>.icon-button{width:38px;min-width:38px;flex-basis:38px}
+  .topbar-brand{font-size:12px}
+  .topbar-brand::before{width:23px;height:23px;flex-basis:23px}
+  .chat-composer .composer-actions .attach-menu-wrap,
+  .chat-composer .composer-actions .attach-plus{flex-basis:32px;width:32px;height:32px}
+  .chat-composer .composer-actions .send-button{flex-basis:34px;width:34px;height:34px;min-width:34px}
+}
+@media(max-height:520px) and (max-width:900px){
+  .chatgpt-shell{height:100dvh;min-height:0}
+  .chat-topbar{flex-basis:44px;min-height:44px;height:44px}
+  .messages-container{padding-top:8px;padding-bottom:8px}
+  .composer-area{padding-top:3px;padding-bottom:max(4px,env(safe-area-inset-bottom))}
+  .chat-composer textarea#message-input{max-height:20dvh}
+}
+@media(hover:none){
+  .conversation-delete-button{opacity:0}
+  .conversation-item-wrap.delete-revealed .conversation-delete-button{opacity:1;pointer-events:auto}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
+}
