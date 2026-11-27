@@ -1,12 +1,13 @@
-import { get } from "@vercel/blob";
+import { issueSignedToken, presignUrl } from "@vercel/blob";
 import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
 const COOKIE_NAME = "zodix_file_session";
+const SIGNED_URL_LIFETIME_MS = 24 * 60 * 60 * 1000;
 
 export async function GET(
-  request: Request,
+  _request: Request,
   context: { params: Promise<{ pathname: string[] }> }
 ) {
   const cookieStore = await cookies();
@@ -17,27 +18,14 @@ export async function GET(
   }
 
   try {
-    const result = await get(pathname.join("/"), {
-      access: "private",
-      ifNoneMatch: request.headers.get("if-none-match") ?? undefined
+    const blobPath = pathname.join("/");
+    const token = await issueSignedToken({ operations: ["get"] });
+    const { presignedUrl } = await presignUrl(token, {
+      pathname: blobPath,
+      operation: "get",
+      validUntil: Date.now() + SIGNED_URL_LIFETIME_MS
     });
-    if (!result) return new Response("Fichier introuvable.", { status: 404 });
-    if (result.statusCode === 304) {
-      return new Response(null, {
-        status: 304,
-        headers: { ETag: result.blob.etag, "Cache-Control": "private, no-cache" }
-      });
-    }
-
-    const headers = new Headers({
-      "Content-Type": result.blob.contentType || "application/octet-stream",
-      "X-Content-Type-Options": "nosniff",
-      "Content-Disposition": "inline",
-      "Cache-Control": "private, no-cache",
-      ETag: result.blob.etag
-    });
-    if (typeof result.blob.size === "number") headers.set("Content-Length", String(result.blob.size));
-    return new Response(result.stream, { headers });
+    return Response.redirect(presignedUrl, 307);
   } catch {
     return new Response("Lecture du fichier impossible.", { status: 404 });
   }
