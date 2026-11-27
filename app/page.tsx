@@ -134,7 +134,7 @@ export default function Home() {
   const [activityOpen, setActivityOpen] = useState(false);
   const [userMessageMenu, setUserMessageMenu] = useState<{ index: number; x: number; y: number } | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [historyQuery, setHistoryQuery] = useState("");
   const [revealedDeleteId, setRevealedDeleteId] = useState<string | null>(null);
   const conversationTouchRef = useRef<{ id: string; x: number; y: number } | null>(null);
@@ -172,7 +172,9 @@ export default function Home() {
   }, [attachMenuOpen]);
 
   useEffect(() => {
-    if (window.matchMedia("(max-width: 720px)").matches) setSidebarOpen(false);
+    // Keep the mobile interface free of an initial full-screen sidebar overlay.
+    // Desktop retains its expanded navigation by default.
+    if (!window.matchMedia("(max-width: 720px)").matches) setSidebarOpen(true);
   }, []);
 
   useEffect(() => {
