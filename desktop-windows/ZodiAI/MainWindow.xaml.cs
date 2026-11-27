@@ -1,8 +1,10 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
 using Windows.System;
@@ -125,12 +127,34 @@ public sealed partial class MainWindow : Window
         await Task.Delay(1800);
         try
         {
-            var result = await AppUpdater.CheckAndInstallAsync();
-            if (result == "INSTALLER_STARTED")
+            var installerPath = await AppUpdater.CheckAndInstallAsync();
+            if (installerPath == "NO_UPDATE") return;
+
+            var dialog = new ContentDialog
             {
+                XamlRoot = AppWebView.XamlRoot,
+                Title = "Mise à jour ZODIX disponible",
+                Content = "La version 1.7.5.3 est prête. Veux-tu l'installer maintenant ? ZODIX se fermera pendant l'installation.",
+                PrimaryButtonText = "Installer",
+                CloseButtonText = "Plus tard",
+                DefaultButton = ContentDialogButton.Primary
+            };
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+                Process.Start(new ProcessStartInfo(installerPath) { UseShellExecute = true });
                 Application.Current.Exit();
             }
         }
-        catch { /* The web app remains usable when the release service is offline. */ }
+        catch (Exception ex)
+        {
+            var dialog = new ContentDialog
+            {
+                XamlRoot = AppWebView.XamlRoot,
+                Title = "Vérification des mises à jour impossible",
+                Content = ex.Message,
+                CloseButtonText = "Fermer"
+            };
+            await dialog.ShowAsync();
+        }
     }
 }
