@@ -38,10 +38,6 @@ const OPENROUTER_TIMEOUT_MS = Math.min(
   15_000,
   Math.max(8_000, Number(process.env.ZODI_AI_OPENROUTER_TIMEOUT_MS) || 15_000)
 );
-const OPENAI_TIMEOUT_MS = Math.min(
-  10_000,
-  Math.max(5_000, Number(process.env.ZODI_AI_OPENAI_TIMEOUT_MS) || 10_000)
-);
 
 function isOpenRouterKey(value: string) {
   return /^sk-or-/i.test(value.trim());
@@ -200,7 +196,7 @@ async function postJson(
 
   const timeoutMs = typeof payload.__timeoutMs === "number"
     ? Math.min(OPENROUTER_TIMEOUT_MS, payload.__timeoutMs)
-    : config.name === "openrouter" ? OPENROUTER_TIMEOUT_MS : OPENAI_TIMEOUT_MS;
+    : OPENROUTER_TIMEOUT_MS;
   const requestPayload = { ...payload };
   delete requestPayload.__timeoutMs;
 
@@ -340,32 +336,7 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
     throw lastError || new Error("ALL_OPENROUTER_MODELS_FAILED");
   }
 
-  if (!history.some((item) => item.images?.length)) try {
-    const response = await postJson(config, "responses", {
-      model: config.model,
-      instructions: system,
-      input: buildResponsesInput(history),
-      max_output_tokens: 4096
-    }, signal);
-    const reply = extractResponsesText(response);
-    if (reply) return { reply, model: response.model || config.model };
-    throw new Error("EMPTY_PROVIDER_RESPONSE");
-  } catch (error) {
-    if (!shouldTryChatCompletions(error)) throw error;
-    console.warn("ZODIX Responses API incompatible or empty; trying Chat Completions.", {
-      provider: config.name,
-      model: config.model
-    });
-  }
-
-  const response = await postJson(config, "chat/completions", {
-    model: config.model,
-    messages,
-    max_completion_tokens: 4096
-  }, signal);
-  const reply = extractChatText(response);
-  if (!reply) throw new Error("EMPTY_PROVIDER_RESPONSE");
-  return { reply, model: response.model || config.model };
+  throw lastError || new Error("ALL_OPENROUTER_MODELS_FAILED");
 }
 
 function cleanAssistantReply(value: string) {
