@@ -887,3 +887,23 @@ body{min-height:0}
     flex-basis:21px;
   }
 }
+
+
+/* ZODIX desktop: use the full available window and keep a compact navigation rail. */
+@media (min-width:721px){
+  .chatgpt-shell{grid-template-columns:252px minmax(0,1fr);min-width:0}
+  .chatgpt-shell.sidebar-collapsed{grid-template-columns:68px minmax(0,1fr)}
+  .chatgpt-shell.sidebar-collapsed .sidebar{width:68px;min-width:0;padding:10px 7px;overflow:hidden}
+  .chatgpt-shell.sidebar-collapsed .sidebar-top{flex-direction:column;justify-content:flex-start;align-items:center;gap:8px;margin-bottom:12px}
+  .chatgpt-shell.sidebar-collapsed .history-search{display:none}
+  .chatgpt-shell.sidebar-collapsed .conversation-item-wrap{justify-content:center}
+  .chatgpt-shell.sidebar-collapsed .conversation-item{width:48px;min-width:48px;max-width:48px;flex:0 0 48px;justify-content:center;padding:8px 0}
+  .chatgpt-shell.sidebar-collapsed .conversation-title,
+  .chatgpt-shell.sidebar-collapsed .conversation-delete-button,
+  .chatgpt-shell.sidebar-collapsed .history-empty{display:none}
+  .chatgpt-shell.sidebar-collapsed .conversation-item-wrap .conversation-item svg{flex:none}
+  .messages-container{width:100%;max-width:none;padding-inline:clamp(20px,3vw,44px)}
+  .welcome-panel{width:100%;max-width:none}
+  .composer-area{width:100%;max-width:none;padding-inline:clamp(16px,2.5vw,36px)}
+  .chat-composer{width:100%;max-width:none}
+}
