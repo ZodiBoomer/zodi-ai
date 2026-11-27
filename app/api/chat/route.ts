@@ -336,7 +336,6 @@ async function generateWithProvider(config: ProviderConfig, history: ChatMessage
     throw lastError || new Error("ALL_OPENROUTER_MODELS_FAILED");
   }
 
-  throw lastError || new Error("ALL_OPENROUTER_MODELS_FAILED");
 }
 
 function cleanAssistantReply(value: string) {
