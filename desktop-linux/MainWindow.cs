@@ -28,8 +28,8 @@ public sealed class MainWindow : Window
         Title = "ZODIX";
         Width = 1180;
         Height = 780;
-        MinWidth = 720;
-        MinHeight = 520;
+        MinWidth = 480;
+        MinHeight = 420;
         Background = new SolidColorBrush(Color.Parse("#151515"));
 
         var iconPath = Path.Combine(AppContext.BaseDirectory, "zodix-logo.png");
