@@ -5,7 +5,7 @@ export const maxDuration = 60;
 
 type ChatMessage = { role: "user" | "assistant"; content: string; images?: ChatImage[] };
 type ChatImage = { dataUrl: string; mimeType: "image/jpeg" | "image/png" | "image/webp" };
-type CloudProvider = "openai" | "openrouter";
+type CloudProvider = "openrouter";
 
 type ProviderResponse = {
   model?: string;
@@ -22,7 +22,6 @@ type ProviderConfig = {
   model: string;
 };
 
-const OPENAI_DEFAULT_MODEL = "gpt-5.5";
 const OPENROUTER_DEFAULT_MODEL = "openrouter/free";
 const DEFAULT_OPENROUTER_FALLBACKS = [
   "nvidia/nemotron-3-ultra-550b-a55b:free",
@@ -53,54 +52,15 @@ function isOpenRouterUrl(value: string) {
 }
 
 function getProviderConfigs(): ProviderConfig[] {
-  const openRouterKey = String(
-    process.env.OPENROUTER_API_KEY ||
-    (isOpenRouterKey(String(process.env.OPENAI_API_KEY || "")) ? process.env.OPENAI_API_KEY : "") ||
-    (isOpenRouterUrl(String(process.env.OPENAI_BASE_URL || process.env.OPENAI_API_BASE_URL || ""))
-      ? process.env.OPENAI_API_KEY
-      : "")
-  ).trim();
-
-  const openAiKey = String(
-    process.env.OPENAI_DIRECT_API_KEY ||
-    (!isOpenRouterKey(String(process.env.OPENAI_API_KEY || "")) &&
-      !isOpenRouterUrl(String(process.env.OPENAI_BASE_URL || process.env.OPENAI_API_BASE_URL || ""))
-      ? process.env.OPENAI_API_KEY
-      : "")
-  ).trim();
-
-  const openRouterModel =
-    String(process.env.OPENROUTER_MODEL || process.env.OPENAI_MODEL || "").trim() ||
-    OPENROUTER_DEFAULT_MODEL;
-  const openAiModel = String(process.env.OPENAI_MODEL || "").trim() || OPENAI_DEFAULT_MODEL;
-
-  const configs: ProviderConfig[] = [];
-  if (openRouterKey) {
-    const legacyBase = String(process.env.OPENAI_BASE_URL || process.env.OPENAI_API_BASE_URL || "").trim();
-    configs.push({
-      name: "openrouter",
-      apiKey: openRouterKey,
-      baseUrl: String(process.env.OPENROUTER_BASE_URL || (isOpenRouterUrl(legacyBase) ? legacyBase : "") || "https://openrouter.ai/api/v1").trim().replace(/\/+$/, ""),
-      model: openRouterModel
-    });
-  }
-
-  if (openAiKey) {
-    const legacyBase = String(process.env.OPENAI_BASE_URL || process.env.OPENAI_API_BASE_URL || "").trim();
-    configs.push({
-      name: "openai",
-      apiKey: openAiKey,
-      baseUrl: String(process.env.OPENAI_DIRECT_BASE_URL || (!isOpenRouterUrl(legacyBase) ? legacyBase : "") || "https://api.openai.com/v1").trim().replace(/\/+$/, ""),
-      model: openAiModel
-    });
-  }
-
-  const preferred = String(process.env.ZODI_AI_PROVIDER || "").trim().toLowerCase();
-  if (preferred === "openai" || preferred === "openrouter") {
-    configs.sort((a, b) => Number(b.name === preferred) - Number(a.name === preferred));
-  }
-
-  return configs;
+  const apiKey = String(process.env.OPENROUTER_API_KEY || "").trim();
+  if (!apiKey) return [];
+  const model = String(process.env.OPENROUTER_MODEL || "").trim() || OPENROUTER_DEFAULT_MODEL;
+  return [{
+    name: "openrouter",
+    apiKey,
+    baseUrl: String(process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1").trim().replace(/\/+$/, ""),
+    model
+  }];
 }
 
 function getOpenRouterFallbackModels(primary: string) {
@@ -163,7 +123,7 @@ function getSystemPrompt() {
     "",
     "CONTEXTE TECHNIQUE DE ZODI AI",
     "ZODIX est une application conversationnelle hébergée dans le cloud. N'affirme pas qu'une IA locale ou Ollama est utilisée : l'architecture actuelle est cloud uniquement.",
-    "Le serveur peut router les demandes vers OpenRouter et, si une clé indépendante est configurée, OpenAI direct. Les modèles et fournisseurs réellement actifs peuvent changer selon la configuration et leur disponibilité.",
+    "Le serveur utilise exclusivement OpenRouter pour les réponses IA. Aucun appel à l’API OpenAI directe ni à un autre fournisseur n’est autorisé.",
     "Un modèle de secours n'annule pas les quotas, les crédits, les limites ou les pannes du compte fournisseur. Explique cette limite sans promettre une disponibilité absolue.",
     "Ne prétends pas pouvoir accéder directement au dépôt GitHub, à Vercel, à Notion ou aux comptes connectés depuis le chat Zodi, sauf si une intégration dédiée est effectivement présente et utilisée.",
     "",
@@ -415,10 +375,10 @@ function cleanAssistantReply(value: string) {
 function getPublicError(error: unknown) {
   const message = error instanceof Error ? error.message : "";
   if (message.startsWith("MISSING_KEY:")) {
-    return "Aucune clé API cloud valide n'est configurée dans Vercel.";
+    return "La clé API OpenRouter (OPENROUTER_API_KEY) n'est pas configurée dans Vercel.";
   }
   if (message.includes("PROVIDER_HTTP_401")) {
-    return "La clé OpenAI (OPENAI_API_KEY) utilisée par cet environnement Vercel a été refusée (401 invalid_api_key). Elle est invalide, révoquée ou ne correspond pas au fournisseur. Vérifie la variable OPENAI_API_KEY dans les paramètres Vercel de l’environnement Preview, puis redéploie la Preview. Si tu utilises OpenRouter, configure plutôt OPENROUTER_API_KEY.";
+    return "La clé OpenRouter (OPENROUTER_API_KEY) a été refusée (401). Vérifie qu’elle est valide et active dans Vercel.";
   }
   if (isOpenRouterInFlightBudgetError(error)) {
     return "OpenRouter a bloqué la requête car son coût estimé dépasse le budget disponible pour les requêtes en cours. Zodi a réduit automatiquement la limite de génération et réessayé. Si le blocage persiste, attends la fin des requêtes en cours ou ajoute des crédits.";
@@ -479,7 +439,7 @@ export async function POST(request: Request) {
   const providers = getProviderConfigs();
   if (!providers.length) {
     return NextResponse.json(
-      { error: "Aucun fournisseur IA n'est configuré dans cet environnement Vercel. Ajoute OPENAI_API_KEY pour OpenAI ou OPENROUTER_API_KEY pour OpenRouter dans le scope Preview." },
+      { error: "OpenRouter n'est pas configuré dans cet environnement Vercel. Ajoute OPENROUTER_API_KEY dans les environnements Production, Preview et Development." },
       { status: 503 }
     );
   }
