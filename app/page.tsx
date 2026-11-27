@@ -121,6 +121,9 @@ export default function Home() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const otherInputRef = useRef<HTMLInputElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [status, setStatus] = useState("Connexion au service…");
@@ -248,55 +251,281 @@ export default function Home() {
     setRevealedDeleteId(null);
   }
   async function addImages(files: FileList | null) {
-    if (!files) return;
-    const selected = Array.from(files).filter((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type));
-    if (selected.length !== files.length) setStatus("Formats acceptés : JPG, PNG et WEBP.");
+    if (!files?.length) return;
+    const selected = Array.from(files).filter((file) => file.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif|avif|gif|bmp|tiff?)$/i.test(file.name));
+    if (selected.length !== files.length) setStatus("Le bouton Photos accepte uniquement les images.");
     if (pendingImages.length + selected.length > 4) { setStatus("Tu peux joindre 4 images maximum."); return; }
     const converted: ImageAttachment[] = [];
     for (const file of selected) {
       try {
-        const source = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(new Error("Lecture impossible")); reader.readAsDataURL(file);
-        });
-        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-          const image = new Image(); image.onload = () => resolve(image); image.onerror = () => reject(new Error("Image illisible")); image.src = source;
-        });
-        const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
-        const canvas = document.createElement("canvas"); canvas.width = Math.max(1, Math.round(img.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
-        const context = canvas.getContext("2d"); if (!context) throw new Error("Conversion image impossible");
-        context.drawImage(img, 0, 0, canvas.width, canvas.height);
-        let dataUrl = canvas.toDataURL("image/jpeg", 0.82);
-        let quality = 0.72;
-        while (dataUrl.length > 950000 && quality > 0.4) { dataUrl = canvas.toDataURL("image/jpeg", quality); quality -= 0.1; }
-        if (dataUrl.length > 950000) throw new Error("Image trop volumineuse après compression.");
-        const imageBytes = Math.floor((dataUrl.length - dataUrl.indexOf(",") - 1) * 3 / 4);
+        const form = new FormData();
+        form.append("file", file, file.name);
+        const response = await fetch("/api/files/image", { method: "POST", body: form });
+        const data = await response.json() as { ok?: boolean; name?: string; dataUrl?: string; mimeType?: "image/jpeg"; error?: string };
+        if (!response.ok || !data.ok || !data.dataUrl) throw new Error(data.error || "Conversion de l’image impossible.");
+        const imageBytes = Math.floor((data.dataUrl.length - data.dataUrl.indexOf(",") - 1) * 3 / 4);
         const usedBytes = [...pendingImages, ...converted].reduce((sum, image) => sum + Math.floor((image.dataUrl.length - image.dataUrl.indexOf(",") - 1) * 3 / 4), 0);
         if (usedBytes + imageBytes > 2 * 1024 * 1024) throw new Error("Les photos jointes ne doivent pas dépasser 2 Mo au total.");
-        converted.push({ dataUrl, mimeType: "image/jpeg", name: file.name });
-      } catch (error) { setStatus(error instanceof Error ? error.message : "Image invalide."); }
+        converted.push({ dataUrl: data.dataUrl, mimeType: "image/jpeg", name: data.name || file.name });
+      } catch (error) {
+        setStatus(`${file.name} : ${error instanceof Error ? error.message : "image illisible"}`);
+      }
     }
     setPendingImages((current) => [...current, ...converted].slice(0, 4));
     if (imageInputRef.current) imageInputRef.current.value = "";
   }
-  async function addTextFiles(files: FileList | null) {
-    if (!files) return;
-    const accepted = Array.from(files);
+  async function addExtractedFiles(files: FileList | null, kind: "document" | "audio" | "other") {
+    if (!files?.length) return;
+    const selected = Array.from(files);
     const parts: string[] = [];
-    for (const file of accepted) {
-      if (!/\.(txt|md|csv|json|log)$/i.test(file.name) && !["text/plain","text/markdown","text/csv","application/json"].includes(file.type)) {
-        setStatus(`Le fichier ${file.name} n'est pas encore pris en charge. Utilise TXT, MD, CSV ou JSON.`);
+    const maxPromptCharacters = Math.max(0, 30_000 - input.length);
+    if (maxPromptCharacters === 0) { setStatus("Raccourcis ton message avant d’ajouter des fichiers."); return; }
+    let extractedCharacters = 0;
+    const addPart = (part: string) => {
+      const remaining = maxPromptCharacters - extractedCharacters;
+      if (remaining <= 0) return false;
+      if (part.length > remaining) {
+        const marker = "\n[Contenu tronqué pour respecter la limite du message.]";
+        parts.push(remaining <= marker.length ? marker.slice(0, remaining) : part.slice(0, remaining - marker.length) + marker);
+        extractedCharacters = maxPromptCharacters;
+        return false;
+      }
+      parts.push(part);
+      extractedCharacters += part.length;
+      return true;
+    };
+    const archiveExtensions = /\.(zip|rar|7z|tar|tgz|gz|bz2|xz|iso|cab|arj|lha|lzh|cpio|deb|rpm)$/i;
+    const readableExtensions = new Set([
+      "pdf","doc","docx","docm","dotx","dotm","rtf","odt","epub","tex",
+      "xls","xlsx","xlsm","xlsb","xltx","ods","ppt","pps","pot","pptx","pptm","ppsx","ppsm","odp","odg",
+      "txt","md","markdown","csv","tsv","json","xml","html","htm","css","js","jsx","ts","tsx",
+      "py","java","c","cpp","h","hpp","cs","go","rs","php","rb","swift","kt","sql","yaml","yml","toml","ini","conf","log","sh","bash","bat","ps1","env","svg"
+    ]);
+    const readFileForPrompt = async (file: File, displayName = file.name) => {
+      const form = new FormData();
+      form.append("file", file, file.name);
+      const response = await fetch("/api/files/extract", { method: "POST", body: form });
+      const data = await response.json() as { ok?: boolean; name?: string; kind?: string; text?: string; truncated?: boolean; error?: string };
+      if (!response.ok || !data.ok || !data.text) throw new Error(data.error || "Lecture du fichier impossible.");
+      return `[Contenu extrait de ${displayName} — ${data.kind || kind}]
+${data.text}${data.truncated ? "\n[Contenu tronqué pour respecter la limite de lecture.]" : ""}`;
+    };
+
+    for (const file of selected) {
+      const isArchive = archiveExtensions.test(file.name);
+      if (file.size > (isArchive ? 80 : 4) * 1024 * 1024) {
+        setStatus(`Le fichier ${file.name} dépasse la limite de ${isArchive ? "80" : "4"} Mo.`);
         continue;
       }
-      if (file.size > 500_000) { setStatus(`Le fichier ${file.name} dépasse la limite de 500 Ko.`); continue; }
-      try { parts.push(`[Fichier : ${file.name}]\\n${await file.text()}`); }
-      catch { setStatus(`Impossible de lire le fichier ${file.name}.`); }
+      try {
+        setStatus(`Lecture de ${file.name}…`);
+        if (isArchive) {
+          const { Archive } = await import("libarchive.js");
+          Archive.init({ workerUrl: "/libarchive-worker.js" });
+          const archive = await Archive.open(file);
+          try {
+            if (await archive.hasEncryptedData()) {
+              const password = window.prompt(`L’archive ${file.name} est protégée. Saisis son mot de passe (il ne sera pas enregistré).`);
+              if (password === null) throw new Error("Lecture de l’archive annulée.");
+              await archive.usePassword(password);
+            }
+            const tree = await archive.getFilesObject() as Record<string, unknown>;
+            const entries: Array<{ path: string; entry: { size: number; extract: () => Promise<File> } }> = [];
+            const walk = (node: Record<string, unknown>, prefix = "") => {
+              for (const [name, value] of Object.entries(node)) {
+                const path = prefix ? `${prefix}/${name}` : name;
+                if (value && typeof value === "object" && typeof (value as { extract?: unknown }).extract === "function") {
+                  entries.push({ path, entry: value as { size: number; extract: () => Promise<File> } });
+                } else if (value && typeof value === "object") {
+                  walk(value as Record<string, unknown>, path);
+                }
+              }
+            };
+            walk(tree);
+            if (entries.length > 100) throw new Error("Cette archive contient plus de 100 fichiers.");
+            let extractedBytes = 0;
+            let extractedCount = 0;
+            for (const item of entries) {
+              const ext = item.path.split(".").pop()?.toLowerCase() || "";
+              if (!readableExtensions.has(ext)) continue;
+              if (!Number.isFinite(item.entry.size) || item.entry.size < 0 || item.entry.size > 4 * 1024 * 1024) continue;
+              if (extractedBytes + item.entry.size > 4 * 1024 * 1024) break;
+              const innerFile = await item.entry.extract();
+              extractedBytes += innerFile.size;
+              if (extractedBytes > 4 * 1024 * 1024) throw new Error("Le contenu extrait de l’archive dépasse 4 Mo.");
+              if (!addPart(await readFileForPrompt(innerFile, `${file.name} → ${item.path}`))) break;
+              extractedCount += 1;
+              if (extractedCount >= 25) break;
+            }
+            if (!extractedCount) throw new Error("Aucun document ou fichier texte pris en charge n’a été trouvé dans cette archive.");
+            setStatus(`${extractedCount} fichier(s) lu(s) dans ${file.name}.`);
+          } finally {
+            await archive.close();
+          }
+          continue;
+        }
+        if (!addPart(await readFileForPrompt(file))) break;
+      } catch (error) {
+        setStatus(`${file.name} : ${error instanceof Error ? error.message : "lecture impossible"}`);
+      }
     }
-    if (parts.length) setInput((current) => [current, ...parts].filter(Boolean).join("\\n\\n"));
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (parts.length) {
+      setInput((current) => [current, ...parts].filter(Boolean).join("\n\n"));
+      setStatus(`${parts.length} contenu(s) de fichier(s) lu(s) et ajouté(s) au message.`);
+    }
+    if (kind === "document" && fileInputRef.current) fileInputRef.current.value = "";
+    if (kind === "audio" && audioInputRef.current) audioInputRef.current.value = "";
+    if (kind === "other" && otherInputRef.current) otherInputRef.current.value = "";
     setAttachMenuOpen(false);
   }
 
+  async function addVideoFiles(files: FileList | null) {
+    if (!files?.length) return;
+    const selected = Array.from(files);
+    const frames: ImageAttachment[] = [];
+    const videoNotes: string[] = [];
+    for (const file of selected) {
+      if (!file.type.startsWith("video/") && !/\.(mp4|mov|webm|m4v|avi|mkv|mpg)$/i.test(file.name)) {
+        setStatus(`${file.name} n'est pas reconnu comme vidéo.`);
+        continue;
+      }
+      if (file.size > 80 * 1024 * 1024) {
+        setStatus(`${file.name} dépasse la limite de 80 Mo pour l'extraction d'images.`);
+        continue;
+      }
+      const url = URL.createObjectURL(file);
+      try {
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.playsInline = true;
+        video.src = url;
+        await new Promise<void>((resolve, reject) => {
+          video.onloadedmetadata = () => resolve();
+          video.onerror = () => reject(new Error("Vidéo illisible par ce navigateur."));
+        });
+        if (!Number.isFinite(video.duration) || video.duration <= 0) throw new Error("Durée vidéo inconnue.");
 
+        // Capture the audio track locally, without uploading the original video.
+        const captureStream = (video as HTMLVideoElement & { captureStream?: () => MediaStream; mozCaptureStream?: () => MediaStream }).captureStream
+          || (video as HTMLVideoElement & { mozCaptureStream?: () => MediaStream }).mozCaptureStream;
+        if (captureStream && typeof MediaRecorder !== "undefined") {
+          try {
+            video.currentTime = 0;
+            video.muted = false;
+            video.volume = 0;
+            const stream = captureStream.call(video);
+            let recorder: MediaRecorder | undefined;
+            try {
+              await video.play();
+              const audioTracks = stream.getAudioTracks();
+              if (audioTracks.length) {
+                const audioStream = new MediaStream(audioTracks);
+                const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+                  ? "audio/webm;codecs=opus"
+                  : MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+                if (!mimeType) throw new Error("Ce navigateur ne sait pas encoder la piste audio en WebM.");
+                recorder = new MediaRecorder(audioStream, { mimeType, audioBitsPerSecond: 64_000 });
+                const chunks: BlobPart[] = [];
+                recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+                const stopped = new Promise<void>((resolve) => { recorder!.addEventListener("stop", () => resolve(), { once: true }); });
+                recorder.start(1000);
+                const audioDuration = Math.min(video.duration, 180);
+                try {
+                  await new Promise<void>((resolve, reject) => {
+                    let finished = false;
+                    const cleanup = () => {
+                      window.clearTimeout(limit);
+                      video.removeEventListener("ended", finish);
+                      video.removeEventListener("error", fail);
+                    };
+                    const finish = () => {
+                      if (finished) return;
+                      finished = true;
+                      cleanup();
+                      video.pause();
+                      if (recorder && recorder.state !== "inactive") recorder.stop();
+                      resolve();
+                    };
+                    const fail = () => {
+                      if (finished) return;
+                      finished = true;
+                      cleanup();
+                      reject(new Error("Lecture de la piste audio impossible."));
+                    };
+                    const limit = window.setTimeout(finish, audioDuration * 1000 + 500);
+                    video.addEventListener("ended", finish, { once: true });
+                    video.addEventListener("error", fail, { once: true });
+                  });
+                } catch (error) {
+                  if (recorder.state !== "inactive") recorder.stop();
+                  await stopped;
+                  throw error;
+                }
+                await stopped;
+                const audioBlob = new Blob(chunks, { type: mimeType });
+                if (audioBlob.size > 4 * 1024 * 1024) throw new Error("La piste audio extraite dépasse 4 Mo.");
+                if (audioBlob.size) {
+                  const audioFile = new File([audioBlob], file.name.replace(/\.[^.]+$/, "") + ".audio.webm", { type: mimeType });
+                  const form = new FormData();
+                  form.append("file", audioFile, audioFile.name);
+                  const response = await fetch("/api/files/extract", { method: "POST", body: form });
+                  const data = await response.json() as { ok?: boolean; text?: string; error?: string };
+                  if (!response.ok || !data.ok || !data.text) throw new Error(data.error || "Transcription audio vidéo impossible.");
+                  videoNotes.push(`[Transcription audio de ${file.name}${video.duration > 180 ? " — premières 3 minutes seulement" : ""}]
+${data.text}`);
+                }
+              } else {
+                video.pause();
+                videoNotes.push(`[Aucune piste audio détectée dans ${file.name}]`);
+              }
+            } finally {
+              if (recorder && recorder.state !== "inactive") recorder.stop();
+              stream.getTracks().forEach((track) => track.stop());
+            }
+          } catch (error) {
+            videoNotes.push(`[Audio de ${file.name} non transcrit : ${error instanceof Error ? error.message : "indisponible"}]`);
+          }
+        } else {
+          videoNotes.push(`[Ce navigateur ne permet pas l'extraction audio de ${file.name}]`);
+        }
+
+        const canvas = document.createElement("canvas");
+        const scale = Math.min(1, 1280 / Math.max(video.videoWidth, video.videoHeight));
+        canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+        canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Extraction des images impossible.");
+        const count = Math.min(4, Math.max(1, Math.ceil(video.duration / 15)));
+        for (let frame = 0; frame < count; frame++) {
+          video.currentTime = Math.min(Math.max(0.05, video.duration * (frame + 0.5) / count), Math.max(0, video.duration - 0.05));
+          await new Promise<void>((resolve, reject) => {
+            video.onseeked = () => resolve();
+            video.onerror = () => reject(new Error("Impossible de lire une image de la vidéo."));
+          });
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          frames.push({ dataUrl: canvas.toDataURL("image/jpeg", 0.78), mimeType: "image/jpeg", name: `${file.name} · image ${frame + 1}` });
+        }
+      } catch (error) {
+        setStatus(`${file.name} : ${error instanceof Error ? error.message : "extraction impossible"}`);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+    if (frames.length) {
+      const room = Math.max(0, 4 - pendingImages.length);
+      setPendingImages((current) => [...current, ...frames.slice(0, room)]);
+      setInput((current) => [current, "Analyse les images extraites de la ou des vidéos jointes. Ce sont des échantillons visuels, pas une lecture continue.", ...videoNotes].filter(Boolean).join("\n\n"));
+      setStatus(`${Math.min(frames.length, room)} image(s) extraite(s) et piste(s) audio traitée(s) quand possible.`);
+    } else if (videoNotes.length) {
+      setInput((current) => [current, ...videoNotes].filter(Boolean).join("\n\n"));
+    }
+    if (videoInputRef.current) videoInputRef.current.value = "";
+    setAttachMenuOpen(false);
+  }
+
+  async function addTextFiles(files: FileList | null) {
+    await addExtractedFiles(files, "document");
+  }
   function openUserMessageMenu(index: number, x: number, y: number) {
     const menuWidth = 248, menuHeight = 250, margin = 12;
     setUserMessageMenu({
@@ -518,17 +747,23 @@ export default function Home() {
         <div className="composer-area">
           <form className="chat-composer" onSubmit={send}>
             <label className="sr-only" htmlFor="message-input">Message à ZODIX</label>
-            <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
-            <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
-            <input ref={fileInputRef} type="file" accept=".txt,.md,.csv,.json,.log,text/plain,text/markdown,text/csv,application/json" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={imageInputRef} type="file" accept="image/*,.heic,.heif,.avif,.tif,.tiff,.bmp,.gif" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={cameraInputRef} type="file" accept="image/*,.heic,.heif,.avif" capture="environment" hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.docm,.dotx,.dotm,.odt,.xls,.xlsx,.xlsm,.xlsb,.xltx,.ods,.ppt,.pptx,.pptm,.ppsx,.ppsm,.odp,.odg,.txt,.md,.csv,.log,.rtf,.epub,.tex,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac,.aac,.mpga,.opus,.webm" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "audio"); }} />
+            <input ref={videoInputRef} type="file" accept="video/*,.mp4,.mov,.webm,.m4v,.avi,.mkv,.mpg" multiple hidden onChange={(event) => { void addVideoFiles(event.target.files); }} />
+            <input ref={otherInputRef} type="file" accept=".zip,.7z,.rar,.tar,.tgz,.gz,.bz2,.xz,.iso,.cab,.arj,.lha,.lzh,.cpio,.deb,.rpm,.json,.xml,.html,.css,.js,.ts,.tsx,.py,.java,.c,.cpp,.h,.hpp,.cs,.go,.rs,.php,.rb,.swift,.kt,.sql,.yaml,.yml,.toml,.ini,.sh,.bash,.bat,.ps1,.bin,.exe,.apk,.dmg,.iso" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "other"); }} />
             {pendingImages.length > 0 && <div className="composer-attachments">{pendingImages.map((image, index) => <div className="composer-attachment" key={index}><img src={image.dataUrl} alt={image.name} /><button type="button" aria-label="Retirer l'image" onClick={() => setPendingImages((all) => all.filter((_, i) => i !== index))}>×</button></div>)}</div>}
             <div className="composer-actions">
               <div className="attach-menu-wrap" ref={attachMenuRef}>
                 <button className="attach-plus" type="button" onClick={() => setAttachMenuOpen((open) => !open)} disabled={busy} aria-label="Ajouter des pièces jointes" aria-expanded={attachMenuOpen} title="Ajouter"><Icon name="plus" size={24} /></button>
                 {attachMenuOpen && <div className="attach-menu" role="menu">
                   <button type="button" role="menuitem" onClick={() => cameraInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="camera" /></span> Appareil photo</button>
-                  <button type="button" role="menuitem" onClick={() => imageInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="image" /></span> Photos</button>
-                  <button type="button" role="menuitem" onClick={() => fileInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="file-text" /></span> Fichiers</button>
+                  <button type="button" role="menuitem" onClick={() => imageInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="image" /></span> Photos uniquement</button>
+                  <button type="button" role="menuitem" onClick={() => fileInputRef.current?.click()}><span className="attach-menu-icon"><Icon name="file-text" /></span> Documents et fichiers</button>
+                  <button type="button" role="menuitem" onClick={() => audioInputRef.current?.click()}><span className="attach-menu-icon">♫</span> Musique / audio</button>
+                  <button type="button" role="menuitem" onClick={() => videoInputRef.current?.click()}><span className="attach-menu-icon">▶</span> Vidéos</button>
+                  <button type="button" role="menuitem" onClick={() => otherInputRef.current?.click()}><span className="attach-menu-icon">＋</span> Autres formats</button>
                 </div>}
               </div>
             <textarea id="message-input" value={input} onChange={(event) => setInput(event.target.value)} onInput={(event) => { const field = event.currentTarget; field.style.height = "auto"; field.style.height = `${Math.min(field.scrollHeight, 220)}px`; }} onFocus={(event) => { window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" }), 80); }} placeholder="Écris un message à ZODIX" rows={1} enterKeyHint="enter" aria-label="Message à ZODIX" onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
