@@ -648,7 +648,7 @@ ${data.text}`);
     >
       <aside className="sidebar">
         <div className="sidebar-top">
-          <button className="icon-button" type="button" onClick={() => setSidebarOpen(false)} aria-label="Réduire le menu" title="Réduire le menu"><Icon name="menu" /></button>
+          <button className="icon-button" type="button" onClick={() => setSidebarOpen((open) => !open)} aria-label="Agrandir ou réduire le menu" title="Agrandir ou réduire le menu"><Icon name="menu" /></button>
           <button className="icon-button" type="button" onClick={startNewChat} aria-label="Nouvelle discussion" title="Nouvelle discussion"><Icon name="plus" /></button>
         </div>
         <input className="history-search" type="search" value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="Rechercher une conversation…" aria-label="Rechercher dans l'historique" />
