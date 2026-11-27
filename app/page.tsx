@@ -249,6 +249,7 @@ export default function Home() {
     setActiveId(item.id);
     setInput("");
     setPendingImages([]);
+    setPendingAttachments((items) => { items.forEach((item) => { if (item.previewUrl.startsWith("blob:")) URL.revokeObjectURL(item.previewUrl); }); return []; });
     if (window.matchMedia("(max-width: 720px)").matches) setSidebarOpen(false);
   }
   function updateConversation(id: string, transform: (item: Conversation) => Conversation) {
@@ -655,7 +656,8 @@ ${data.text}`);
           sessionId = sessionData.sessionId;
         }
         const blob = await upload("sessions/" + sessionId + "/" + encodeURIComponent(item.name), item.file, {
-          access: "private", handleUploadUrl: "/api/files/upload", clientPayload: JSON.stringify({ sessionId })
+          access: "private", handleUploadUrl: "/api/files/upload", clientPayload: JSON.stringify({ sessionId }),
+          multipart: item.size > 5 * 1024 * 1024, contentType: item.contentType
         });
         const stored = { pathname: blob.pathname, name: item.name, contentType: item.contentType, size: item.size, kind: item.kind };
         storedAttachments.push(stored);
@@ -843,10 +845,10 @@ ${data.text}`);
             <label className="sr-only" htmlFor="message-input">Message à ZODIX</label>
             <input ref={imageInputRef} type="file" accept="image/*,.heic,.heif,.avif,.tif,.tiff,.bmp,.gif" multiple hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={cameraInputRef} type="file" accept="image/*,.heic,.heif,.avif" capture="environment" hidden onChange={(event) => { void addImages(event.target.files); setAttachMenuOpen(false); }} />
-            <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.docm,.dotx,.dotm,.odt,.xls,.xlsx,.xlsm,.xlsb,.xltx,.ods,.ppt,.pptx,.pptm,.ppsx,.ppsm,.odp,.odg,.txt,.md,.csv,.log,.rtf,.epub,.tex,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
+            <input ref={fileInputRef} type="file" multiple hidden onChange={(event) => { void addTextFiles(event.target.files); setAttachMenuOpen(false); }} />
             <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac,.aac,.mpga,.opus,.webm" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "audio"); }} />
             <input ref={videoInputRef} type="file" accept="video/*,.mp4,.mov,.webm,.m4v,.avi,.mkv,.mpg" multiple hidden onChange={(event) => { void addVideoFiles(event.target.files); }} />
-            <input ref={otherInputRef} type="file" accept=".zip,.7z,.rar,.tar,.tgz,.gz,.bz2,.xz,.iso,.cab,.arj,.lha,.lzh,.cpio,.deb,.rpm,.json,.xml,.html,.css,.js,.ts,.tsx,.py,.java,.c,.cpp,.h,.hpp,.cs,.go,.rs,.php,.rb,.swift,.kt,.sql,.yaml,.yml,.toml,.ini,.sh,.bash,.bat,.ps1,.bin,.exe,.apk,.dmg,.iso" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "other"); }} />
+            <input ref={otherInputRef} type="file" multiple hidden onChange={(event) => { void addExtractedFiles(event.target.files, "other"); }} />
             {pendingAttachments.length > 0 && <div className="composer-attachments" aria-label="Pièces jointes en attente">
               {pendingAttachments.map((item) => <div className={`composer-attachment-card ${item.kind}`} key={item.id}>
                 {item.kind === "image" ? <img src={item.previewUrl} alt={item.name} /> : null}
